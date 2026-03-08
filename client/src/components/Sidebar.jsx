@@ -26,7 +26,7 @@ export default function Sidebar() {
     >
       {/* Logo */}
       <div
-        className="flex items-center gap-3 px-6 py-5"
+        className="flex items-center gap-3 px-5 h-[65px]"
         style={{ borderBottom: "1px solid #A5D6A7" }}
       >
         <div className="bg-green-600 p-2 rounded-xl shadow-md">

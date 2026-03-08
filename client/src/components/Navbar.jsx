@@ -18,7 +18,7 @@ export default function Navbar({ title }) {
 
   return (
     <div
-      className="flex items-center justify-between px-6 py-3"
+      className="flex items-center justify-between px-6 h-[65px]"
       style={{
         background: "linear-gradient(90deg, #E8F5E9 0%, #F1F8F1 100%)",
         borderBottom: "1px solid #C8E6C9",
