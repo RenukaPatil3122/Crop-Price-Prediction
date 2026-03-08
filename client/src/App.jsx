@@ -20,16 +20,15 @@ const routes = [
 
 function Layout({ title, children }) {
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="flex min-h-screen" style={{ backgroundColor: "#F6F8F4" }}>
       <Sidebar />
-      <div className="flex-1 ml-64 flex flex-col">
+      <div className="flex-1 ml-56 flex flex-col">
         <Navbar title={title} />
         <main className="flex-1 p-8">{children}</main>
       </div>
     </div>
   );
 }
-
 export default function App() {
   return (
     <ThemeProvider>
