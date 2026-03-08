@@ -1,7 +1,291 @@
+import {
+  TrendingUp,
+  TrendingDown,
+  IndianRupee,
+  Sprout,
+  BarChart3,
+} from "lucide-react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
+
+const priceData = [
+  { month: "Oct", wheat: 2100, rice: 3200, tomato: 1800 },
+  { month: "Nov", wheat: 2300, rice: 3100, tomato: 2200 },
+  { month: "Dec", wheat: 2200, rice: 3400, tomato: 1600 },
+  { month: "Jan", wheat: 2500, rice: 3300, tomato: 2800 },
+  { month: "Feb", wheat: 2400, rice: 3600, tomato: 3200 },
+  { month: "Mar", wheat: 2800, rice: 3500, tomato: 2900 },
+];
+
+const metricCards = [
+  {
+    title: "Predicted Price",
+    value: "₹2,847",
+    sub: "Wheat · Next Week",
+    icon: IndianRupee,
+    trend: "+12.4%",
+    up: true,
+    bg: "#F0FDF4",
+    border: "#BBF7D0",
+    iconBg: "#16A34A",
+  },
+  {
+    title: "Confidence Score",
+    value: "87.3%",
+    sub: "Model Accuracy",
+    icon: BarChart3,
+    trend: "+2.1%",
+    up: true,
+    bg: "#EFF6FF",
+    border: "#BFDBFE",
+    iconBg: "#2563EB",
+  },
+  {
+    title: "Price Trend",
+    value: "Rising",
+    sub: "Tomato · Maharashtra",
+    icon: TrendingUp,
+    trend: "+8.7%",
+    up: true,
+    bg: "#FFF7ED",
+    border: "#FED7AA",
+    iconBg: "#EA580C",
+  },
+];
+
+const recentPredictions = [
+  {
+    crop: "Wheat",
+    region: "Punjab",
+    price: "₹2,847",
+    change: "+12%",
+    up: true,
+  },
+  { crop: "Rice", region: "Haryana", price: "₹3,520", change: "+5%", up: true },
+  {
+    crop: "Tomato",
+    region: "Maharashtra",
+    price: "₹2,900",
+    change: "-3%",
+    up: false,
+  },
+  {
+    crop: "Onion",
+    region: "Nashik",
+    price: "₹1,650",
+    change: "+18%",
+    up: true,
+  },
+  {
+    crop: "Cotton",
+    region: "Gujarat",
+    price: "₹6,200",
+    change: "-7%",
+    up: false,
+  },
+];
+
+const topCrops = [
+  { name: "Wheat", emoji: "🌾", price: "₹2,847", region: "Punjab" },
+  { name: "Rice", emoji: "🍚", price: "₹3,520", region: "Haryana" },
+  { name: "Tomato", emoji: "🍅", price: "₹2,900", region: "Maharashtra" },
+  { name: "Onion", emoji: "🧅", price: "₹1,650", region: "Nashik" },
+];
+
 export default function Dashboard() {
   return (
-    <div className="text-gray-800 dark:text-white text-2xl font-bold">
-      Dashboard
+    <div className="flex flex-col gap-6">
+      {/* Metric Cards */}
+      <div className="grid grid-cols-3 gap-5">
+        {metricCards.map(
+          ({
+            title,
+            value,
+            sub,
+            icon: Icon,
+            trend,
+            up,
+            bg,
+            border,
+            iconBg,
+          }) => (
+            <div
+              key={title}
+              className="rounded-2xl p-5 shadow-sm"
+              style={{ backgroundColor: bg, border: `1px solid ${border}` }}
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm text-gray-500 font-medium">{title}</p>
+                  <h3 className="text-2xl font-bold text-gray-800 mt-1">
+                    {value}
+                  </h3>
+                  <p className="text-xs text-gray-400 mt-1">{sub}</p>
+                </div>
+                <div
+                  className="p-3 rounded-xl"
+                  style={{ backgroundColor: iconBg }}
+                >
+                  <Icon className="w-5 h-5 text-white" />
+                </div>
+              </div>
+              <div className="flex items-center gap-1 mt-3">
+                {up ? (
+                  <TrendingUp className="w-4 h-4 text-green-500" />
+                ) : (
+                  <TrendingDown className="w-4 h-4 text-red-500" />
+                )}
+                <span
+                  className={`text-sm font-semibold ${up ? "text-green-600" : "text-red-500"}`}
+                >
+                  {trend}
+                </span>
+                <span className="text-xs text-gray-400 ml-1">vs last week</span>
+              </div>
+            </div>
+          ),
+        )}
+      </div>
+
+      {/* Main Content */}
+      <div className="grid grid-cols-3 gap-5">
+        {/* Chart - takes 2 cols */}
+        <div className="col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-bold text-gray-800">Price Trends</h3>
+              <p className="text-sm text-gray-400">
+                Last 6 months · ₹ per quintal
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {["1M", "3M", "6M", "1Y"].map((period) => (
+                <button
+                  key={period}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-all
+                    ${
+                      period === "6M"
+                        ? "bg-green-600 text-white"
+                        : "bg-gray-100 text-gray-500 hover:bg-green-50"
+                    }`}
+                >
+                  {period}
+                </button>
+              ))}
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={priceData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" />
+              <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#9CA3AF" }} />
+              <YAxis tick={{ fontSize: 12, fill: "#9CA3AF" }} />
+              <Tooltip
+                contentStyle={{
+                  borderRadius: "12px",
+                  border: "1px solid #E5E7EB",
+                }}
+              />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="wheat"
+                stroke="#16A34A"
+                strokeWidth={2}
+                dot={{ r: 4 }}
+                name="Wheat"
+              />
+              <Line
+                type="monotone"
+                dataKey="rice"
+                stroke="#2563EB"
+                strokeWidth={2}
+                dot={{ r: 4 }}
+                name="Rice"
+              />
+              <Line
+                type="monotone"
+                dataKey="tomato"
+                stroke="#EA580C"
+                strokeWidth={2}
+                dot={{ r: 4 }}
+                name="Tomato"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Right Panel */}
+        <div className="flex flex-col gap-5">
+          {/* Recent Predictions */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex-1">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-gray-800">
+                Recent Predictions
+              </h3>
+              <button className="text-xs text-green-600 font-medium hover:underline">
+                View all
+              </button>
+            </div>
+            <div className="flex flex-col gap-3">
+              {recentPredictions.map(({ crop, region, price, change, up }) => (
+                <div key={crop} className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700">
+                      {crop}
+                    </p>
+                    <p className="text-xs text-gray-400">{region}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-gray-800">{price}</p>
+                    <p
+                      className={`text-xs font-semibold ${up ? "text-green-500" : "text-red-500"}`}
+                    >
+                      {change}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Top Crops */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-gray-800">
+                Top Crops Today
+              </h3>
+              <Sprout className="w-4 h-4 text-green-500" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {topCrops.map(({ name, emoji, price, region }) => (
+                <div
+                  key={name}
+                  className="rounded-xl p-3 text-center"
+                  style={{
+                    backgroundColor: "#F0FDF4",
+                    border: "1px solid #BBF7D0",
+                  }}
+                >
+                  <div className="text-2xl mb-1">{emoji}</div>
+                  <p className="text-xs font-bold text-gray-700">{name}</p>
+                  <p className="text-xs text-green-600 font-semibold">
+                    {price}
+                  </p>
+                  <p className="text-xs text-gray-400">{region}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
