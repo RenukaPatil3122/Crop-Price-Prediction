@@ -95,33 +95,28 @@ const recentPredictions = [
   },
 ];
 
-// Using picsum with specific seeds for consistent crop-like images
 const topCrops = [
   {
     name: "Wheat",
     price: "₹2,847",
-    region: "Punjab",
     image:
       "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=300&q=80&auto=format&fit=crop",
   },
   {
     name: "Rice",
     price: "₹3,520",
-    region: "Haryana",
     image:
-      "https://images.unsplash.com/photo-1723475158232-819e29803f4d?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "https://images.unsplash.com/photo-1723475158232-819e29803f4d?w=300&q=80&auto=format&fit=crop",
   },
   {
     name: "Tomato",
     price: "₹2,900",
-    region: "Maharashtra",
     image:
       "https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=300&q=80&auto=format&fit=crop",
   },
   {
     name: "Onion",
     price: "₹1,650",
-    region: "Nashik",
     image:
       "https://images.unsplash.com/photo-1518977956812-cd3dbadaaf31?w=300&q=80&auto=format&fit=crop",
   },
@@ -146,6 +141,34 @@ const regions = [
   "MP",
 ];
 
+const S = {
+  inputH: { height: "36px" },
+  select: {
+    height: "36px",
+    borderRadius: "10px",
+    padding: "0 10px",
+    fontSize: "13px",
+    color: "#374151",
+    background: "white",
+    border: "none",
+    outline: "none",
+    width: "100%",
+  },
+  predictBtn: {
+    height: "36px",
+    padding: "0 18px",
+    borderRadius: "10px",
+    background: "#facc15",
+    fontWeight: 700,
+    fontSize: "13px",
+    color: "#1f2937",
+    border: "none",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
+  predictBtnDisabled: { opacity: 0.5, cursor: "not-allowed" },
+};
+
 export default function Dashboard() {
   const [selectedCrop, setSelectedCrop] = useState("");
   const [selectedRegion, setSelectedRegion] = useState("");
@@ -163,17 +186,25 @@ export default function Dashboard() {
       setPrediction({
         price: `₹${base.toLocaleString()}`,
         confidence: `${confidence}%`,
-        change: `${change > 0 ? "+" : ""}${change}%`,
+        change: `${parseFloat(change) > 0 ? "+" : ""}${change}%`,
         up: parseFloat(change) > 0,
       });
       setLoading(false);
     }, 1500);
   };
 
+  const disabled = !selectedCrop || !selectedRegion || loading;
+
   return (
-    <div className="flex flex-col gap-5">
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* Metric Cards */}
-      <div className="grid grid-cols-3 gap-5">
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          gap: "20px",
+        }}
+      >
         {metricCards.map(
           ({
             title,
@@ -188,36 +219,90 @@ export default function Dashboard() {
           }) => (
             <div
               key={title}
-              className="rounded-2xl p-5 shadow-sm"
-              style={{ backgroundColor: bg, border: `1px solid ${border}` }}
+              style={{
+                backgroundColor: bg,
+                border: `1px solid ${border}`,
+                borderRadius: "16px",
+                padding: "20px",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+              }}
             >
-              <div className="flex items-start justify-between">
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                }}
+              >
                 <div>
-                  <p className="text-sm text-gray-500 font-medium">{title}</p>
-                  <h3 className="text-2xl font-bold text-gray-800 mt-1">
+                  <p
+                    style={{
+                      fontSize: "13px",
+                      color: "#6b7280",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {title}
+                  </p>
+                  <h3
+                    style={{
+                      fontSize: "24px",
+                      fontWeight: 700,
+                      color: "#1f2937",
+                      margin: "4px 0",
+                    }}
+                  >
                     {value}
                   </h3>
-                  <p className="text-xs text-gray-400 mt-1">{sub}</p>
+                  <p style={{ fontSize: "11px", color: "#9ca3af" }}>{sub}</p>
                 </div>
                 <div
-                  className="p-3 rounded-xl"
-                  style={{ backgroundColor: iconBg }}
+                  style={{
+                    backgroundColor: iconBg,
+                    borderRadius: "10px",
+                    padding: "10px",
+                  }}
                 >
-                  <Icon className="w-5 h-5 text-white" />
+                  <Icon
+                    style={{ width: "18px", height: "18px", color: "white" }}
+                  />
                 </div>
               </div>
-              <div className="flex items-center gap-1 mt-3">
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  marginTop: "12px",
+                }}
+              >
                 {up ? (
-                  <TrendingUp className="w-4 h-4 text-green-500" />
+                  <TrendingUp
+                    style={{ width: "14px", height: "14px", color: "#22c55e" }}
+                  />
                 ) : (
-                  <TrendingDown className="w-4 h-4 text-red-500" />
+                  <TrendingDown
+                    style={{ width: "14px", height: "14px", color: "#ef4444" }}
+                  />
                 )}
                 <span
-                  className={`text-sm font-semibold ${up ? "text-green-600" : "text-red-500"}`}
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: up ? "#16a34a" : "#ef4444",
+                  }}
                 >
                   {trend}
                 </span>
-                <span className="text-xs text-gray-400 ml-1">vs last week</span>
+                <span
+                  style={{
+                    fontSize: "11px",
+                    color: "#9ca3af",
+                    marginLeft: "2px",
+                  }}
+                >
+                  vs last week
+                </span>
               </div>
             </div>
           ),
@@ -225,34 +310,61 @@ export default function Dashboard() {
       </div>
 
       {/* Main Grid */}
-      <div className="grid grid-cols-3 gap-5">
+      <div
+        style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "20px" }}
+      >
         {/* Left col */}
-        <div className="col-span-2 flex flex-col gap-5">
-          {/* Quick Predict Widget */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          {/* Quick Predict */}
           <div
-            className="rounded-2xl p-5 shadow-sm"
             style={{
               background: "linear-gradient(135deg, #166534 0%, #16A34A 100%)",
+              borderRadius: "16px",
+              padding: "20px",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
             }}
           >
-            <div className="flex items-center gap-2 mb-3">
-              <Zap className="w-5 h-5 text-yellow-300" />
-              <h3 className="text-white font-bold text-base">Quick Predict</h3>
-              <span className="text-green-200 text-xs ml-1">
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                marginBottom: "12px",
+              }}
+            >
+              <Zap
+                style={{ width: "18px", height: "18px", color: "#fde047" }}
+              />
+              <span
+                style={{ color: "white", fontWeight: 700, fontSize: "15px" }}
+              >
+                Quick Predict
+              </span>
+              <span style={{ color: "#bbf7d0", fontSize: "12px" }}>
                 Get instant price prediction
               </span>
             </div>
 
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Crop */}
-              <div className="flex-1 min-w-[120px]">
-                <label className="text-green-200 text-xs font-medium mb-1 block">
+            {/* ROW — all same height via inline styles */}
+            <div
+              style={{ display: "flex", alignItems: "flex-end", gap: "10px" }}
+            >
+              <div style={{ flex: 1 }}>
+                <label
+                  style={{
+                    color: "#bbf7d0",
+                    fontSize: "11px",
+                    fontWeight: 500,
+                    display: "block",
+                    marginBottom: "5px",
+                  }}
+                >
                   Crop
                 </label>
                 <select
                   value={selectedCrop}
                   onChange={(e) => setSelectedCrop(e.target.value)}
-                  className="w-full rounded-xl px-3 py-2 text-sm text-gray-700 bg-white outline-none"
+                  style={S.select}
                 >
                   <option value="">Select crop...</option>
                   {crops.map((c) => (
@@ -263,15 +375,22 @@ export default function Dashboard() {
                 </select>
               </div>
 
-              {/* Region */}
-              <div className="flex-1 min-w-[120px]">
-                <label className="text-green-200 text-xs font-medium mb-1 block">
+              <div style={{ flex: 1 }}>
+                <label
+                  style={{
+                    color: "#bbf7d0",
+                    fontSize: "11px",
+                    fontWeight: 500,
+                    display: "block",
+                    marginBottom: "5px",
+                  }}
+                >
                   Region
                 </label>
                 <select
                   value={selectedRegion}
                   onChange={(e) => setSelectedRegion(e.target.value)}
-                  className="w-full rounded-xl px-3 py-2 text-sm text-gray-700 bg-white outline-none"
+                  style={S.select}
                 >
                   <option value="">Select region...</option>
                   {regions.map((r) => (
@@ -282,189 +401,393 @@ export default function Dashboard() {
                 </select>
               </div>
 
-              {/* Button */}
               <button
                 onClick={handlePredict}
-                disabled={!selectedCrop || !selectedRegion || loading}
-                className="px-5 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-gray-800 font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+                disabled={disabled}
+                style={{
+                  ...S.predictBtn,
+                  ...(disabled ? S.predictBtnDisabled : {}),
+                }}
               >
                 {loading ? "⏳" : "Predict →"}
               </button>
 
-              {/* Compact Result */}
               {prediction && (
-                <div className="flex items-center gap-3 bg-white bg-opacity-20 rounded-xl px-4 py-2 mt-4">
-                  <div className="text-center">
-                    <p className="text-green-200 text-xs">Price</p>
-                    <p className="text-white font-bold text-sm">
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    background: "rgba(255,255,255,0.18)",
+                    borderRadius: "10px",
+                    padding: "0 14px",
+                    height: "36px",
+                  }}
+                >
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ color: "#bbf7d0", fontSize: "10px" }}>
+                      Price
+                    </div>
+                    <div
+                      style={{
+                        color: "white",
+                        fontWeight: 700,
+                        fontSize: "12px",
+                      }}
+                    >
                       {prediction.price}
-                    </p>
+                    </div>
                   </div>
-                  <div className="w-px h-6 bg-green-400 opacity-40" />
-                  <div className="text-center">
-                    <p className="text-green-200 text-xs">Confidence</p>
-                    <p className="text-white font-bold text-sm">
+                  <div
+                    style={{
+                      width: "1px",
+                      height: "18px",
+                      background: "rgba(255,255,255,0.25)",
+                    }}
+                  />
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ color: "#bbf7d0", fontSize: "10px" }}>
+                      Confidence
+                    </div>
+                    <div
+                      style={{
+                        color: "white",
+                        fontWeight: 700,
+                        fontSize: "12px",
+                      }}
+                    >
                       {prediction.confidence}
-                    </p>
+                    </div>
                   </div>
-                  <div className="w-px h-6 bg-green-400 opacity-40" />
-                  <div className="text-center">
-                    <p className="text-green-200 text-xs">Change</p>
-                    <p
-                      className={`font-bold text-sm ${prediction.up ? "text-yellow-300" : "text-red-300"}`}
+                  <div
+                    style={{
+                      width: "1px",
+                      height: "18px",
+                      background: "rgba(255,255,255,0.25)",
+                    }}
+                  />
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ color: "#bbf7d0", fontSize: "10px" }}>
+                      Change
+                    </div>
+                    <div
+                      style={{
+                        color: prediction.up ? "#fde047" : "#fca5a5",
+                        fontWeight: 700,
+                        fontSize: "12px",
+                      }}
                     >
                       {prediction.change}
-                    </p>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Price Trend Chart */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex-1">
-            <div className="flex items-center justify-between mb-4">
+          {/* Chart — fixed height, chart fills 100% of remaining space */}
+          <div
+            style={{
+              background: "white",
+              borderRadius: "16px",
+              border: "1px solid #f3f4f6",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+              padding: "20px 20px 12px 20px",
+              height: "320px",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                marginBottom: "12px",
+                flexShrink: 0,
+              }}
+            >
               <div>
-                <h3 className="text-base font-bold text-gray-800">
+                <div
+                  style={{
+                    fontSize: "15px",
+                    fontWeight: 700,
+                    color: "#1f2937",
+                  }}
+                >
                   Price Trends
-                </h3>
-                <p className="text-xs text-gray-400">
+                </div>
+                <div style={{ fontSize: "11px", color: "#9ca3af" }}>
                   Last 6 months · ₹ per quintal
-                </p>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                {["1M", "3M", "6M", "1Y"].map((period) => (
+              <div style={{ display: "flex", gap: "6px" }}>
+                {["1M", "3M", "6M", "1Y"].map((p) => (
                   <button
-                    key={period}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-all
-                      ${period === "6M" ? "bg-green-600 text-white" : "bg-gray-100 text-gray-500 hover:bg-green-50"}`}
+                    key={p}
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: "8px",
+                      fontSize: "11px",
+                      fontWeight: 500,
+                      border: "none",
+                      cursor: "pointer",
+                      background: p === "6M" ? "#16a34a" : "#f3f4f6",
+                      color: p === "6M" ? "white" : "#6b7280",
+                    }}
                   >
-                    {period}
+                    {p}
                   </button>
                 ))}
               </div>
             </div>
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={priceData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" />
-                <XAxis
-                  dataKey="month"
-                  tick={{ fontSize: 12, fill: "#9CA3AF" }}
-                />
-                <YAxis tick={{ fontSize: 12, fill: "#9CA3AF" }} />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: "12px",
-                    border: "1px solid #E5E7EB",
-                  }}
-                />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="wheat"
-                  stroke="#16A34A"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  name="Wheat"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="rice"
-                  stroke="#2563EB"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  name="Rice"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="tomato"
-                  stroke="#EA580C"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  name="Tomato"
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {/* This div fills all remaining space — no gap possible */}
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={priceData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" />
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fontSize: 11, fill: "#9CA3AF" }}
+                  />
+                  <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: "10px",
+                      border: "1px solid #E5E7EB",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: "12px" }} />
+                  <Line
+                    type="monotone"
+                    dataKey="wheat"
+                    stroke="#16A34A"
+                    strokeWidth={2}
+                    dot={{ r: 3 }}
+                    name="Wheat"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="rice"
+                    stroke="#2563EB"
+                    strokeWidth={2}
+                    dot={{ r: 3 }}
+                    name="Rice"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="tomato"
+                    stroke="#EA580C"
+                    strokeWidth={2}
+                    dot={{ r: 3 }}
+                    name="Tomato"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
         {/* Right Panel */}
-        <div className="flex flex-col gap-5">
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           {/* Recent Predictions */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex-1">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-gray-800">
+          <div
+            style={{
+              background: "white",
+              borderRadius: "16px",
+              border: "1px solid #f3f4f6",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+              padding: "20px",
+              flex: 1,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "16px",
+              }}
+            >
+              <span
+                style={{ fontSize: "14px", fontWeight: 700, color: "#1f2937" }}
+              >
                 Recent Predictions
-              </h3>
-              <button className="text-xs text-green-600 font-medium hover:underline">
+              </span>
+              <button
+                style={{
+                  fontSize: "12px",
+                  color: "#16a34a",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontWeight: 500,
+                }}
+              >
                 View all
               </button>
             </div>
-            <div className="flex flex-col gap-3">
-              {recentPredictions.map(({ crop, region, price, change, up }) => (
+            {recentPredictions.map(({ crop, region, price, change, up }) => (
+              <div
+                key={crop}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "8px 0",
+                  borderBottom: "1px solid #f9fafb",
+                }}
+              >
                 <div
-                  key={crop}
-                  className="flex items-center justify-between py-1 border-b border-gray-50 last:border-0"
+                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
                 >
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center">
-                      <Sprout className="w-3.5 h-3.5 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-700">
-                        {crop}
-                      </p>
-                      <p className="text-xs text-gray-400">{region}</p>
-                    </div>
+                  <div
+                    style={{
+                      width: "28px",
+                      height: "28px",
+                      borderRadius: "8px",
+                      background: "#f0fdf4",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Sprout
+                      style={{
+                        width: "14px",
+                        height: "14px",
+                        color: "#16a34a",
+                      }}
+                    />
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-gray-800">{price}</p>
-                    <p
-                      className={`text-xs font-semibold ${up ? "text-green-500" : "text-red-500"}`}
+                  <div>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: "#374151",
+                      }}
                     >
-                      {change}
-                    </p>
+                      {crop}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "#9ca3af" }}>
+                      {region}
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
+                <div style={{ textAlign: "right" }}>
+                  <div
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      color: "#1f2937",
+                    }}
+                  >
+                    {price}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      color: up ? "#22c55e" : "#ef4444",
+                    }}
+                  >
+                    {change}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
-          {/* Top Crops with Images */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-gray-800">
+          {/* Top Crops */}
+          <div
+            style={{
+              background: "white",
+              borderRadius: "16px",
+              border: "1px solid #f3f4f6",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+              padding: "20px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "14px",
+              }}
+            >
+              <span
+                style={{ fontSize: "14px", fontWeight: 700, color: "#1f2937" }}
+              >
                 Top Crops Today
-              </h3>
-              <Sprout className="w-4 h-4 text-green-500" />
+              </span>
+              <Sprout
+                style={{ width: "16px", height: "16px", color: "#22c55e" }}
+              />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "10px",
+              }}
+            >
               {topCrops.map(({ name, price, image }) => (
                 <div
                   key={name}
-                  className="rounded-xl overflow-hidden relative group cursor-pointer"
-                  style={{ height: "90px" }}
+                  style={{
+                    borderRadius: "10px",
+                    overflow: "hidden",
+                    position: "relative",
+                    height: "88px",
+                    cursor: "pointer",
+                  }}
                 >
                   <img
                     src={image}
                     alt={name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
                     onError={(e) => {
                       e.target.style.display = "none";
-                      e.target.parentElement.style.backgroundColor = "#F0FDF4";
+                      e.target.parentElement.style.backgroundColor = "#f0fdf4";
                     }}
                   />
                   <div
-                    className="absolute inset-0 flex flex-col justify-end p-2"
                     style={{
+                      position: "absolute",
+                      inset: 0,
                       background:
-                        "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)",
+                        "linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 100%)",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "flex-end",
+                      padding: "8px",
                     }}
                   >
-                    <p className="text-white text-xs font-bold">{name}</p>
-                    <p className="text-green-300 text-xs font-semibold">
+                    <div
+                      style={{
+                        color: "white",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {name}
+                    </div>
+                    <div
+                      style={{
+                        color: "#86efac",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                      }}
+                    >
                       {price}
-                    </p>
+                    </div>
                   </div>
                 </div>
               ))}
