@@ -26,12 +26,17 @@ async function del(path) {
 }
 
 // ── Predictions ───────────────────────────────────────────────────────────────
-export const quickPredict = (crop, state) =>
+
+// save=false → no DB write (used by Dashboard load, Compare, TopCrops)
+// save=true  → saves to MongoDB (used when user clicks Predict button)
+export const quickPredict = (crop, state, save = false) =>
   get(
-    `/predict/quick?crop=${encodeURIComponent(crop)}&state=${encodeURIComponent(state)}`,
+    `/predict/quick?crop=${encodeURIComponent(crop)}&state=${encodeURIComponent(state)}&save=${save}`,
   );
+
 export const fullPredict = (crop, state, month, year) =>
   post("/predict", { crop, state, month, year });
+
 export const getForecast = (crop, state, months = 6) =>
   get(
     `/forecast?crop=${encodeURIComponent(crop)}&state=${encodeURIComponent(state)}&months=${months}`,

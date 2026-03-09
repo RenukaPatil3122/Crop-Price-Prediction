@@ -58,6 +58,7 @@ def get_season(month: int) -> str:
     return "Rabi"
 
 async def save_prediction(data: dict, source: str = "full"):
+    """Save a user-initiated prediction to MongoDB."""
     try:
         doc = {
             "crop":            data["crop"],
@@ -76,7 +77,6 @@ async def save_prediction(data: dict, source: str = "full"):
             "created_at":      datetime.utcnow(),
         }
         await db.save_prediction(doc)
-        # Check price alerts after saving
         await db.check_and_trigger_alerts(data["crop"], data["predicted_price"])
     except Exception as e:
         print(f"[MongoDB] Save failed (non-fatal): {e}")
@@ -96,6 +96,7 @@ async def health():
 
 @app.post("/predict", response_model=PredictResponse)
 async def predict(req: PredictRequest, background_tasks: BackgroundTasks):
+    """Full prediction — always saves to MongoDB (user clicked Predict on Predictions page)."""
     if req.crop  not in CROPS:  raise HTTPException(400, f"Unsupported crop: {CROPS}")
     if req.state not in STATES: raise HTTPException(400, f"Unsupported state: {STATES}")
     if not (1 <= req.month <= 12): raise HTTPException(400, "Month must be 1–12")
@@ -110,15 +111,22 @@ async def predict(req: PredictRequest, background_tasks: BackgroundTasks):
 
 @app.get("/predict/quick")
 async def quick_predict(
-    crop: str = Query(...), state: str = Query(...),
+    crop:  str  = Query(...),
+    state: str  = Query(...),
+    save:  bool = Query(False),   # only save when user explicitly triggered the prediction
     background_tasks: BackgroundTasks = None,
 ):
+    """
+    Quick prediction.
+    - save=False (default): used by Dashboard load, Compare page, TopCrops — NO DB write
+    - save=True: used when user clicks the Predict button — saves to MongoDB
+    """
     now = datetime.now()
     if crop  not in CROPS:  raise HTTPException(400, f"Unsupported crop: {CROPS}")
     if state not in STATES: raise HTTPException(400, f"Unsupported state: {STATES}")
     try:
         result = predict_price(crop, state, now.month, now.year)
-        if background_tasks:
+        if save and background_tasks:
             background_tasks.add_task(save_prediction, result, "quick")
         return result
     except Exception as e:
@@ -148,6 +156,7 @@ async def predictions_history(
 
 @app.get("/predictions/recent")
 async def recent_predictions(limit: int = Query(5, ge=1, le=20)):
+    """Returns the most recent user-initiated predictions from MongoDB."""
     try:
         data, _ = await db.get_predictions(limit=limit, skip=0)
         return {"data": data}
@@ -176,7 +185,6 @@ async def update_actual_price(prediction_id: str, actual_price: float = Query(..
 
 @app.post("/alerts")
 async def create_alert(req: AlertRequest):
-    """Create a new price alert rule."""
     if req.crop not in CROPS:
         raise HTTPException(400, f"Unsupported crop: {CROPS}")
     if req.condition not in ("above", "below"):
@@ -185,7 +193,6 @@ async def create_alert(req: AlertRequest):
         raise HTTPException(400, "threshold must be > 0")
     try:
         now = datetime.utcnow().isoformat()
-        # Build doc WITHOUT _id so MongoDB doesn't inject ObjectId into our dict
         doc = {
             "crop":       req.crop,
             "condition":  req.condition,
@@ -195,7 +202,6 @@ async def create_alert(req: AlertRequest):
             "created_at": datetime.utcnow(),
         }
         alert_id = await db.create_alert(doc)
-        # Return a clean JSON-safe dict — never include _id or datetime objects
         return {
             "id":         alert_id or "mock",
             "crop":       req.crop,
@@ -210,7 +216,6 @@ async def create_alert(req: AlertRequest):
 
 @app.get("/alerts")
 async def get_alerts(active_only: bool = Query(False)):
-    """Return all alert rules."""
     try:
         return {"data": await db.get_alerts(active_only=active_only)}
     except Exception as e:
@@ -242,7 +247,6 @@ async def toggle_alert(alert_id: str, active: bool = Query(...)):
 
 @app.get("/notifications")
 async def get_notifications(limit: int = Query(20, ge=1, le=50)):
-    """Return recent notifications + unread count."""
     try:
         docs, unread = await db.get_notifications(limit=limit)
         return {"unread": unread, "data": docs}
@@ -285,14 +289,20 @@ async def price_history(commodity: str = Query(...), state: str = Query(...), da
 
 @app.get("/prices/dashboard")
 async def dashboard_prices():
+    """Live ML predictions for dashboard display — does NOT save to MongoDB."""
     top_crops = ["Wheat", "Rice", "Tomato", "Onion", "Cotton", "Maize"]
     now, result = datetime.now(), []
     for crop in top_crops:
         try:
             pred = predict_price(crop, "Punjab", now.month, now.year)
-            result.append({"crop": crop, "predicted_price": pred["predicted_price"],
-                           "confidence": pred["confidence"], "min_price": pred["min_price"],
-                           "max_price": pred["max_price"], "season": pred["season"]})
+            result.append({
+                "crop": crop,
+                "predicted_price": pred["predicted_price"],
+                "confidence": pred["confidence"],
+                "min_price": pred["min_price"],
+                "max_price": pred["max_price"],
+                "season": pred["season"],
+            })
         except Exception:
             pass
     return {"data": result}

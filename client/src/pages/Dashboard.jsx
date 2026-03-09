@@ -22,7 +22,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { quickPredict, getDashboardPrices } from "../api";
+import { quickPredict, getDashboardPrices, getRecentPredictions } from "../api";
 
 // ── Chart data per range tab ──────────────────────────────────────────────────
 const CHART_DATA = {
@@ -72,6 +72,27 @@ const CROP_CHANGES = {
   Mustard: { change: "+6%", up: true },
   Soyabean: { change: "-2%", up: false },
 };
+
+const CROP_EMOJI = {
+  Wheat: "🌾",
+  Rice: "🍚",
+  Tomato: "🍅",
+  Onion: "🧅",
+  Cotton: "🌿",
+  Maize: "🌽",
+  Potato: "🥔",
+  Mustard: "🌻",
+  Soyabean: "🫘",
+};
+
+// Static fallback for Recent Predictions (when MongoDB empty)
+const STATIC_RECENT = [
+  { crop: "Wheat", state: "Punjab", predicted_price: 2893 },
+  { crop: "Rice", state: "Punjab", predicted_price: 3754 },
+  { crop: "Tomato", state: "Maharashtra", predicted_price: 2015 },
+  { crop: "Onion", state: "Punjab", predicted_price: 2194 },
+  { crop: "Cotton", state: "Gujarat", predicted_price: 6772 },
+];
 
 const CROPS = [
   "Wheat",
@@ -127,15 +148,15 @@ const MARKET_NEWS = [
   },
   {
     emoji: "🚛",
-    title: "Mandi Arrivals Up 12%",
-    desc: "Total mandi arrivals up 12% vs last week",
+    title: "Mandi Arrivals Up",
+    desc: "Total mandi arrivals up 12% vs last week across major states",
     tag: "Supply",
     tagColor: "#7c3aed",
   },
   {
     emoji: "☀️",
     title: "Heatwave Alert",
-    desc: "High temps may impact tomato and vegetable crops",
+    desc: "High temps may impact tomato and vegetable crop yields",
     tag: "Alert",
     tagColor: "#ef4444",
   },
@@ -174,6 +195,7 @@ export default function Dashboard() {
   const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
   const [dashboardData, setDashboardData] = useState([]);
+  const [recentFromDB, setRecentFromDB] = useState([]); // real MongoDB recent predictions
   const [chartRange, setChartRange] = useState("6M");
 
   const card = isDark ? "#1e293b" : "white";
@@ -217,6 +239,7 @@ export default function Dashboard() {
     },
   ]);
 
+  // ── Load dashboard prices (for metric cards + Top Crops) — no DB save ────
   useEffect(() => {
     getDashboardPrices()
       .then((res) => {
@@ -227,7 +250,7 @@ export default function Dashboard() {
             setMetricCards((prev) => [
               {
                 ...prev[0],
-                value: `₹${wheat.predicted_price.toLocaleString()}`,
+                value: `₹${Math.round(wheat.predicted_price).toLocaleString()}`,
                 sub: "Wheat · Next Month",
               },
               { ...prev[1], value: `${wheat.confidence}%` },
@@ -239,18 +262,34 @@ export default function Dashboard() {
       .catch(() => {});
   }, []);
 
+  // ── Load Recent Predictions from MongoDB ─────────────────────────────────
+  useEffect(() => {
+    getRecentPredictions(5)
+      .then((res) => {
+        if (res.data?.length > 0) setRecentFromDB(res.data);
+      })
+      .catch(() => {});
+  }, []);
+
+  // ── Quick Predict — passes ?save=true so only user clicks get saved ───────
   const handlePredict = async () => {
     if (!selectedCrop || !selectedRegion) return;
     setLoading(true);
     setPrediction(null);
     try {
-      const r = await quickPredict(selectedCrop, selectedRegion);
+      const r = await quickPredict(selectedCrop, selectedRegion, true); // save=true
       setPrediction({
-        price: `₹${r.predicted_price.toLocaleString()}`,
+        price: `₹${Math.round(r.predicted_price).toLocaleString()}`,
         confidence: `${r.confidence}%`,
         change: `${r.predicted_price > 2000 ? "+" : ""}${((r.predicted_price / 2200 - 1) * 100).toFixed(1)}%`,
         up: r.predicted_price > 2200,
       });
+      // Refresh recent predictions after user saves one
+      getRecentPredictions(5)
+        .then((res) => {
+          if (res.data?.length > 0) setRecentFromDB(res.data);
+        })
+        .catch(() => {});
     } catch {
       const base = Math.floor(Math.random() * 3000) + 1500;
       const ch = (Math.random() * 20 - 5).toFixed(1);
@@ -265,54 +304,18 @@ export default function Dashboard() {
     }
   };
 
-  const recentPredictions =
-    dashboardData.length > 0
-      ? dashboardData
-          .slice(0, 5)
-          .map((d) => ({
-            crop: d.crop,
-            region: "Punjab",
-            price: `₹${d.predicted_price.toLocaleString()}`,
-            ...(CROP_CHANGES[d.crop] || { change: "+5%", up: true }),
-          }))
-      : [
-          {
-            crop: "Wheat",
-            region: "Punjab",
-            price: "₹2,893",
-            change: "+12%",
-            up: true,
-          },
-          {
-            crop: "Rice",
-            region: "Haryana",
-            price: "₹3,754",
-            change: "+5%",
-            up: true,
-          },
-          {
-            crop: "Tomato",
-            region: "Maharashtra",
-            price: "₹2,015",
-            change: "-3%",
-            up: false,
-          },
-          {
-            crop: "Onion",
-            region: "Nashik",
-            price: "₹2,194",
-            change: "+18%",
-            up: true,
-          },
-          {
-            crop: "Cotton",
-            region: "Gujarat",
-            price: "₹6,772",
-            change: "-7%",
-            up: false,
-          },
-        ];
+  // ── Build Recent Predictions list ─────────────────────────────────────────
+  // Priority: real MongoDB data → static fallback
+  const recentPredictions = (
+    recentFromDB.length > 0 ? recentFromDB : STATIC_RECENT
+  ).map((d) => ({
+    crop: d.crop,
+    region: d.state,
+    price: `₹${Math.round(d.predicted_price).toLocaleString()}`,
+    ...(CROP_CHANGES[d.crop] || { change: "+5%", up: true }),
+  }));
 
+  // ── Top Crops (from dashboard prices — no DB write) ───────────────────────
   const topCrops = (
     dashboardData.length > 0
       ? dashboardData.slice(0, 4)
@@ -324,7 +327,7 @@ export default function Dashboard() {
         ]
   ).map((d) => ({
     name: d.crop,
-    price: `₹${d.predicted_price.toLocaleString()}`,
+    price: `₹${Math.round(d.predicted_price).toLocaleString()}`,
     ...(CROP_CHANGES[d.crop] || { change: "+5%", up: true }),
   }));
 
@@ -430,7 +433,7 @@ export default function Dashboard() {
       <div
         style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "20px" }}
       >
-        {/* Left */}
+        {/* Left column */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           {/* Quick Predict */}
           <div
@@ -588,7 +591,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* ✅ Price Trends Chart with working tabs */}
+          {/* Price Trends Chart */}
           <div
             style={{
               background: card,
@@ -706,7 +709,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* ✅ Market Insights — fills empty bottom */}
+          {/* Market Insights */}
           <div
             style={{
               background: card,
@@ -812,9 +815,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Right */}
+        {/* Right column */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          {/* Recent Predictions */}
+          {/* Recent Predictions — from MongoDB */}
           <div
             style={{
               background: card,
@@ -831,10 +834,30 @@ export default function Dashboard() {
                 marginBottom: "16px",
               }}
             >
-              <span style={{ fontSize: "14px", fontWeight: 700, color: text }}>
-                Recent Predictions
-              </span>
-              <button
+              <div>
+                <span
+                  style={{ fontSize: "14px", fontWeight: 700, color: text }}
+                >
+                  Recent Predictions
+                </span>
+                {recentFromDB.length > 0 && (
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      color: "#16a34a",
+                      background: "#f0fdf4",
+                      padding: "2px 7px",
+                      borderRadius: "20px",
+                      fontWeight: 600,
+                      marginLeft: "8px",
+                    }}
+                  >
+                    ● Live
+                  </span>
+                )}
+              </div>
+              <a
+                href="/history"
                 style={{
                   fontSize: "12px",
                   color: "#16a34a",
@@ -842,79 +865,103 @@ export default function Dashboard() {
                   border: "none",
                   cursor: "pointer",
                   fontWeight: 500,
+                  textDecoration: "none",
                 }}
               >
                 View all
-              </button>
+              </a>
             </div>
-            {recentPredictions.map(({ crop, region, price, change, up }) => (
+
+            {recentPredictions.length === 0 ? (
               <div
-                key={crop}
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "9px 0",
-                  borderBottom: `1px solid ${isDark ? "#1e293b" : "#f9fafb"}`,
+                  textAlign: "center",
+                  padding: "20px",
+                  color: muted,
+                  fontSize: "13px",
                 }}
               >
-                <div
-                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
-                >
-                  <div
-                    style={{
-                      width: "30px",
-                      height: "30px",
-                      borderRadius: "8px",
-                      background: isDark ? "#134e2b" : "#f0fdf4",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Sprout
-                      style={{
-                        width: "14px",
-                        height: "14px",
-                        color: "#16a34a",
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <div
-                      style={{ fontSize: "13px", fontWeight: 600, color: text }}
-                    >
-                      {crop}
-                    </div>
-                    <div style={{ fontSize: "11px", color: muted }}>
-                      {region}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div
-                    style={{ fontSize: "13px", fontWeight: 700, color: text }}
-                  >
-                    {price}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      color: up ? "#22c55e" : "#ef4444",
-                    }}
-                  >
-                    {change}
-                  </div>
-                </div>
+                No predictions yet. Use Quick Predict above!
               </div>
-            ))}
+            ) : (
+              recentPredictions.map(
+                ({ crop, region, price, change, up }, idx) => (
+                  <div
+                    key={`${crop}-${idx}`}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "9px 0",
+                      borderBottom: `1px solid ${isDark ? "#1e293b" : "#f9fafb"}`,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "30px",
+                          height: "30px",
+                          borderRadius: "8px",
+                          background: isDark ? "#134e2b" : "#f0fdf4",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "14px",
+                        }}
+                      >
+                        {CROP_EMOJI[crop] || "🌱"}
+                      </div>
+                      <div>
+                        <div
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: text,
+                          }}
+                        >
+                          {crop}
+                        </div>
+                        <div style={{ fontSize: "11px", color: muted }}>
+                          {region}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: 700,
+                          color: text,
+                        }}
+                      >
+                        {price}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          color: up ? "#22c55e" : "#ef4444",
+                        }}
+                      >
+                        {change}
+                      </div>
+                    </div>
+                  </div>
+                ),
+              )
+            )}
           </div>
 
-          {/* Top Crops — real API */}
+          {/* Top Crops */}
           <TopCropsCard crops={topCrops} />
 
-          {/* Today's Market stats */}
+          {/* Today's Market */}
           <div
             style={{
               background: "linear-gradient(135deg, #1e3a5f 0%, #1d4ed8 100%)",
