@@ -3,10 +3,9 @@ import {
   TrendingUp,
   TrendingDown,
   Search,
-  Filter,
   Download,
   Clock,
-  Trash2,
+  CheckCircle,
 } from "lucide-react";
 
 const allHistory = [
@@ -194,10 +193,51 @@ const CROPS = [
 ];
 const STATUSES = ["All", "Verified", "Pending"];
 
-const accuracyColor = (conf) =>
-  conf >= 85 ? "#16a34a" : conf >= 75 ? "#f59e0b" : "#ef4444";
-const accuracyBg = (conf) =>
-  conf >= 85 ? "#f0fdf4" : conf >= 75 ? "#fffbeb" : "#fef2f2";
+const accuracyColor = (c) =>
+  c >= 85 ? "#16a34a" : c >= 75 ? "#f59e0b" : "#ef4444";
+
+// ── CSV Export ────────────────────────────────────────────────────────────────
+function exportToCSV(data, filename = "agrisense_predictions.csv") {
+  const headers = [
+    "ID",
+    "Crop",
+    "Region",
+    "Season",
+    "Month",
+    "Predicted Price (₹)",
+    "Actual Price (₹)",
+    "Change",
+    "Confidence (%)",
+    "Status",
+    "Date",
+  ];
+
+  const rows = data.map((r) => [
+    r.id,
+    r.crop,
+    r.region,
+    r.season,
+    r.month,
+    r.predictedPrice,
+    r.actualPrice ?? "Pending",
+    r.change,
+    r.confidence,
+    r.status,
+    r.date,
+  ]);
+
+  const csvContent = [headers, ...rows]
+    .map((row) => row.map((cell) => `"${cell}"`).join(","))
+    .join("\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function History() {
   const [search, setSearch] = useState("");
@@ -206,6 +246,7 @@ export default function History() {
   const [sortBy, setSortBy] = useState("date");
   const [sortDir, setSortDir] = useState("desc");
   const [page, setPage] = useState(1);
+  const [exporting, setExporting] = useState(false);
   const PER_PAGE = 8;
 
   const filtered = allHistory
@@ -220,8 +261,10 @@ export default function History() {
   const sorted = [...filtered].sort((a, b) => {
     let av = a[sortBy],
       bv = b[sortBy];
-    if (typeof av === "string")
-      ((av = av.toLowerCase()), (bv = bv.toLowerCase()));
+    if (typeof av === "string") {
+      av = av.toLowerCase();
+      bv = bv.toLowerCase();
+    }
     return sortDir === "asc" ? (av > bv ? 1 : -1) : av < bv ? 1 : -1;
   });
 
@@ -235,22 +278,40 @@ export default function History() {
       setSortDir("desc");
     }
   };
-
   const sortIcon = (col) =>
     sortBy === col ? (sortDir === "asc" ? " ↑" : " ↓") : " ↕";
 
   // Summary stats
   const verified = allHistory.filter((r) => r.status === "Verified");
+  const withActual = verified.filter((r) => r.actualPrice);
   const avgAccuracy = Math.round(
-    verified.reduce((s, r) => {
-      if (r.actualPrice) {
-        const err =
-          (Math.abs(r.predictedPrice - r.actualPrice) / r.actualPrice) * 100;
-        return s + (100 - err);
-      }
-      return s;
-    }, 0) / verified.filter((r) => r.actualPrice).length,
+    withActual.reduce(
+      (s, r) =>
+        s +
+        (100 -
+          (Math.abs(r.predictedPrice - r.actualPrice) / r.actualPrice) * 100),
+      0,
+    ) / (withActual.length || 1),
   );
+
+  // ── Export handler ──────────────────────────────────────────────────────────
+  const handleExport = () => {
+    setExporting(true);
+
+    // Export the currently filtered + sorted data (not just current page)
+    const dataToExport = sorted;
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const statusLabel =
+      statusFilter === "All" ? "all" : statusFilter.toLowerCase();
+    const cropLabel =
+      cropFilter === "All Crops" ? "all_crops" : cropFilter.toLowerCase();
+    const filename = `agrisense_${cropLabel}_${statusLabel}_${timestamp}.csv`;
+
+    exportToCSV(dataToExport, filename);
+
+    // Brief visual feedback
+    setTimeout(() => setExporting(false), 1500);
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -277,22 +338,41 @@ export default function History() {
             Track all past predictions and their accuracy
           </p>
         </div>
+
+        {/* ✅ Export CSV Button */}
         <button
+          onClick={handleExport}
+          disabled={exporting || sorted.length === 0}
           style={{
             display: "flex",
             alignItems: "center",
             gap: "6px",
-            padding: "8px 16px",
+            padding: "9px 18px",
             borderRadius: "10px",
-            background: "#f0fdf4",
-            color: "#16a34a",
+            background: exporting
+              ? "#f0fdf4"
+              : "linear-gradient(135deg, #166534 0%, #16a34a 100%)",
+            color: exporting ? "#16a34a" : "white",
             fontWeight: 600,
             fontSize: "13px",
-            border: "1px solid #bbf7d0",
-            cursor: "pointer",
+            border: exporting ? "1px solid #bbf7d0" : "none",
+            cursor: sorted.length === 0 ? "not-allowed" : "pointer",
+            boxShadow: exporting ? "none" : "0 2px 8px rgba(22,163,74,0.3)",
+            transition: "all 0.2s",
+            opacity: sorted.length === 0 ? 0.5 : 1,
           }}
         >
-          <Download style={{ width: "14px", height: "14px" }} /> Export CSV
+          {exporting ? (
+            <>
+              <CheckCircle style={{ width: "14px", height: "14px" }} />{" "}
+              Exported!
+            </>
+          ) : (
+            <>
+              <Download style={{ width: "14px", height: "14px" }} /> Export CSV
+              ({sorted.length})
+            </>
+          )}
         </button>
       </div>
 
@@ -603,15 +683,11 @@ export default function History() {
                 >
                   {row.region}
                 </td>
-                <td
-                  style={{
-                    padding: "12px 16px",
-                    fontSize: "12px",
-                    color: "#6b7280",
-                  }}
-                >
+                <td style={{ padding: "12px 16px" }}>
                   <span
                     style={{
+                      fontSize: "12px",
+                      color: "#6b7280",
                       background: "#f3f4f6",
                       padding: "2px 8px",
                       borderRadius: "6px",
@@ -734,19 +810,15 @@ export default function History() {
                       background:
                         row.status === "Verified" ? "#f0fdf4" : "#fffbeb",
                       color: row.status === "Verified" ? "#16a34a" : "#d97706",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
                     }}
                   >
-                    {row.status === "Pending" ? (
-                      <Clock
-                        style={{
-                          width: "10px",
-                          height: "10px",
-                          display: "inline",
-                          marginRight: "3px",
-                        }}
-                      />
+                    {row.status === "Verified" ? (
+                      <CheckCircle style={{ width: "10px", height: "10px" }} />
                     ) : (
-                      "✓ "
+                      <Clock style={{ width: "10px", height: "10px" }} />
                     )}
                     {row.status}
                   </span>
