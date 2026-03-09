@@ -1,5 +1,17 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, Moon, Sun, Bell, X } from "lucide-react";
+import {
+  Search,
+  Moon,
+  Sun,
+  Bell,
+  X,
+  User,
+  Settings,
+  LogOut,
+  HelpCircle,
+  Shield,
+  ChevronDown,
+} from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 
 const greetingByHour = () => {
@@ -32,22 +44,27 @@ const CROPS = [
 export default function Navbar() {
   const { isDark, toggleTheme } = useTheme();
   const [notifOpen, setNotifOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [searchVal, setSearchVal] = useState("");
   const [searchFocus, setSearchFocus] = useState(false);
   const notifRef = useRef(null);
+  const profileRef = useRef(null);
 
   const bg = isDark ? "#1e293b" : "white";
-  const borderCol = isDark ? "#334155" : "#e5e7eb";
+  const border = isDark ? "#334155" : "#e5e7eb";
   const text = isDark ? "#f1f5f9" : "#1f2937";
   const muted = isDark ? "#94a3b8" : "#6b7280";
   const inputBg = isDark ? "#334155" : "#f9fafb";
   const iconBg = isDark ? "#334155" : "#f3f4f6";
+  const menuBg = isDark ? "#1e293b" : "white";
+  const menuMuted = isDark ? "#64748b" : "#9ca3af";
 
-  // Close notif on outside click
   useEffect(() => {
     const handler = (e) => {
       if (notifRef.current && !notifRef.current.contains(e.target))
         setNotifOpen(false);
+      if (profileRef.current && !profileRef.current.contains(e.target))
+        setProfileOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -62,13 +79,13 @@ export default function Navbar() {
     <div
       style={{
         height: "65px",
-        borderBottom: `1px solid ${borderCol}`,
+        borderBottom: `1px solid ${border}`,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
         paddingInline: "28px",
         background: bg,
-        transition: "background 0.3s,color 0.3s",
+        transition: "background 0.3s",
         position: "sticky",
         top: 0,
         zIndex: 40,
@@ -95,15 +112,19 @@ export default function Navbar() {
 
       {/* Controls */}
       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-        {/* Search with dropdown */}
+        {/* Search */}
         <div style={{ position: "relative" }}>
           <div
             style={{
               display: "flex",
               alignItems: "center",
               gap: "8px",
-              background: searchFocus ? (isDark ? "#3d4f6b" : white) : inputBg,
-              border: `1.5px solid ${searchFocus ? "#16a34a" : borderCol}`,
+              background: searchFocus
+                ? isDark
+                  ? "#3d4f6b"
+                  : "white"
+                : inputBg,
+              border: `1.5px solid ${searchFocus ? "#16a34a" : border}`,
               borderRadius: "10px",
               padding: "0 14px",
               height: "36px",
@@ -133,7 +154,6 @@ export default function Navbar() {
                 background: "transparent",
                 outline: "none",
                 fontSize: "13px",
-                // ✅ Key fix: explicit color so it's always visible
                 color: isDark ? "#f1f5f9" : "#1f2937",
                 width: "100%",
               }}
@@ -153,8 +173,6 @@ export default function Navbar() {
               </button>
             )}
           </div>
-
-          {/* Search results dropdown */}
           {searchFocus && filtered.length > 0 && (
             <div
               style={{
@@ -162,8 +180,8 @@ export default function Navbar() {
                 top: "42px",
                 left: 0,
                 right: 0,
-                background: isDark ? "#1e293b" : "white",
-                border: `1px solid ${borderCol}`,
+                background: menuBg,
+                border: `1px solid ${border}`,
                 borderRadius: "12px",
                 boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
                 overflow: "hidden",
@@ -182,7 +200,6 @@ export default function Navbar() {
                     display: "flex",
                     alignItems: "center",
                     gap: "8px",
-                    transition: "background 0.1s",
                   }}
                   onMouseEnter={(e) =>
                     (e.currentTarget.style.background = isDark
@@ -193,7 +210,7 @@ export default function Navbar() {
                     (e.currentTarget.style.background = "transparent")
                   }
                 >
-                  <span>🌾</span> {crop}
+                  🌾 {crop}
                 </div>
               ))}
             </div>
@@ -203,18 +220,17 @@ export default function Navbar() {
         {/* Theme Toggle */}
         <button
           onClick={toggleTheme}
-          title={isDark ? "Switch to Light" : "Switch to Dark"}
+          title={isDark ? "Light Mode" : "Dark Mode"}
           style={{
             width: "36px",
             height: "36px",
             borderRadius: "10px",
             background: iconBg,
-            border: `1px solid ${borderCol}`,
+            border: `1px solid ${border}`,
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            transition: "all 0.2s",
           }}
         >
           {isDark ? (
@@ -227,13 +243,16 @@ export default function Navbar() {
         {/* Notifications */}
         <div style={{ position: "relative" }} ref={notifRef}>
           <button
-            onClick={() => setNotifOpen((o) => !o)}
+            onClick={() => {
+              setNotifOpen((o) => !o);
+              setProfileOpen(false);
+            }}
             style={{
               width: "36px",
               height: "36px",
               borderRadius: "10px",
               background: iconBg,
-              border: `1px solid ${borderCol}`,
+              border: `1px solid ${border}`,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -251,11 +270,10 @@ export default function Navbar() {
                 height: "7px",
                 borderRadius: "50%",
                 background: "#ef4444",
-                border: "1.5px solid " + bg,
+                border: `1.5px solid ${bg}`,
               }}
             />
           </button>
-
           {notifOpen && (
             <div
               style={{
@@ -263,8 +281,8 @@ export default function Navbar() {
                 right: 0,
                 top: "44px",
                 width: "290px",
-                background: isDark ? "#1e293b" : "white",
-                border: `1px solid ${borderCol}`,
+                background: menuBg,
+                border: `1px solid ${border}`,
                 borderRadius: "14px",
                 boxShadow: "0 12px 40px rgba(0,0,0,0.15)",
                 zIndex: 200,
@@ -274,10 +292,9 @@ export default function Navbar() {
               <div
                 style={{
                   padding: "12px 16px",
-                  borderBottom: `1px solid ${borderCol}`,
+                  borderBottom: `1px solid ${border}`,
                   display: "flex",
                   justifyContent: "space-between",
-                  alignItems: "center",
                 }}
               >
                 <span
@@ -339,7 +356,6 @@ export default function Navbar() {
                         : "#f0fdf4"
                       : "transparent",
                     cursor: "pointer",
-                    transition: "background 0.1s",
                     borderBottom: `1px solid ${isDark ? "#1e293b" : "#f9fafb"}`,
                   }}
                   onMouseEnter={(e) =>
@@ -396,7 +412,7 @@ export default function Navbar() {
                 style={{
                   padding: "10px 16px",
                   textAlign: "center",
-                  borderTop: `1px solid ${borderCol}`,
+                  borderTop: `1px solid ${border}`,
                 }}
               >
                 <span
@@ -414,24 +430,279 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Avatar */}
-        <div
-          style={{
-            width: "36px",
-            height: "36px",
-            borderRadius: "10px",
-            background: "linear-gradient(135deg,#15803d,#16a34a)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "white",
-            fontWeight: 700,
-            fontSize: "13px",
-            cursor: "pointer",
-            boxShadow: "0 2px 8px rgba(22,163,74,0.3)",
-          }}
-        >
-          RP
+        {/* ✅ RP Profile Button + Dropdown */}
+        <div style={{ position: "relative" }} ref={profileRef}>
+          <button
+            onClick={() => {
+              setProfileOpen((o) => !o);
+              setNotifOpen(false);
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "4px 10px 4px 4px",
+              borderRadius: "12px",
+              background: profileOpen
+                ? isDark
+                  ? "#334155"
+                  : "#f0fdf4"
+                : iconBg,
+              border: `1.5px solid ${profileOpen ? "#16a34a" : border}`,
+              cursor: "pointer",
+              transition: "all 0.2s",
+            }}
+          >
+            <div
+              style={{
+                width: "28px",
+                height: "28px",
+                borderRadius: "8px",
+                background: "linear-gradient(135deg,#15803d,#16a34a)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "white",
+                fontWeight: 700,
+                fontSize: "11px",
+                boxShadow: "0 2px 6px rgba(22,163,74,0.3)",
+              }}
+            >
+              RP
+            </div>
+            <span style={{ fontSize: "12px", fontWeight: 600, color: text }}>
+              Renuka
+            </span>
+            <ChevronDown
+              style={{
+                width: "13px",
+                height: "13px",
+                color: muted,
+                transform: profileOpen ? "rotate(180deg)" : "rotate(0deg)",
+                transition: "transform 0.2s",
+              }}
+            />
+          </button>
+
+          {profileOpen && (
+            <div
+              style={{
+                position: "absolute",
+                right: 0,
+                top: "48px",
+                width: "260px",
+                background: menuBg,
+                border: `1px solid ${border}`,
+                borderRadius: "16px",
+                boxShadow: "0 16px 48px rgba(0,0,0,0.18)",
+                zIndex: 200,
+                overflow: "hidden",
+              }}
+            >
+              {/* Profile header */}
+              <div
+                style={{
+                  padding: "16px",
+                  borderBottom: `1px solid ${border}`,
+                  background: isDark ? "rgba(22,163,74,0.08)" : "#f0fdf4",
+                }}
+              >
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "12px" }}
+                >
+                  <div
+                    style={{
+                      width: "44px",
+                      height: "44px",
+                      borderRadius: "12px",
+                      background: "linear-gradient(135deg,#15803d,#16a34a)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "white",
+                      fontWeight: 700,
+                      fontSize: "16px",
+                      boxShadow: "0 4px 12px rgba(22,163,74,0.35)",
+                      flexShrink: 0,
+                    }}
+                  >
+                    RP
+                  </div>
+                  <div>
+                    <div
+                      style={{ fontSize: "14px", fontWeight: 700, color: text }}
+                    >
+                      Renuka Patil
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: "#16a34a",
+                        marginTop: "1px",
+                      }}
+                    >
+                      renuka@agrisense.in
+                    </div>
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        background: "#dcfce7",
+                        color: "#16a34a",
+                        padding: "1px 8px",
+                        borderRadius: "20px",
+                        fontWeight: 700,
+                        marginTop: "4px",
+                        display: "inline-block",
+                      }}
+                    >
+                      ✦ Pro Plan
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Menu items */}
+              <div style={{ padding: "6px 0" }}>
+                {[
+                  {
+                    icon: User,
+                    label: "My Profile",
+                    sub: "View & edit profile",
+                    color: "#16a34a",
+                  },
+                  {
+                    icon: Bell,
+                    label: "Notifications",
+                    sub: "3 unread alerts",
+                    color: "#f59e0b",
+                  },
+                  {
+                    icon: Settings,
+                    label: "Settings",
+                    sub: "App preferences",
+                    color: "#6366f1",
+                  },
+                  {
+                    icon: Shield,
+                    label: "Privacy",
+                    sub: "Data & security",
+                    color: "#0891b2",
+                  },
+                  {
+                    icon: HelpCircle,
+                    label: "Help & Support",
+                    sub: "FAQs & contact",
+                    color: "#16a34a",
+                  },
+                ].map(({ icon: Icon, label, sub, color }) => (
+                  <div
+                    key={label}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      padding: "9px 16px",
+                      cursor: "pointer",
+                      transition: "background 0.15s",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = isDark
+                        ? "rgba(255,255,255,0.05)"
+                        : "#f9fafb")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "transparent")
+                    }
+                  >
+                    <div
+                      style={{
+                        width: "32px",
+                        height: "32px",
+                        borderRadius: "9px",
+                        background: `${color}18`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Icon style={{ width: "15px", height: "15px", color }} />
+                    </div>
+                    <div>
+                      <div
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: 600,
+                          color: text,
+                        }}
+                      >
+                        {label}
+                      </div>
+                      <div style={{ fontSize: "11px", color: menuMuted }}>
+                        {sub}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Divider + Sign Out */}
+              <div
+                style={{ borderTop: `1px solid ${border}`, padding: "6px 0" }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    padding: "9px 16px",
+                    cursor: "pointer",
+                    transition: "background 0.15s",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = "rgba(239,68,68,0.07)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = "transparent")
+                  }
+                >
+                  <div
+                    style={{
+                      width: "32px",
+                      height: "32px",
+                      borderRadius: "9px",
+                      background: "rgba(239,68,68,0.1)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <LogOut
+                      style={{
+                        width: "15px",
+                        height: "15px",
+                        color: "#ef4444",
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: "#ef4444",
+                      }}
+                    >
+                      Sign Out
+                    </div>
+                    <div style={{ fontSize: "11px", color: menuMuted }}>
+                      End your session
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
