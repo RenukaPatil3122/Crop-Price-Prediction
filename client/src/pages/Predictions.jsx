@@ -18,25 +18,24 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
+import { fullPredict } from "../api";
 
-const crops = [
+const CROPS = [
   "Wheat",
   "Rice",
   "Tomato",
   "Onion",
   "Cotton",
   "Maize",
-  "Soybean",
   "Potato",
   "Mustard",
-  "Sugarcane",
+  "Soyabean",
 ];
-const regions = [
+const STATES = [
   "Punjab",
   "Haryana",
   "Maharashtra",
   "Gujarat",
-  "Nashik",
   "Uttar Pradesh",
   "Madhya Pradesh",
   "Rajasthan",
@@ -59,20 +58,44 @@ const months = [
   "December",
 ];
 
-// Simulated price forecast for next 6 months
-const generateForecast = (base) => {
-  const m = ["Apr", "May", "Jun", "Jul", "Aug", "Sep"];
-  return m.map((month, i) => ({
-    month,
-    price: Math.round(base * (1 + (Math.random() * 0.3 - 0.1) + i * 0.02)),
-    predicted: true,
-  }));
+const MONTH_MAP = {
+  January: 1,
+  February: 2,
+  March: 3,
+  April: 4,
+  May: 5,
+  June: 6,
+  July: 7,
+  August: 8,
+  September: 9,
+  October: 10,
+  November: 11,
+  December: 12,
 };
 
 const factorColors = {
   positive: "#16a34a",
   negative: "#ef4444",
   neutral: "#f59e0b",
+};
+
+const inputStyle = {
+  width: "100%",
+  height: "42px",
+  borderRadius: "10px",
+  padding: "0 12px",
+  fontSize: "14px",
+  color: "#374151",
+  background: "white",
+  border: "1px solid #e5e7eb",
+  outline: "none",
+};
+const labelStyle = {
+  fontSize: "12px",
+  fontWeight: 600,
+  color: "#6b7280",
+  display: "block",
+  marginBottom: "6px",
 };
 
 export default function Predictions() {
@@ -84,27 +107,41 @@ export default function Predictions() {
   });
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(0); // 0 = form, 1 = result
+  const [step, setStep] = useState(0);
+  const [error, setError] = useState("");
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const allFilled = form.crop && form.region && form.season && form.month;
 
-  const handlePredict = () => {
+  const handlePredict = async () => {
     if (!allFilled) return;
     setLoading(true);
-    setTimeout(() => {
-      const base = Math.floor(Math.random() * 3000) + 1500;
-      const confidence = Math.floor(Math.random() * 18) + 79;
-      const change = (Math.random() * 24 - 6).toFixed(1);
-      const up = parseFloat(change) > 0;
+    setError("");
+    try {
+      const monthNum = MONTH_MAP[form.month];
+      const year = new Date().getFullYear();
+      const data = await fullPredict(form.crop, form.region, monthNum, year);
+
+      const forecast = (data.forecast || []).map((f) => ({
+        month: f.month,
+        price: f.predicted_price,
+        predicted: true,
+      }));
+
       setResult({
-        price: base,
-        confidence,
-        change,
-        up,
-        minPrice: Math.round(base * 0.88),
-        maxPrice: Math.round(base * 1.12),
-        forecast: generateForecast(base),
+        price: data.predicted_price,
+        confidence: data.confidence,
+        change: (
+          (data.predicted_price / (data.predicted_price * 0.91) - 1) *
+          100
+        ).toFixed(1),
+        up: data.predicted_price > 2000,
+        minPrice: data.min_price,
+        maxPrice: data.max_price,
+        forecast,
+        historicalAvg: Math.round(data.predicted_price * 0.91),
+        mspPrice: Math.round(data.predicted_price * 0.78),
+        season: data.season,
         factors: [
           {
             label: "Monsoon Outlook",
@@ -114,11 +151,12 @@ export default function Predictions() {
           },
           {
             label: "Market Demand",
-            impact: up ? "High" : "Moderate",
-            detail: up
-              ? "Strong export demand this season"
-              : "Domestic demand stable",
-            type: up ? "positive" : "neutral",
+            impact: data.predicted_price > 2500 ? "High" : "Moderate",
+            detail:
+              data.predicted_price > 2500
+                ? "Strong export demand this season"
+                : "Domestic demand stable",
+            type: data.predicted_price > 2500 ? "positive" : "neutral",
           },
           {
             label: "Input Costs",
@@ -133,38 +171,22 @@ export default function Predictions() {
             type: "positive",
           },
         ],
-        historicalAvg: Math.round(base * 0.91),
-        mspPrice: Math.round(base * 0.78),
       });
-      setLoading(false);
       setStep(1);
-    }, 2000);
+    } catch (err) {
+      setError(
+        "Could not reach backend. Make sure your server is running on port 8000.",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleReset = () => {
     setStep(0);
     setResult(null);
     setForm({ crop: "", region: "", season: "", month: "" });
-  };
-
-  const inputStyle = {
-    width: "100%",
-    height: "42px",
-    borderRadius: "10px",
-    padding: "0 12px",
-    fontSize: "14px",
-    color: "#374151",
-    background: "white",
-    border: "1px solid #e5e7eb",
-    outline: "none",
-  };
-
-  const labelStyle = {
-    fontSize: "12px",
-    fontWeight: 600,
-    color: "#6b7280",
-    display: "block",
-    marginBottom: "6px",
+    setError("");
   };
 
   return (
@@ -211,8 +233,22 @@ export default function Predictions() {
         )}
       </div>
 
+      {error && (
+        <div
+          style={{
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            borderRadius: "10px",
+            padding: "12px 16px",
+            color: "#ef4444",
+            fontSize: "13px",
+          }}
+        >
+          ⚠️ {error}
+        </div>
+      )}
+
       {step === 0 ? (
-        /* ── FORM ── */
         <div
           style={{
             display: "grid",
@@ -220,7 +256,7 @@ export default function Predictions() {
             gap: "20px",
           }}
         >
-          {/* Input Form Card */}
+          {/* Form Card */}
           <div
             style={{
               background: "white",
@@ -264,7 +300,6 @@ export default function Predictions() {
                 </div>
               </div>
             </div>
-
             <div
               style={{ display: "flex", flexDirection: "column", gap: "16px" }}
             >
@@ -276,7 +311,7 @@ export default function Predictions() {
                   style={inputStyle}
                 >
                   <option value="">Select a crop...</option>
-                  {crops.map((c) => (
+                  {CROPS.map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
@@ -291,7 +326,7 @@ export default function Predictions() {
                   style={inputStyle}
                 >
                   <option value="">Select a region...</option>
-                  {regions.map((r) => (
+                  {STATES.map((r) => (
                     <option key={r} value={r}>
                       {r}
                     </option>
@@ -328,7 +363,6 @@ export default function Predictions() {
                   ))}
                 </select>
               </div>
-
               <button
                 onClick={handlePredict}
                 disabled={!allFilled || loading}
@@ -348,7 +382,6 @@ export default function Predictions() {
                   alignItems: "center",
                   justifyContent: "center",
                   gap: "8px",
-                  transition: "all 0.2s",
                 }}
               >
                 {loading ? (
@@ -363,7 +396,7 @@ export default function Predictions() {
             </div>
           </div>
 
-          {/* Info / Tips Card */}
+          {/* Info Card */}
           <div
             style={{ display: "flex", flexDirection: "column", gap: "16px" }}
           >
@@ -433,7 +466,6 @@ export default function Predictions() {
                 ))}
               </div>
             </div>
-
             <div
               style={{
                 background: "white",
@@ -492,16 +524,14 @@ export default function Predictions() {
                     borderBottom: "1px solid #f9fafb",
                   }}
                 >
-                  <div>
-                    <div
-                      style={{
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        color: "#374151",
-                      }}
-                    >
-                      {crop} · {region}
-                    </div>
+                  <div
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      color: "#374151",
+                    }}
+                  >
+                    {crop} · {region}
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <div
@@ -529,9 +559,8 @@ export default function Predictions() {
           </div>
         </div>
       ) : (
-        /* ── RESULT ── */
+        /* RESULT */
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          {/* Top Result Cards */}
           <div
             style={{
               display: "grid",
@@ -566,11 +595,11 @@ export default function Predictions() {
               },
               {
                 label: "vs Historical Avg",
-                value: `${result.up ? "+" : ""}${result.change}%`,
+                value: `+${result.change}%`,
                 sub: `Avg: ₹${result.historicalAvg.toLocaleString()}`,
-                color: result.up ? "#16a34a" : "#ef4444",
-                bg: result.up ? "#f0fdf4" : "#fef2f2",
-                border: result.up ? "#bbf7d0" : "#fecaca",
+                color: "#16a34a",
+                bg: "#f0fdf4",
+                border: "#bbf7d0",
               },
             ].map(({ label, value, sub, color, bg, border }) => (
               <div
@@ -607,7 +636,6 @@ export default function Predictions() {
             ))}
           </div>
 
-          {/* Chart + Factors */}
           <div
             style={{
               display: "grid",
@@ -763,8 +791,6 @@ export default function Predictions() {
                   </div>
                 </div>
               ))}
-
-              {/* MSP Badge */}
               <div
                 style={{
                   marginTop: "4px",
@@ -863,8 +889,7 @@ export default function Predictions() {
                   fontSize: "20px",
                 }}
               >
-                {result.up ? "+" : ""}
-                {result.change}%
+                +{result.change}%
               </span>
             </div>
           </div>
