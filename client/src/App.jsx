@@ -6,20 +6,17 @@ import Dashboard from "./pages/Dashboard";
 import Predictions from "./pages/Predictions";
 import Analytics from "./pages/Analytics";
 import History from "./pages/History";
+import Compare from "./pages/Compare";
 
 function AppLayout() {
   const { isDark } = useTheme();
   const bg = isDark ? "#0f172a" : "#f0fdf4";
-  const main = isDark ? "#1e293b" : "white";
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: bg }}>
-      {/* Sidebar — fixed left */}
       <div style={{ width: "224px", flexShrink: 0 }}>
         <Sidebar />
       </div>
-
-      {/* Main content */}
       <div
         style={{
           flex: 1,
@@ -35,6 +32,7 @@ function AppLayout() {
             <Route path="/predictions" element={<Predictions />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/history" element={<History />} />
+            <Route path="/compare" element={<Compare />} />
           </Routes>
         </main>
       </div>

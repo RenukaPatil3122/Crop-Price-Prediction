@@ -5,6 +5,7 @@ import {
   BarChart2,
   History,
   Sprout,
+  GitCompare,
 } from "lucide-react";
 import WeatherWidget from "./WeatherWidget";
 import { useTheme } from "../context/ThemeContext";
@@ -13,6 +14,7 @@ const navItems = [
   { to: "/", icon: LayoutDashboard, label: "My Dashboard" },
   { to: "/predictions", icon: TrendingUp, label: "Predictions" },
   { to: "/analytics", icon: BarChart2, label: "Analytics" },
+  { to: "/compare", icon: GitCompare, label: "Compare Crops" },
   { to: "/history", icon: History, label: "History" },
 ];
 
@@ -105,7 +107,12 @@ export default function Sidebar() {
         }}
       >
         {navItems.map(({ to, icon: Icon, label }) => (
-          <NavLink key={to} to={to} end style={{ textDecoration: "none" }}>
+          <NavLink
+            key={to}
+            to={to}
+            end={to === "/"}
+            style={{ textDecoration: "none" }}
+          >
             {({ isActive }) => (
               <div
                 style={{
@@ -147,11 +154,9 @@ export default function Sidebar() {
       </nav>
 
       <div style={{ flex: 1 }} />
-
-      {/* Weather */}
       <WeatherWidget />
 
-      {/* User Profile — display only, no dropdown (use header RP button instead) */}
+      {/* User Profile */}
       <div
         style={{
           padding: "10px",
