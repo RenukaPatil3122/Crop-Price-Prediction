@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useTheme } from "../context/ThemeContext";
 import {
   TrendingUp,
   TrendingDown,
@@ -6,178 +7,134 @@ import {
   Download,
   Clock,
   CheckCircle,
+  RefreshCw,
+  Database,
 } from "lucide-react";
+import { getPredictionHistory, getPredictionStats } from "../api";
 
-const allHistory = [
+// ── Static fallback data (shown when MongoDB is empty / unavailable) ──────────
+const STATIC_DATA = [
   {
-    id: 1,
+    id: "s1",
     crop: "Wheat",
-    region: "Punjab",
+    state: "Punjab",
     season: "Rabi",
-    month: "March",
-    predictedPrice: 2847,
-    actualPrice: 2910,
+    month_name: "March",
+    predicted_price: 2847,
+    actual_price: 2910,
     confidence: 87,
-    change: "+12.4%",
-    up: true,
-    date: "2026-03-08",
     status: "Verified",
+    created_at: "2026-03-08T10:00:00",
   },
   {
-    id: 2,
+    id: "s2",
     crop: "Rice",
-    region: "Haryana",
+    state: "Haryana",
     season: "Kharif",
-    month: "February",
-    predictedPrice: 3520,
-    actualPrice: 3480,
+    month_name: "February",
+    predicted_price: 3520,
+    actual_price: 3480,
     confidence: 82,
-    change: "+5.1%",
-    up: true,
-    date: "2026-03-07",
     status: "Verified",
+    created_at: "2026-03-07T10:00:00",
   },
   {
-    id: 3,
+    id: "s3",
     crop: "Tomato",
-    region: "Maharashtra",
+    state: "Maharashtra",
     season: "Zaid",
-    month: "February",
-    predictedPrice: 2900,
-    actualPrice: null,
+    month_name: "February",
+    predicted_price: 2900,
+    actual_price: null,
     confidence: 74,
-    change: "-3.2%",
-    up: false,
-    date: "2026-03-06",
     status: "Pending",
+    created_at: "2026-03-06T10:00:00",
   },
   {
-    id: 4,
+    id: "s4",
     crop: "Onion",
-    region: "Nashik",
+    state: "Punjab",
     season: "Rabi",
-    month: "January",
-    predictedPrice: 1650,
-    actualPrice: 1590,
+    month_name: "January",
+    predicted_price: 1650,
+    actual_price: 1590,
     confidence: 79,
-    change: "+18.3%",
-    up: true,
-    date: "2026-03-05",
     status: "Verified",
+    created_at: "2026-03-05T10:00:00",
   },
   {
-    id: 5,
+    id: "s5",
     crop: "Cotton",
-    region: "Gujarat",
+    state: "Gujarat",
     season: "Kharif",
-    month: "January",
-    predictedPrice: 6200,
-    actualPrice: null,
+    month_name: "January",
+    predicted_price: 6200,
+    actual_price: null,
     confidence: 91,
-    change: "-7.1%",
-    up: false,
-    date: "2026-03-04",
     status: "Pending",
+    created_at: "2026-03-04T10:00:00",
   },
   {
-    id: 6,
+    id: "s6",
     crop: "Maize",
-    region: "UP",
+    state: "Uttar Pradesh",
     season: "Kharif",
-    month: "December",
-    predictedPrice: 1980,
-    actualPrice: 2050,
+    month_name: "December",
+    predicted_price: 1980,
+    actual_price: 2050,
     confidence: 85,
-    change: "+9.2%",
-    up: true,
-    date: "2026-03-03",
     status: "Verified",
+    created_at: "2026-03-03T10:00:00",
   },
   {
-    id: 7,
-    crop: "Soybean",
-    region: "MP",
-    season: "Kharif",
-    month: "December",
-    predictedPrice: 4320,
-    actualPrice: 4280,
-    confidence: 88,
-    change: "+4.5%",
-    up: true,
-    date: "2026-03-02",
-    status: "Verified",
-  },
-  {
-    id: 8,
-    crop: "Potato",
-    region: "UP",
-    season: "Rabi",
-    month: "November",
-    predictedPrice: 1120,
-    actualPrice: 1200,
-    confidence: 76,
-    change: "-2.8%",
-    up: false,
-    date: "2026-03-01",
-    status: "Verified",
-  },
-  {
-    id: 9,
+    id: "s7",
     crop: "Mustard",
-    region: "Rajasthan",
+    state: "Rajasthan",
     season: "Rabi",
-    month: "November",
-    predictedPrice: 5400,
-    actualPrice: null,
+    month_name: "November",
+    predicted_price: 5400,
+    actual_price: null,
     confidence: 83,
-    change: "+6.7%",
-    up: true,
-    date: "2026-02-28",
     status: "Pending",
+    created_at: "2026-02-28T10:00:00",
   },
   {
-    id: 10,
+    id: "s8",
     crop: "Wheat",
-    region: "MP",
+    state: "Madhya Pradesh",
     season: "Rabi",
-    month: "October",
-    predictedPrice: 2650,
-    actualPrice: 2700,
+    month_name: "October",
+    predicted_price: 2650,
+    actual_price: 2700,
     confidence: 90,
-    change: "+8.1%",
-    up: true,
-    date: "2026-02-27",
     status: "Verified",
-  },
-  {
-    id: 11,
-    crop: "Rice",
-    region: "Punjab",
-    season: "Kharif",
-    month: "October",
-    predictedPrice: 3100,
-    actualPrice: 3050,
-    confidence: 86,
-    change: "+3.3%",
-    up: true,
-    date: "2026-02-26",
-    status: "Verified",
-  },
-  {
-    id: 12,
-    crop: "Tomato",
-    region: "Karnataka",
-    season: "Zaid",
-    month: "October",
-    predictedPrice: 2200,
-    actualPrice: 2400,
-    confidence: 71,
-    change: "+22.1%",
-    up: true,
-    date: "2026-02-25",
-    status: "Verified",
+    created_at: "2026-02-27T10:00:00",
   },
 ];
+
+const CROP_CHANGES = {
+  Wheat: { change: "+12%", up: true },
+  Rice: { change: "+5%", up: true },
+  Tomato: { change: "-3%", up: false },
+  Onion: { change: "+18%", up: true },
+  Cotton: { change: "-7%", up: false },
+  Maize: { change: "+9%", up: true },
+  Potato: { change: "+4%", up: true },
+  Mustard: { change: "+6%", up: true },
+  Soyabean: { change: "-2%", up: false },
+};
+
+const CROP_EMOJI = {
+  Wheat: "🌾",
+  Rice: "🍚",
+  Tomato: "🍅",
+  Onion: "🧅",
+  Cotton: "🌿",
+  Maize: "🌽",
+  Soyabean: "🫘",
+  Potato: "🥔",
+  Mustard: "🌻",
+};
 
 const CROPS = [
   "All Crops",
@@ -187,80 +144,140 @@ const CROPS = [
   "Onion",
   "Cotton",
   "Maize",
-  "Soybean",
   "Potato",
   "Mustard",
+  "Soyabean",
 ];
 const STATUSES = ["All", "Verified", "Pending"];
 
 const accuracyColor = (c) =>
   c >= 85 ? "#16a34a" : c >= 75 ? "#f59e0b" : "#ef4444";
 
-// ── CSV Export ────────────────────────────────────────────────────────────────
+function calcChange(predicted, actual) {
+  if (!actual) return null;
+  const pct = (((predicted - actual) / actual) * 100).toFixed(1);
+  return { change: `${pct > 0 ? "+" : ""}${pct}%`, up: pct >= 0 };
+}
+
 function exportToCSV(data, filename = "agrisense_predictions.csv") {
   const headers = [
     "ID",
     "Crop",
-    "Region",
+    "State",
     "Season",
     "Month",
-    "Predicted Price (₹)",
-    "Actual Price (₹)",
-    "Change",
+    "Predicted ₹",
+    "Actual ₹",
     "Confidence (%)",
     "Status",
     "Date",
   ];
-
   const rows = data.map((r) => [
     r.id,
     r.crop,
-    r.region,
+    r.state,
     r.season,
-    r.month,
-    r.predictedPrice,
-    r.actualPrice ?? "Pending",
-    r.change,
+    r.month_name,
+    r.predicted_price,
+    r.actual_price ?? "Pending",
     r.confidence,
     r.status,
-    r.date,
+    new Date(r.created_at).toLocaleDateString("en-IN"),
   ]);
-
-  const csvContent = [headers, ...rows]
-    .map((row) => row.map((cell) => `"${cell}"`).join(","))
+  const csv = [headers, ...rows]
+    .map((row) => row.map((c) => `"${c}"`).join(","))
     .join("\n");
-
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
   URL.revokeObjectURL(url);
 }
 
+const PER_PAGE = 8;
+
 export default function History() {
+  const { isDark } = useTheme();
+
+  // Data state
+  const [allData, setAllData] = useState([]);
+  const [stats, setStats] = useState({
+    total: 0,
+    verified: 0,
+    pending: 0,
+    avg_accuracy: 0,
+  });
+  const [dbLive, setDbLive] = useState(false); // is MongoDB active?
+  const [loadingData, setLoadingData] = useState(true);
+
+  // Filter state
   const [search, setSearch] = useState("");
   const [cropFilter, setCropFilter] = useState("All Crops");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [sortBy, setSortBy] = useState("date");
+  const [sortBy, setSortBy] = useState("created_at");
   const [sortDir, setSortDir] = useState("desc");
   const [page, setPage] = useState(1);
   const [exporting, setExporting] = useState(false);
-  const PER_PAGE = 8;
 
-  const filtered = allHistory
+  const card = isDark ? "#1e293b" : "white";
+  const border = isDark ? "#334155" : "#f3f4f6";
+  const text = isDark ? "#f1f5f9" : "#1f2937";
+  const muted = isDark ? "#94a3b8" : "#9ca3af";
+  const rowHover = isDark ? "#243044" : "#fafafa";
+
+  // ── Load data from MongoDB (with fallback) ────────────────────────────────
+  const loadData = useCallback(async () => {
+    setLoadingData(true);
+    try {
+      const [histRes, statsRes] = await Promise.all([
+        getPredictionHistory({ limit: 200 }),
+        getPredictionStats(),
+      ]);
+
+      if (histRes.data && histRes.data.length > 0) {
+        setAllData(histRes.data);
+        setStats(statsRes);
+        setDbLive(true);
+      } else {
+        // DB empty — use static fallback
+        setAllData(STATIC_DATA);
+        setStats({
+          total: STATIC_DATA.length,
+          verified: STATIC_DATA.filter((d) => d.status === "Verified").length,
+          pending: STATIC_DATA.filter((d) => d.status === "Pending").length,
+          avg_accuracy: 91.2,
+        });
+        setDbLive(false);
+      }
+    } catch {
+      // DB unavailable — use static fallback
+      setAllData(STATIC_DATA);
+      setStats({ total: 8, verified: 5, pending: 3, avg_accuracy: 91.2 });
+      setDbLive(false);
+    } finally {
+      setLoadingData(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // ── Filter + Sort ─────────────────────────────────────────────────────────
+  const filtered = allData
     .filter((r) => cropFilter === "All Crops" || r.crop === cropFilter)
     .filter((r) => statusFilter === "All" || r.status === statusFilter)
     .filter(
       (r) =>
-        r.crop.toLowerCase().includes(search.toLowerCase()) ||
-        r.region.toLowerCase().includes(search.toLowerCase()),
+        r.crop?.toLowerCase().includes(search.toLowerCase()) ||
+        r.state?.toLowerCase().includes(search.toLowerCase()),
     );
 
   const sorted = [...filtered].sort((a, b) => {
-    let av = a[sortBy],
-      bv = b[sortBy];
+    let av = a[sortBy] ?? "",
+      bv = b[sortBy] ?? "";
     if (typeof av === "string") {
       av = av.toLowerCase();
       bv = bv.toLowerCase();
@@ -277,42 +294,22 @@ export default function History() {
       setSortBy(col);
       setSortDir("desc");
     }
+    setPage(1);
   };
   const sortIcon = (col) =>
     sortBy === col ? (sortDir === "asc" ? " ↑" : " ↓") : " ↕";
 
-  // Summary stats
-  const verified = allHistory.filter((r) => r.status === "Verified");
-  const withActual = verified.filter((r) => r.actualPrice);
-  const avgAccuracy = Math.round(
-    withActual.reduce(
-      (s, r) =>
-        s +
-        (100 -
-          (Math.abs(r.predictedPrice - r.actualPrice) / r.actualPrice) * 100),
-      0,
-    ) / (withActual.length || 1),
-  );
-
-  // ── Export handler ──────────────────────────────────────────────────────────
   const handleExport = () => {
     setExporting(true);
-
-    // Export the currently filtered + sorted data (not just current page)
-    const dataToExport = sorted;
-    const timestamp = new Date().toISOString().slice(0, 10);
-    const statusLabel =
-      statusFilter === "All" ? "all" : statusFilter.toLowerCase();
-    const cropLabel =
-      cropFilter === "All Crops" ? "all_crops" : cropFilter.toLowerCase();
-    const filename = `agrisense_${cropLabel}_${statusLabel}_${timestamp}.csv`;
-
-    exportToCSV(dataToExport, filename);
-
-    // Brief visual feedback
+    const ts = new Date().toISOString().slice(0, 10);
+    const clabel =
+      cropFilter === "All Crops" ? "all" : cropFilter.toLowerCase();
+    const slabel = statusFilter === "All" ? "all" : statusFilter.toLowerCase();
+    exportToCSV(sorted, `agrisense_${clabel}_${slabel}_${ts}.csv`);
     setTimeout(() => setExporting(false), 1500);
   };
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* Header */}
@@ -324,56 +321,103 @@ export default function History() {
         }}
       >
         <div>
-          <h1
-            style={{
-              fontSize: "22px",
-              fontWeight: 700,
-              color: "#1f2937",
-              margin: 0,
-            }}
-          >
-            Prediction History
-          </h1>
-          <p style={{ fontSize: "13px", color: "#9ca3af", marginTop: "4px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <h1
+              style={{
+                fontSize: "22px",
+                fontWeight: 700,
+                color: text,
+                margin: 0,
+              }}
+            >
+              Prediction History
+            </h1>
+            {/* DB status badge */}
+            <span
+              style={{
+                fontSize: "11px",
+                fontWeight: 600,
+                padding: "3px 10px",
+                borderRadius: "20px",
+                background: dbLive ? "#dcfce7" : "rgba(245,158,11,0.15)",
+                color: dbLive ? "#16a34a" : "#d97706",
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+              }}
+            >
+              <Database style={{ width: "11px", height: "11px" }} />
+              {dbLive ? "Live from MongoDB" : "Using sample data"}
+            </span>
+          </div>
+          <p style={{ fontSize: "13px", color: muted, marginTop: "4px" }}>
             Track all past predictions and their accuracy
           </p>
         </div>
-
-        {/* ✅ Export CSV Button */}
-        <button
-          onClick={handleExport}
-          disabled={exporting || sorted.length === 0}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-            padding: "9px 18px",
-            borderRadius: "10px",
-            background: exporting
-              ? "#f0fdf4"
-              : "linear-gradient(135deg, #166534 0%, #16a34a 100%)",
-            color: exporting ? "#16a34a" : "white",
-            fontWeight: 600,
-            fontSize: "13px",
-            border: exporting ? "1px solid #bbf7d0" : "none",
-            cursor: sorted.length === 0 ? "not-allowed" : "pointer",
-            boxShadow: exporting ? "none" : "0 2px 8px rgba(22,163,74,0.3)",
-            transition: "all 0.2s",
-            opacity: sorted.length === 0 ? 0.5 : 1,
-          }}
-        >
-          {exporting ? (
-            <>
-              <CheckCircle style={{ width: "14px", height: "14px" }} />{" "}
-              Exported!
-            </>
-          ) : (
-            <>
-              <Download style={{ width: "14px", height: "14px" }} /> Export CSV
-              ({sorted.length})
-            </>
-          )}
-        </button>
+        <div style={{ display: "flex", gap: "8px" }}>
+          {/* Refresh */}
+          <button
+            onClick={loadData}
+            disabled={loadingData}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "9px 14px",
+              borderRadius: "10px",
+              background: isDark ? "#334155" : "#f3f4f6",
+              color: text,
+              fontWeight: 600,
+              fontSize: "13px",
+              border: `1px solid ${border}`,
+              cursor: "pointer",
+            }}
+          >
+            <RefreshCw
+              style={{
+                width: "14px",
+                height: "14px",
+                animation: loadingData ? "spin 1s linear infinite" : "none",
+              }}
+            />
+            Refresh
+          </button>
+          {/* Export */}
+          <button
+            onClick={handleExport}
+            disabled={exporting || sorted.length === 0}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "9px 18px",
+              borderRadius: "10px",
+              background: exporting
+                ? "#f0fdf4"
+                : "linear-gradient(135deg,#166534,#16a34a)",
+              color: exporting ? "#16a34a" : "white",
+              fontWeight: 600,
+              fontSize: "13px",
+              border: exporting ? "1px solid #bbf7d0" : "none",
+              cursor: sorted.length === 0 ? "not-allowed" : "pointer",
+              boxShadow: exporting ? "none" : "0 2px 8px rgba(22,163,74,0.3)",
+              transition: "all 0.2s",
+              opacity: sorted.length === 0 ? 0.5 : 1,
+            }}
+          >
+            {exporting ? (
+              <>
+                <CheckCircle style={{ width: "14px", height: "14px" }} />{" "}
+                Exported!
+              </>
+            ) : (
+              <>
+                <Download style={{ width: "14px", height: "14px" }} /> Export
+                CSV ({sorted.length})
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -387,42 +431,42 @@ export default function History() {
         {[
           {
             label: "Total Predictions",
-            value: allHistory.length,
+            value: loadingData ? "…" : stats.total,
             sub: "All time",
             color: "#2563eb",
-            bg: "#eff6ff",
-            border: "#bfdbfe",
+            bg: isDark ? "#1e3a5f" : "#eff6ff",
+            cb: isDark ? "#1e4080" : "#bfdbfe",
           },
           {
             label: "Verified",
-            value: verified.length,
-            sub: "Actual price available",
+            value: loadingData ? "…" : stats.verified,
+            sub: "Actual price confirmed",
             color: "#16a34a",
-            bg: "#f0fdf4",
-            border: "#bbf7d0",
+            bg: isDark ? "#134e2b" : "#f0fdf4",
+            cb: isDark ? "#1a6535" : "#bbf7d0",
           },
           {
             label: "Pending",
-            value: allHistory.length - verified.length,
+            value: loadingData ? "…" : stats.pending,
             sub: "Awaiting actual price",
             color: "#f59e0b",
-            bg: "#fffbeb",
-            border: "#fde68a",
+            bg: isDark ? "#3d2a00" : "#fffbeb",
+            cb: isDark ? "#7a5200" : "#fde68a",
           },
           {
             label: "Avg Accuracy",
-            value: `${avgAccuracy}%`,
+            value: loadingData ? "…" : `${stats.avg_accuracy}%`,
             sub: "On verified predictions",
             color: "#16a34a",
-            bg: "#f0fdf4",
-            border: "#bbf7d0",
+            bg: isDark ? "#134e2b" : "#f0fdf4",
+            cb: isDark ? "#1a6535" : "#bbf7d0",
           },
-        ].map(({ label, value, sub, color, bg, border }) => (
+        ].map(({ label, value, sub, color, bg, cb }) => (
           <div
             key={label}
             style={{
               background: bg,
-              border: `1px solid ${border}`,
+              border: `1px solid ${cb}`,
               borderRadius: "14px",
               padding: "18px",
             }}
@@ -430,7 +474,7 @@ export default function History() {
             <div
               style={{
                 fontSize: "12px",
-                color: "#6b7280",
+                color: muted,
                 fontWeight: 500,
                 marginBottom: "6px",
               }}
@@ -447,7 +491,7 @@ export default function History() {
             >
               {value}
             </div>
-            <div style={{ fontSize: "11px", color: "#9ca3af" }}>{sub}</div>
+            <div style={{ fontSize: "11px", color: muted }}>{sub}</div>
           </div>
         ))}
       </div>
@@ -455,50 +499,48 @@ export default function History() {
       {/* Filters */}
       <div
         style={{
-          background: "white",
+          background: card,
           borderRadius: "14px",
-          border: "1px solid #f3f4f6",
-          padding: "16px 20px",
+          border: `1px solid ${border}`,
+          padding: "14px 18px",
           display: "flex",
           gap: "12px",
           alignItems: "center",
           flexWrap: "wrap",
         }}
       >
-        {/* Search */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             gap: "8px",
-            background: "#f9fafb",
+            background: isDark ? "#0f172a" : "#f9fafb",
+            border: `1px solid ${border}`,
             borderRadius: "10px",
             padding: "0 12px",
             flex: 1,
             minWidth: "180px",
           }}
         >
-          <Search style={{ width: "14px", height: "14px", color: "#9ca3af" }} />
+          <Search style={{ width: "14px", height: "14px", color: muted }} />
           <input
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="Search crop or region..."
+            placeholder="Search crop or state..."
             style={{
               border: "none",
               background: "transparent",
               outline: "none",
               fontSize: "13px",
-              color: "#374151",
+              color: text,
               padding: "8px 0",
               width: "100%",
             }}
           />
         </div>
-
-        {/* Crop filter */}
         <select
           value={cropFilter}
           onChange={(e) => {
@@ -510,9 +552,9 @@ export default function History() {
             borderRadius: "10px",
             padding: "0 10px",
             fontSize: "13px",
-            color: "#374151",
-            background: "#f9fafb",
-            border: "1px solid #e5e7eb",
+            color: text,
+            background: isDark ? "#0f172a" : "#f9fafb",
+            border: `1px solid ${border}`,
             outline: "none",
           }}
         >
@@ -522,13 +564,12 @@ export default function History() {
             </option>
           ))}
         </select>
-
-        {/* Status filter */}
         <div
           style={{
             display: "flex",
-            background: "#f9fafb",
-            borderRadius: "8px",
+            background: isDark ? "#0f172a" : "#f9fafb",
+            border: `1px solid ${border}`,
+            borderRadius: "9px",
             padding: "3px",
             gap: "2px",
           }}
@@ -548,15 +589,14 @@ export default function History() {
                 border: "none",
                 cursor: "pointer",
                 background: statusFilter === s ? "#16a34a" : "transparent",
-                color: statusFilter === s ? "white" : "#6b7280",
+                color: statusFilter === s ? "white" : muted,
               }}
             >
               {s}
             </button>
           ))}
         </div>
-
-        <div style={{ marginLeft: "auto", fontSize: "12px", color: "#9ca3af" }}>
+        <div style={{ marginLeft: "auto", fontSize: "12px", color: muted }}>
           {filtered.length} result{filtered.length !== 1 ? "s" : ""}
         </div>
       </div>
@@ -564,361 +604,395 @@ export default function History() {
       {/* Table */}
       <div
         style={{
-          background: "white",
+          background: card,
           borderRadius: "16px",
-          border: "1px solid #f3f4f6",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+          border: `1px solid ${border}`,
           overflow: "hidden",
         }}
       >
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr
+        {loadingData ? (
+          <div
+            style={{
+              padding: "60px",
+              textAlign: "center",
+              color: muted,
+              fontSize: "14px",
+            }}
+          >
+            <RefreshCw
               style={{
-                background: "#f9fafb",
-                borderBottom: "1px solid #f3f4f6",
+                width: "24px",
+                height: "24px",
+                margin: "0 auto 12px",
+                display: "block",
+                opacity: 0.5,
               }}
-            >
-              {[
-                { label: "Crop", key: "crop" },
-                { label: "Region", key: "region" },
-                { label: "Season", key: "season" },
-                { label: "Month", key: "month" },
-                { label: "Predicted ₹", key: "predictedPrice" },
-                { label: "Actual ₹", key: "actualPrice" },
-                { label: "Change", key: "change" },
-                { label: "Confidence", key: "confidence" },
-                { label: "Status", key: "status" },
-                { label: "Date", key: "date" },
-              ].map(({ label, key }) => (
-                <th
-                  key={key}
-                  onClick={() => toggleSort(key)}
-                  style={{
-                    textAlign: "left",
-                    padding: "12px 16px",
-                    fontSize: "12px",
-                    color: "#6b7280",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    userSelect: "none",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {label}
-                  {sortIcon(key)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {paginated.map((row) => (
+            />
+            Loading predictions…
+          </div>
+        ) : (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
               <tr
-                key={row.id}
-                style={{ borderBottom: "1px solid #f9fafb" }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "#fafafa")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "white")
-                }
+                style={{
+                  background: isDark ? "#0f172a" : "#f9fafb",
+                  borderBottom: `1px solid ${border}`,
+                }}
               >
-                <td style={{ padding: "12px 16px" }}>
-                  <div
+                {[
+                  { label: "Crop", key: "crop" },
+                  { label: "State", key: "state" },
+                  { label: "Season", key: "season" },
+                  { label: "Month", key: "month_name" },
+                  { label: "Predicted ₹", key: "predicted_price" },
+                  { label: "Actual ₹", key: "actual_price" },
+                  { label: "Change", key: null },
+                  { label: "Confidence", key: "confidence" },
+                  { label: "Status", key: "status" },
+                  { label: "Date", key: "created_at" },
+                ].map(({ label, key }) => (
+                  <th
+                    key={label}
+                    onClick={() => key && toggleSort(key)}
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
+                      textAlign: "left",
+                      padding: "12px 16px",
+                      fontSize: "11px",
+                      color: muted,
+                      fontWeight: 600,
+                      cursor: key ? "pointer" : "default",
+                      userSelect: "none",
+                      whiteSpace: "nowrap",
                     }}
                   >
-                    <div
-                      style={{
-                        width: "30px",
-                        height: "30px",
-                        borderRadius: "8px",
-                        background: "#f0fdf4",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "14px",
-                      }}
-                    >
-                      {row.crop === "Wheat"
-                        ? "🌾"
-                        : row.crop === "Rice"
-                          ? "🍚"
-                          : row.crop === "Tomato"
-                            ? "🍅"
-                            : row.crop === "Onion"
-                              ? "🧅"
-                              : row.crop === "Cotton"
-                                ? "🌿"
-                                : row.crop === "Maize"
-                                  ? "🌽"
-                                  : row.crop === "Soybean"
-                                    ? "🫘"
-                                    : row.crop === "Potato"
-                                      ? "🥔"
-                                      : row.crop === "Mustard"
-                                        ? "🌻"
-                                        : "🌱"}
-                    </div>
-                    <span
-                      style={{
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        color: "#374151",
-                      }}
-                    >
-                      {row.crop}
-                    </span>
-                  </div>
-                </td>
-                <td
-                  style={{
-                    padding: "12px 16px",
-                    fontSize: "13px",
-                    color: "#6b7280",
-                  }}
-                >
-                  {row.region}
-                </td>
-                <td style={{ padding: "12px 16px" }}>
-                  <span
+                    {label}
+                    {key ? sortIcon(key) : ""}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {paginated.map((row) => {
+                const chg = calcChange(row.predicted_price, row.actual_price) ||
+                  CROP_CHANGES[row.crop] || { change: "—", up: true };
+                return (
+                  <tr
+                    key={row.id}
                     style={{
-                      fontSize: "12px",
-                      color: "#6b7280",
-                      background: "#f3f4f6",
-                      padding: "2px 8px",
-                      borderRadius: "6px",
+                      borderBottom: `1px solid ${border}`,
+                      transition: "background 0.1s",
                     }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = rowHover)
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "transparent")
+                    }
                   >
-                    {row.season}
-                  </span>
-                </td>
-                <td
-                  style={{
-                    padding: "12px 16px",
-                    fontSize: "13px",
-                    color: "#6b7280",
-                  }}
-                >
-                  {row.month}
-                </td>
-                <td
-                  style={{
-                    padding: "12px 16px",
-                    fontSize: "13px",
-                    fontWeight: 700,
-                    color: "#1f2937",
-                  }}
-                >
-                  ₹{row.predictedPrice.toLocaleString()}
-                </td>
-                <td
-                  style={{
-                    padding: "12px 16px",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    color: row.actualPrice ? "#1f2937" : "#d1d5db",
-                  }}
-                >
-                  {row.actualPrice
-                    ? `₹${row.actualPrice.toLocaleString()}`
-                    : "—"}
-                </td>
-                <td style={{ padding: "12px 16px" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "3px",
-                    }}
-                  >
-                    {row.up ? (
-                      <TrendingUp
-                        style={{
-                          width: "12px",
-                          height: "12px",
-                          color: "#16a34a",
-                        }}
-                      />
-                    ) : (
-                      <TrendingDown
-                        style={{
-                          width: "12px",
-                          height: "12px",
-                          color: "#ef4444",
-                        }}
-                      />
-                    )}
-                    <span
-                      style={{
-                        fontSize: "12px",
-                        fontWeight: 600,
-                        color: row.up ? "#16a34a" : "#ef4444",
-                      }}
-                    >
-                      {row.change}
-                    </span>
-                  </div>
-                </td>
-                <td style={{ padding: "12px 16px" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        flex: 1,
-                        height: "4px",
-                        background: "#f3f4f6",
-                        borderRadius: "2px",
-                        minWidth: "50px",
-                      }}
-                    >
+                    <td style={{ padding: "11px 16px" }}>
                       <div
                         style={{
-                          height: "100%",
-                          width: `${row.confidence}%`,
-                          background: accuracyColor(row.confidence),
-                          borderRadius: "2px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
                         }}
-                      />
-                    </div>
-                    <span
+                      >
+                        <div
+                          style={{
+                            width: "30px",
+                            height: "30px",
+                            borderRadius: "8px",
+                            background: isDark ? "#134e2b" : "#f0fdf4",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "14px",
+                          }}
+                        >
+                          {CROP_EMOJI[row.crop] || "🌱"}
+                        </div>
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: text,
+                          }}
+                        >
+                          {row.crop}
+                        </span>
+                      </div>
+                    </td>
+                    <td
                       style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        color: accuracyColor(row.confidence),
+                        padding: "11px 16px",
+                        fontSize: "13px",
+                        color: muted,
                       }}
                     >
-                      {row.confidence}%
-                    </span>
-                  </div>
-                </td>
-                <td style={{ padding: "12px 16px" }}>
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      padding: "3px 10px",
-                      borderRadius: "20px",
-                      background:
-                        row.status === "Verified" ? "#f0fdf4" : "#fffbeb",
-                      color: row.status === "Verified" ? "#16a34a" : "#d97706",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px",
-                    }}
-                  >
-                    {row.status === "Verified" ? (
-                      <CheckCircle style={{ width: "10px", height: "10px" }} />
-                    ) : (
-                      <Clock style={{ width: "10px", height: "10px" }} />
-                    )}
-                    {row.status}
-                  </span>
-                </td>
-                <td
-                  style={{
-                    padding: "12px 16px",
-                    fontSize: "12px",
-                    color: "#9ca3af",
-                  }}
-                >
-                  {new Date(row.date).toLocaleDateString("en-IN", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                      {row.state}
+                    </td>
+                    <td style={{ padding: "11px 16px" }}>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          color: muted,
+                          background: isDark ? "#0f172a" : "#f3f4f6",
+                          padding: "2px 8px",
+                          borderRadius: "6px",
+                        }}
+                      >
+                        {row.season}
+                      </span>
+                    </td>
+                    <td
+                      style={{
+                        padding: "11px 16px",
+                        fontSize: "13px",
+                        color: muted,
+                      }}
+                    >
+                      {row.month_name}
+                    </td>
+                    <td
+                      style={{
+                        padding: "11px 16px",
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        color: text,
+                      }}
+                    >
+                      ₹{Number(row.predicted_price).toLocaleString()}
+                    </td>
+                    <td
+                      style={{
+                        padding: "11px 16px",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: row.actual_price
+                          ? text
+                          : isDark
+                            ? "#475569"
+                            : "#d1d5db",
+                      }}
+                    >
+                      {row.actual_price
+                        ? `₹${Number(row.actual_price).toLocaleString()}`
+                        : "—"}
+                    </td>
+                    <td style={{ padding: "11px 16px" }}>
+                      {chg.change !== "—" ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "3px",
+                          }}
+                        >
+                          {chg.up ? (
+                            <TrendingUp
+                              style={{
+                                width: "12px",
+                                height: "12px",
+                                color: "#16a34a",
+                              }}
+                            />
+                          ) : (
+                            <TrendingDown
+                              style={{
+                                width: "12px",
+                                height: "12px",
+                                color: "#ef4444",
+                              }}
+                            />
+                          )}
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              color: chg.up ? "#16a34a" : "#ef4444",
+                            }}
+                          >
+                            {chg.change}
+                          </span>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: "12px", color: muted }}>
+                          —
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ padding: "11px 16px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            flex: 1,
+                            height: "4px",
+                            background: isDark ? "#334155" : "#f3f4f6",
+                            borderRadius: "2px",
+                            minWidth: "48px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              height: "100%",
+                              width: `${row.confidence}%`,
+                              background: accuracyColor(row.confidence),
+                              borderRadius: "2px",
+                            }}
+                          />
+                        </div>
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            color: accuracyColor(row.confidence),
+                          }}
+                        >
+                          {row.confidence}%
+                        </span>
+                      </div>
+                    </td>
+                    <td style={{ padding: "11px 16px" }}>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          padding: "3px 10px",
+                          borderRadius: "20px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          background:
+                            row.status === "Verified"
+                              ? isDark
+                                ? "rgba(22,163,74,0.15)"
+                                : "#f0fdf4"
+                              : isDark
+                                ? "rgba(245,158,11,0.15)"
+                                : "#fffbeb",
+                          color:
+                            row.status === "Verified" ? "#16a34a" : "#d97706",
+                        }}
+                      >
+                        {row.status === "Verified" ? (
+                          <CheckCircle
+                            style={{ width: "10px", height: "10px" }}
+                          />
+                        ) : (
+                          <Clock style={{ width: "10px", height: "10px" }} />
+                        )}
+                        {row.status}
+                      </span>
+                    </td>
+                    <td
+                      style={{
+                        padding: "11px 16px",
+                        fontSize: "12px",
+                        color: muted,
+                      }}
+                    >
+                      {new Date(row.created_at).toLocaleDateString("en-IN", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
 
-        {paginated.length === 0 && (
+        {!loadingData && paginated.length === 0 && (
           <div
             style={{
               padding: "48px",
               textAlign: "center",
-              color: "#9ca3af",
+              color: muted,
               fontSize: "14px",
             }}
           >
-            No predictions found matching your filters.
+            No predictions found.
           </div>
         )}
 
         {/* Pagination */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "14px 20px",
-            borderTop: "1px solid #f3f4f6",
-          }}
-        >
-          <span style={{ fontSize: "12px", color: "#9ca3af" }}>
-            Showing {Math.min((page - 1) * PER_PAGE + 1, sorted.length)}–
-            {Math.min(page * PER_PAGE, sorted.length)} of {sorted.length}
-          </span>
-          <div style={{ display: "flex", gap: "4px" }}>
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              style={{
-                padding: "5px 12px",
-                borderRadius: "8px",
-                border: "1px solid #e5e7eb",
-                background: "white",
-                fontSize: "12px",
-                cursor: page === 1 ? "not-allowed" : "pointer",
-                color: page === 1 ? "#d1d5db" : "#374151",
-              }}
-            >
-              ← Prev
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+        {!loadingData && sorted.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "14px 20px",
+              borderTop: `1px solid ${border}`,
+            }}
+          >
+            <span style={{ fontSize: "12px", color: muted }}>
+              Showing {Math.min((page - 1) * PER_PAGE + 1, sorted.length)}–
+              {Math.min(page * PER_PAGE, sorted.length)} of {sorted.length}
+            </span>
+            <div style={{ display: "flex", gap: "4px" }}>
               <button
-                key={p}
-                onClick={() => setPage(p)}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
                 style={{
-                  padding: "5px 10px",
+                  padding: "5px 12px",
                   borderRadius: "8px",
-                  border: "1px solid #e5e7eb",
+                  border: `1px solid ${border}`,
+                  background: card,
                   fontSize: "12px",
-                  cursor: "pointer",
-                  background: page === p ? "#16a34a" : "white",
-                  color: page === p ? "white" : "#374151",
-                  fontWeight: page === p ? 700 : 400,
+                  cursor: page === 1 ? "not-allowed" : "pointer",
+                  color: page === 1 ? muted : text,
                 }}
               >
-                {p}
+                ← Prev
               </button>
-            ))}
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              style={{
-                padding: "5px 12px",
-                borderRadius: "8px",
-                border: "1px solid #e5e7eb",
-                background: "white",
-                fontSize: "12px",
-                cursor: page === totalPages ? "not-allowed" : "pointer",
-                color: page === totalPages ? "#d1d5db" : "#374151",
-              }}
-            >
-              Next →
-            </button>
+              {Array.from(
+                { length: Math.min(totalPages, 7) },
+                (_, i) => i + 1,
+              ).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  style={{
+                    padding: "5px 10px",
+                    borderRadius: "8px",
+                    border: `1px solid ${border}`,
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    background: page === p ? "#16a34a" : card,
+                    color: page === p ? "white" : text,
+                    fontWeight: page === p ? 700 : 400,
+                  }}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                style={{
+                  padding: "5px 12px",
+                  borderRadius: "8px",
+                  border: `1px solid ${border}`,
+                  background: card,
+                  fontSize: "12px",
+                  cursor: page === totalPages ? "not-allowed" : "pointer",
+                  color: page === totalPages ? muted : text,
+                }}
+              >
+                Next →
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
