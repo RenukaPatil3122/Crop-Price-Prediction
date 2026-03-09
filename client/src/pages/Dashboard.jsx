@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import TopCropsCard from "../components/TopCropsCard";
 import {
   TrendingUp,
   TrendingDown,
@@ -28,16 +29,6 @@ const priceData = [
   { month: "Mar", wheat: 2800, rice: 3500, tomato: 2900 },
 ];
 
-const topCropImages = {
-  Wheat:
-    "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=300&q=80&auto=format&fit=crop",
-  Rice: "https://images.unsplash.com/photo-1723475158232-819e29803f4d?w=300&q=80&auto=format&fit=crop",
-  Tomato:
-    "https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=300&q=80&auto=format&fit=crop",
-  Onion:
-    "https://images.unsplash.com/photo-1518977956812-cd3dbadaaf31?w=300&q=80&auto=format&fit=crop",
-};
-
 const CROPS = [
   "Wheat",
   "Rice",
@@ -60,6 +51,18 @@ const STATES = [
   "Karnataka",
   "Andhra Pradesh",
 ];
+
+const CROP_CHANGES = {
+  Wheat: { change: "+12%", up: true },
+  Rice: { change: "+5%", up: true },
+  Tomato: { change: "-3%", up: false },
+  Onion: { change: "+18%", up: true },
+  Cotton: { change: "-7%", up: false },
+  Maize: { change: "+9%", up: true },
+  Potato: { change: "+4%", up: true },
+  Mustard: { change: "+6%", up: true },
+  Soyabean: { change: "-2%", up: false },
+};
 
 const S = {
   select: {
@@ -129,13 +132,11 @@ export default function Dashboard() {
     },
   ]);
 
-  // Load real dashboard data on mount
   useEffect(() => {
     getDashboardPrices()
       .then((res) => {
         if (res.data && res.data.length > 0) {
           setDashboardData(res.data);
-          // Update first metric card with real wheat prediction
           const wheat = res.data.find((d) => d.crop === "Wheat");
           if (wheat) {
             setMetricCards((prev) => [
@@ -150,7 +151,7 @@ export default function Dashboard() {
           }
         }
       })
-      .catch(() => {}); // silently fall back to static data
+      .catch(() => {});
   }, []);
 
   const handlePredict = async () => {
@@ -166,13 +167,11 @@ export default function Dashboard() {
         up: result.predicted_price > 2200,
       });
     } catch {
-      // fallback to synthetic
       const base = Math.floor(Math.random() * 3000) + 1500;
-      const confidence = Math.floor(Math.random() * 20) + 78;
       const change = (Math.random() * 20 - 5).toFixed(1);
       setPrediction({
         price: `₹${base.toLocaleString()}`,
-        confidence: `${confidence}%`,
+        confidence: `${Math.floor(Math.random() * 20) + 78}%`,
         change: `${parseFloat(change) > 0 ? "+" : ""}${change}%`,
         up: parseFloat(change) > 0,
       });
@@ -187,8 +186,8 @@ export default function Dashboard() {
           crop: d.crop,
           region: "Punjab",
           price: `₹${d.predicted_price.toLocaleString()}`,
-          change: `+${((d.predicted_price / 2000 - 1) * 10).toFixed(0)}%`,
-          up: d.predicted_price > 2000,
+          change: CROP_CHANGES[d.crop]?.change || "+5%",
+          up: CROP_CHANGES[d.crop]?.up ?? true,
         }))
       : [
           {
@@ -228,6 +227,7 @@ export default function Dashboard() {
           },
         ];
 
+  // ✅ topCrops now includes change + up for TopCropsCard badges
   const topCrops = (
     dashboardData.length > 0
       ? dashboardData.slice(0, 4)
@@ -240,7 +240,8 @@ export default function Dashboard() {
   ).map((d) => ({
     name: d.crop,
     price: `₹${d.predicted_price.toLocaleString()}`,
-    image: topCropImages[d.crop] || topCropImages["Wheat"],
+    change: CROP_CHANGES[d.crop]?.change,
+    up: CROP_CHANGES[d.crop]?.up ?? true,
   }));
 
   const disabled = !selectedCrop || !selectedRegion || loading;
@@ -530,7 +531,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Chart */}
+          {/* Price Trends Chart */}
           <div
             style={{
               background: "white",
@@ -744,99 +745,8 @@ export default function Dashboard() {
             ))}
           </div>
 
-          {/* Top Crops */}
-          <div
-            style={{
-              background: "white",
-              borderRadius: "16px",
-              border: "1px solid #f3f4f6",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
-              padding: "20px",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "14px",
-              }}
-            >
-              <span
-                style={{ fontSize: "14px", fontWeight: 700, color: "#1f2937" }}
-              >
-                Top Crops Today
-              </span>
-              <Sprout
-                style={{ width: "16px", height: "16px", color: "#22c55e" }}
-              />
-            </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "10px",
-              }}
-            >
-              {topCrops.map(({ name, price, image }) => (
-                <div
-                  key={name}
-                  style={{
-                    borderRadius: "10px",
-                    overflow: "hidden",
-                    position: "relative",
-                    height: "88px",
-                    cursor: "pointer",
-                  }}
-                >
-                  <img
-                    src={image}
-                    alt={name}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                    }}
-                    onError={(e) => {
-                      e.target.style.display = "none";
-                      e.target.parentElement.style.backgroundColor = "#f0fdf4";
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      background:
-                        "linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 100%)",
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "flex-end",
-                      padding: "8px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        color: "white",
-                        fontSize: "12px",
-                        fontWeight: 700,
-                      }}
-                    >
-                      {name}
-                    </div>
-                    <div
-                      style={{
-                        color: "#86efac",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {price}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* ✅ Top Crops — polished cards with hover, trend badges, better images */}
+          <TopCropsCard crops={topCrops} />
         </div>
       </div>
     </div>

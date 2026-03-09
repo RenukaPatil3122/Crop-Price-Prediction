@@ -6,6 +6,7 @@ import {
   History,
   Sprout,
 } from "lucide-react";
+import WeatherWidget from "./WeatherWidget";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "My Dashboard" },
@@ -43,7 +44,7 @@ export default function Sidebar() {
       </div>
 
       {/* Nav Items */}
-      <nav className="flex-1 px-4 py-6 flex flex-col gap-1">
+      <nav className="px-4 py-6 flex flex-col gap-1">
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
@@ -63,6 +64,12 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Weather Widget */}
+      <WeatherWidget />
 
       {/* User Profile */}
       <div className="px-4 py-4" style={{ borderTop: "1px solid #A5D6A7" }}>
