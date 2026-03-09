@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Search,
   Moon,
@@ -11,8 +11,22 @@ import {
   HelpCircle,
   Shield,
   ChevronDown,
+  Plus,
+  Trash2,
+  ToggleLeft,
+  ToggleRight,
+  BellOff,
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
+import {
+  getNotifications,
+  markAllRead,
+  clearNotifications,
+  getAlerts,
+  createAlert,
+  deleteAlert,
+  toggleAlert,
+} from "../api";
 
 const greetingByHour = () => {
   const h = new Date().getHours();
@@ -20,7 +34,6 @@ const greetingByHour = () => {
   if (h < 17) return "Good Afternoon";
   return "Good Evening";
 };
-
 const formatDate = () =>
   new Date().toLocaleDateString("en-IN", {
     weekday: "long",
@@ -40,13 +53,48 @@ const CROPS = [
   "Mustard",
   "Soyabean",
 ];
+const CROP_EMOJI = {
+  Wheat: "🌾",
+  Rice: "🍚",
+  Tomato: "🍅",
+  Onion: "🧅",
+  Cotton: "🌿",
+  Maize: "🌽",
+  Soyabean: "🫘",
+  Potato: "🥔",
+  Mustard: "🌻",
+};
 
 export default function Navbar() {
   const { isDark, toggleTheme } = useTheme();
+
+  // Panels
   const [notifOpen, setNotifOpen] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false); // "Set Alerts" sub-panel
   const [profileOpen, setProfileOpen] = useState(false);
+  const [tab, setTab] = useState("notifications"); // "notifications" | "alerts"
+
+  // Notification data
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifsLoading, setNotifsLoading] = useState(false);
+
+  // Alert rules
+  const [alerts, setAlerts] = useState([]);
+  const [alertsLoading, setAlertsLoading] = useState(false);
+
+  // New alert form
+  const [newCrop, setNewCrop] = useState("Wheat");
+  const [newCondition, setNewCondition] = useState("above");
+  const [newThreshold, setNewThreshold] = useState("");
+  const [newNote, setNewNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState("");
+
+  // Search
   const [searchVal, setSearchVal] = useState("");
   const [searchFocus, setSearchFocus] = useState(false);
+
   const notifRef = useRef(null);
   const profileRef = useRef(null);
 
@@ -58,7 +106,48 @@ export default function Navbar() {
   const iconBg = isDark ? "#334155" : "#f3f4f6";
   const menuBg = isDark ? "#1e293b" : "white";
   const menuMuted = isDark ? "#64748b" : "#9ca3af";
+  const panelBg = isDark ? "#0f172a" : "#f8fafc";
 
+  // ── Load notifications ────────────────────────────────────────────────────
+  const loadNotifications = useCallback(async () => {
+    setNotifsLoading(true);
+    try {
+      const res = await getNotifications(20);
+      setNotifications(res.data || []);
+      setUnreadCount(res.unread || 0);
+    } catch {
+      // backend unavailable — keep empty
+    } finally {
+      setNotifsLoading(false);
+    }
+  }, []);
+
+  // ── Load alert rules ──────────────────────────────────────────────────────
+  const loadAlerts = useCallback(async () => {
+    setAlertsLoading(true);
+    try {
+      const res = await getAlerts();
+      setAlerts(res.data || []);
+    } catch {
+      setAlerts([]);
+    } finally {
+      setAlertsLoading(false);
+    }
+  }, []);
+
+  // Poll notifications every 30s while panel is open
+  useEffect(() => {
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [loadNotifications]);
+
+  // Load alerts when tab switches
+  useEffect(() => {
+    if (notifOpen && tab === "alerts") loadAlerts();
+  }, [notifOpen, tab, loadAlerts]);
+
+  // Close on outside click
   useEffect(() => {
     const handler = (e) => {
       if (notifRef.current && !notifRef.current.contains(e.target))
@@ -70,11 +159,87 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  // ── Actions ───────────────────────────────────────────────────────────────
+
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setUnreadCount(0);
+    } catch {}
+  };
+
+  const handleClearAll = async () => {
+    try {
+      await clearNotifications();
+      setNotifications([]);
+      setUnreadCount(0);
+    } catch {}
+  };
+
+  const handleCreateAlert = async () => {
+    if (
+      !newThreshold ||
+      isNaN(Number(newThreshold)) ||
+      Number(newThreshold) <= 0
+    ) {
+      setSaveMsg("❌ Enter a valid price threshold");
+      setTimeout(() => setSaveMsg(""), 2500);
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await createAlert(
+        newCrop,
+        newCondition,
+        Number(newThreshold),
+        newNote,
+      );
+      setAlerts((prev) => [res, ...prev]);
+      setNewThreshold("");
+      setNewNote("");
+      setSaveMsg("✅ Alert created!");
+      setTimeout(() => setSaveMsg(""), 2000);
+    } catch {
+      setSaveMsg("❌ Failed to save alert");
+      setTimeout(() => setSaveMsg(""), 2500);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteAlert = async (id) => {
+    try {
+      await deleteAlert(id);
+      setAlerts((prev) => prev.filter((a) => a.id !== id));
+    } catch {}
+  };
+
+  const handleToggleAlert = async (id, currentActive) => {
+    try {
+      await toggleAlert(id, !currentActive);
+      setAlerts((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, active: !currentActive } : a)),
+      );
+    } catch {}
+  };
+
   const filtered =
     searchVal.length > 0
       ? CROPS.filter((c) => c.toLowerCase().includes(searchVal.toLowerCase()))
       : [];
 
+  const timeAgo = (iso) => {
+    const diff = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return "just now";
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    return `${Math.floor(h / 24)}d ago`;
+  };
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div
       style={{
@@ -85,7 +250,6 @@ export default function Navbar() {
         justifyContent: "space-between",
         paddingInline: "28px",
         background: bg,
-        transition: "background 0.3s",
         position: "sticky",
         top: 0,
         zIndex: 40,
@@ -210,7 +374,7 @@ export default function Navbar() {
                     (e.currentTarget.style.background = "transparent")
                   }
                 >
-                  🌾 {crop}
+                  {CROP_EMOJI[crop] || "🌾"} {crop}
                 </div>
               ))}
             </div>
@@ -220,7 +384,6 @@ export default function Navbar() {
         {/* Theme Toggle */}
         <button
           onClick={toggleTheme}
-          title={isDark ? "Light Mode" : "Dark Mode"}
           style={{
             width: "36px",
             height: "36px",
@@ -240,7 +403,7 @@ export default function Navbar() {
           )}
         </button>
 
-        {/* Notifications */}
+        {/* ── Bell + Notifications Panel ── */}
         <div style={{ position: "relative" }} ref={notifRef}>
           <button
             onClick={() => {
@@ -251,8 +414,8 @@ export default function Navbar() {
               width: "36px",
               height: "36px",
               borderRadius: "10px",
-              background: iconBg,
-              border: `1px solid ${border}`,
+              background: notifOpen ? (isDark ? "#334155" : "#f0fdf4") : iconBg,
+              border: `1px solid ${notifOpen ? "#16a34a" : border}`,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -260,177 +423,575 @@ export default function Navbar() {
               position: "relative",
             }}
           >
-            <Bell style={{ width: "16px", height: "16px", color: muted }} />
-            <span
+            <Bell
               style={{
-                position: "absolute",
-                top: "7px",
-                right: "7px",
-                width: "7px",
-                height: "7px",
-                borderRadius: "50%",
-                background: "#ef4444",
-                border: `1.5px solid ${bg}`,
+                width: "16px",
+                height: "16px",
+                color: notifOpen ? "#16a34a" : muted,
               }}
             />
+            {/* Unread badge */}
+            {unreadCount > 0 && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: "-4px",
+                  right: "-4px",
+                  minWidth: "17px",
+                  height: "17px",
+                  borderRadius: "10px",
+                  background: "#ef4444",
+                  border: `2px solid ${bg}`,
+                  color: "white",
+                  fontSize: "9px",
+                  fontWeight: 700,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "0 3px",
+                }}
+              >
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
+            {unreadCount === 0 && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: "7px",
+                  right: "7px",
+                  width: "7px",
+                  height: "7px",
+                  borderRadius: "50%",
+                  background: "#94a3b8",
+                  border: `1.5px solid ${bg}`,
+                }}
+              />
+            )}
           </button>
+
           {notifOpen && (
             <div
               style={{
                 position: "absolute",
                 right: 0,
                 top: "44px",
-                width: "290px",
+                width: "360px",
                 background: menuBg,
                 border: `1px solid ${border}`,
-                borderRadius: "14px",
-                boxShadow: "0 12px 40px rgba(0,0,0,0.15)",
+                borderRadius: "16px",
+                boxShadow: "0 16px 48px rgba(0,0,0,0.18)",
                 zIndex: 200,
                 overflow: "hidden",
               }}
             >
+              {/* Panel Header */}
               <div
                 style={{
-                  padding: "12px 16px",
+                  padding: "14px 16px 0",
                   borderBottom: `1px solid ${border}`,
-                  display: "flex",
-                  justifyContent: "space-between",
                 }}
               >
-                <span
-                  style={{ fontSize: "13px", fontWeight: 700, color: text }}
-                >
-                  Notifications
-                </span>
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    color: "#16a34a",
-                    cursor: "pointer",
-                  }}
-                >
-                  Mark all read
-                </span>
-              </div>
-              {[
-                {
-                  emoji: "📈",
-                  msg: "Wheat price up 12% in Punjab",
-                  time: "2 min ago",
-                  dot: "#16a34a",
-                  unread: true,
-                },
-                {
-                  emoji: "🧅",
-                  msg: "New prediction ready: Onion",
-                  time: "15 min ago",
-                  dot: "#f59e0b",
-                  unread: true,
-                },
-                {
-                  emoji: "⚠️",
-                  msg: "Cotton alert: price dropped 7%",
-                  time: "1 hr ago",
-                  dot: "#ef4444",
-                  unread: true,
-                },
-                {
-                  emoji: "🌾",
-                  msg: "Rabi harvest season started",
-                  time: "3 hrs ago",
-                  dot: "#16a34a",
-                  unread: false,
-                },
-              ].map(({ emoji, msg, time, dot, unread }) => (
                 <div
-                  key={msg}
                   style={{
-                    padding: "11px 16px",
                     display: "flex",
-                    gap: "10px",
-                    alignItems: "flex-start",
-                    background: unread
-                      ? isDark
-                        ? "rgba(22,163,74,0.05)"
-                        : "#f0fdf4"
-                      : "transparent",
-                    cursor: "pointer",
-                    borderBottom: `1px solid ${isDark ? "#1e293b" : "#f9fafb"}`,
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "10px",
                   }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background = isDark
-                      ? "rgba(255,255,255,0.04)"
-                      : "#f9fafb")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = unread
-                      ? isDark
-                        ? "rgba(22,163,74,0.05)"
-                        : "#f0fdf4"
-                      : "transparent")
-                  }
                 >
-                  <span style={{ fontSize: "16px", flexShrink: 0 }}>
-                    {emoji}
+                  <span
+                    style={{ fontSize: "14px", fontWeight: 700, color: text }}
+                  >
+                    🔔 Alerts & Notifications
                   </span>
-                  <div style={{ flex: 1 }}>
+                  <button
+                    onClick={() => setNotifOpen(false)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: muted,
+                      display: "flex",
+                    }}
+                  >
+                    <X style={{ width: "14px", height: "14px" }} />
+                  </button>
+                </div>
+                {/* Tabs */}
+                <div
+                  style={{ display: "flex", gap: "4px", marginBottom: "-1px" }}
+                >
+                  {["notifications", "alerts"].map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setTab(t)}
+                      style={{
+                        padding: "6px 14px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        border: "none",
+                        borderRadius: "8px 8px 0 0",
+                        cursor: "pointer",
+                        background:
+                          tab === t
+                            ? isDark
+                              ? "#0f172a"
+                              : "white"
+                            : "transparent",
+                        color: tab === t ? "#16a34a" : muted,
+                        borderBottom:
+                          tab === t
+                            ? `2px solid #16a34a`
+                            : "2px solid transparent",
+                      }}
+                    >
+                      {t === "notifications"
+                        ? `Notifications${unreadCount > 0 ? ` (${unreadCount})` : ""}`
+                        : `My Alerts${alerts.length > 0 ? ` (${alerts.length})` : ""}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Tab: Notifications ── */}
+              {tab === "notifications" && (
+                <div>
+                  {/* Actions row */}
+                  {notifications.length > 0 && (
+                    <div
+                      style={{
+                        padding: "8px 16px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        borderBottom: `1px solid ${border}`,
+                      }}
+                    >
+                      <button
+                        onClick={handleMarkAllRead}
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          color: "#16a34a",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                      >
+                        ✓ Mark all read
+                      </button>
+                      <button
+                        onClick={handleClearAll}
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          color: "#ef4444",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                      >
+                        🗑 Clear all
+                      </button>
+                    </div>
+                  )}
+
+                  <div style={{ maxHeight: "280px", overflowY: "auto" }}>
+                    {notifsLoading ? (
+                      <div
+                        style={{
+                          padding: "32px",
+                          textAlign: "center",
+                          color: muted,
+                          fontSize: "13px",
+                        }}
+                      >
+                        Loading…
+                      </div>
+                    ) : notifications.length === 0 ? (
+                      <div
+                        style={{ padding: "36px 20px", textAlign: "center" }}
+                      >
+                        <BellOff
+                          style={{
+                            width: "28px",
+                            height: "28px",
+                            color: muted,
+                            margin: "0 auto 10px",
+                            display: "block",
+                          }}
+                        />
+                        <div style={{ fontSize: "13px", color: muted }}>
+                          No notifications yet
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            color: muted,
+                            marginTop: "4px",
+                          }}
+                        >
+                          Set a price alert to get notified
+                        </div>
+                      </div>
+                    ) : (
+                      notifications.map((n) => (
+                        <div
+                          key={n.id || n.created_at}
+                          style={{
+                            padding: "11px 16px",
+                            display: "flex",
+                            gap: "10px",
+                            alignItems: "flex-start",
+                            background: !n.read
+                              ? isDark
+                                ? "rgba(22,163,74,0.06)"
+                                : "#f0fdf4"
+                              : "transparent",
+                            borderBottom: `1px solid ${isDark ? "#1e293b" : "#f9fafb"}`,
+                            cursor: "pointer",
+                          }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.background = isDark
+                              ? "rgba(255,255,255,0.04)"
+                              : "#f9fafb")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.background = !n.read
+                              ? isDark
+                                ? "rgba(22,163,74,0.06)"
+                                : "#f0fdf4"
+                              : "transparent")
+                          }
+                        >
+                          <span style={{ fontSize: "18px", flexShrink: 0 }}>
+                            {n.type === "price_alert"
+                              ? n.condition === "above"
+                                ? "📈"
+                                : "📉"
+                              : "🔔"}
+                          </span>
+                          <div style={{ flex: 1 }}>
+                            <div
+                              style={{
+                                fontSize: "12px",
+                                color: text,
+                                fontWeight: !n.read ? 600 : 400,
+                              }}
+                            >
+                              {n.message}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                color: muted,
+                                marginTop: "3px",
+                              }}
+                            >
+                              {timeAgo(n.created_at)}
+                            </div>
+                          </div>
+                          {!n.read && (
+                            <div
+                              style={{
+                                width: "7px",
+                                height: "7px",
+                                borderRadius: "50%",
+                                background: "#16a34a",
+                                marginTop: "5px",
+                                flexShrink: 0,
+                              }}
+                            />
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div
+                    style={{
+                      padding: "10px 16px",
+                      borderTop: `1px solid ${border}`,
+                      textAlign: "center",
+                    }}
+                  >
+                    <button
+                      onClick={() => setTab("alerts")}
+                      style={{
+                        fontSize: "12px",
+                        color: "#16a34a",
+                        fontWeight: 600,
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      + Set a new price alert →
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Tab: My Alerts ── */}
+              {tab === "alerts" && (
+                <div>
+                  {/* Create new alert form */}
+                  <div
+                    style={{
+                      padding: "14px 16px",
+                      background: panelBg,
+                      borderBottom: `1px solid ${border}`,
+                    }}
+                  >
                     <div
                       style={{
                         fontSize: "12px",
+                        fontWeight: 700,
                         color: text,
-                        fontWeight: unread ? 600 : 400,
+                        marginBottom: "10px",
                       }}
                     >
-                      {msg}
+                      ➕ New Price Alert
                     </div>
                     <div
                       style={{
-                        fontSize: "11px",
-                        color: muted,
-                        marginTop: "2px",
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "8px",
+                        marginBottom: "8px",
                       }}
                     >
-                      {time}
+                      {/* Crop select */}
+                      <select
+                        value={newCrop}
+                        onChange={(e) => setNewCrop(e.target.value)}
+                        style={{
+                          padding: "7px 10px",
+                          borderRadius: "8px",
+                          border: `1px solid ${border}`,
+                          background: menuBg,
+                          color: text,
+                          fontSize: "12px",
+                          outline: "none",
+                        }}
+                      >
+                        {CROPS.map((c) => (
+                          <option key={c} value={c}>
+                            {CROP_EMOJI[c]} {c}
+                          </option>
+                        ))}
+                      </select>
+                      {/* Condition */}
+                      <div
+                        style={{
+                          display: "flex",
+                          background: menuBg,
+                          border: `1px solid ${border}`,
+                          borderRadius: "8px",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {["above", "below"].map((c) => (
+                          <button
+                            key={c}
+                            onClick={() => setNewCondition(c)}
+                            style={{
+                              flex: 1,
+                              padding: "7px",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              border: "none",
+                              cursor: "pointer",
+                              background:
+                                newCondition === c ? "#16a34a" : "transparent",
+                              color: newCondition === c ? "white" : muted,
+                            }}
+                          >
+                            {c === "above" ? "📈 Above" : "📉 Below"}
+                          </button>
+                        ))}
+                      </div>
                     </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        marginBottom: "8px",
+                      }}
+                    >
+                      <input
+                        type="number"
+                        value={newThreshold}
+                        onChange={(e) => setNewThreshold(e.target.value)}
+                        placeholder="Price threshold ₹"
+                        style={{
+                          flex: 1,
+                          padding: "7px 10px",
+                          borderRadius: "8px",
+                          border: `1px solid ${border}`,
+                          background: menuBg,
+                          color: text,
+                          fontSize: "12px",
+                          outline: "none",
+                        }}
+                      />
+                      <input
+                        value={newNote}
+                        onChange={(e) => setNewNote(e.target.value)}
+                        placeholder="Note (optional)"
+                        style={{
+                          flex: 1,
+                          padding: "7px 10px",
+                          borderRadius: "8px",
+                          border: `1px solid ${border}`,
+                          background: menuBg,
+                          color: text,
+                          fontSize: "12px",
+                          outline: "none",
+                        }}
+                      />
+                    </div>
+                    {saveMsg && (
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          marginBottom: "6px",
+                          color: saveMsg.startsWith("✅")
+                            ? "#16a34a"
+                            : "#ef4444",
+                        }}
+                      >
+                        {saveMsg}
+                      </div>
+                    )}
+                    <button
+                      onClick={handleCreateAlert}
+                      disabled={saving}
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        borderRadius: "8px",
+                        background: saving
+                          ? "#94a3b8"
+                          : "linear-gradient(135deg,#166534,#16a34a)",
+                        color: "white",
+                        fontWeight: 700,
+                        fontSize: "12px",
+                        border: "none",
+                        cursor: saving ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {saving ? "Saving…" : "Create Alert"}
+                    </button>
                   </div>
-                  {unread && (
-                    <div
-                      style={{
-                        width: "7px",
-                        height: "7px",
-                        borderRadius: "50%",
-                        background: dot,
-                        marginTop: "4px",
-                        flexShrink: 0,
-                      }}
-                    />
-                  )}
+
+                  {/* Existing alerts list */}
+                  <div style={{ maxHeight: "220px", overflowY: "auto" }}>
+                    {alertsLoading ? (
+                      <div
+                        style={{
+                          padding: "24px",
+                          textAlign: "center",
+                          color: muted,
+                          fontSize: "13px",
+                        }}
+                      >
+                        Loading…
+                      </div>
+                    ) : alerts.length === 0 ? (
+                      <div
+                        style={{
+                          padding: "24px",
+                          textAlign: "center",
+                          color: muted,
+                          fontSize: "12px",
+                        }}
+                      >
+                        No alerts yet — create one above!
+                      </div>
+                    ) : (
+                      alerts.map((a) => (
+                        <div
+                          key={a.id}
+                          style={{
+                            padding: "10px 16px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                            borderBottom: `1px solid ${isDark ? "#1e293b" : "#f9fafb"}`,
+                            opacity: a.active ? 1 : 0.55,
+                          }}
+                        >
+                          <span style={{ fontSize: "16px" }}>
+                            {CROP_EMOJI[a.crop] || "🌱"}
+                          </span>
+                          <div style={{ flex: 1 }}>
+                            <div
+                              style={{
+                                fontSize: "12px",
+                                fontWeight: 600,
+                                color: text,
+                              }}
+                            >
+                              {a.crop}{" "}
+                              {a.condition === "above"
+                                ? "📈 above"
+                                : "📉 below"}{" "}
+                              ₹{Number(a.threshold).toLocaleString()}
+                            </div>
+                            {a.note && (
+                              <div style={{ fontSize: "10px", color: muted }}>
+                                {a.note}
+                              </div>
+                            )}
+                          </div>
+                          {/* Toggle */}
+                          <button
+                            onClick={() => handleToggleAlert(a.id, a.active)}
+                            title={a.active ? "Pause" : "Activate"}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              color: a.active ? "#16a34a" : muted,
+                              display: "flex",
+                            }}
+                          >
+                            {a.active ? (
+                              <ToggleRight
+                                style={{ width: "20px", height: "20px" }}
+                              />
+                            ) : (
+                              <ToggleLeft
+                                style={{ width: "20px", height: "20px" }}
+                              />
+                            )}
+                          </button>
+                          {/* Delete */}
+                          <button
+                            onClick={() => handleDeleteAlert(a.id)}
+                            title="Delete"
+                            style={{
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              color: "#ef4444",
+                              display: "flex",
+                            }}
+                          >
+                            <Trash2 style={{ width: "14px", height: "14px" }} />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
-              ))}
-              <div
-                style={{
-                  padding: "10px 16px",
-                  textAlign: "center",
-                  borderTop: `1px solid ${border}`,
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "12px",
-                    color: "#16a34a",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  View all notifications →
-                </span>
-              </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* ✅ RP Profile Button + Dropdown */}
+        {/* ── Profile Dropdown ── */}
         <div style={{ position: "relative" }} ref={profileRef}>
           <button
             onClick={() => {
@@ -465,7 +1026,6 @@ export default function Navbar() {
                 color: "white",
                 fontWeight: 700,
                 fontSize: "11px",
-                boxShadow: "0 2px 6px rgba(22,163,74,0.3)",
               }}
             >
               RP
@@ -499,7 +1059,6 @@ export default function Navbar() {
                 overflow: "hidden",
               }}
             >
-              {/* Profile header */}
               <div
                 style={{
                   padding: "16px",
@@ -522,8 +1081,6 @@ export default function Navbar() {
                       color: "white",
                       fontWeight: 700,
                       fontSize: "16px",
-                      boxShadow: "0 4px 12px rgba(22,163,74,0.35)",
-                      flexShrink: 0,
                     }}
                   >
                     RP
@@ -534,13 +1091,7 @@ export default function Navbar() {
                     >
                       Renuka Patil
                     </div>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        color: "#16a34a",
-                        marginTop: "1px",
-                      }}
-                    >
+                    <div style={{ fontSize: "11px", color: "#16a34a" }}>
                       renuka@agrisense.in
                     </div>
                     <span
@@ -560,8 +1111,6 @@ export default function Navbar() {
                   </div>
                 </div>
               </div>
-
-              {/* Menu items */}
               <div style={{ padding: "6px 0" }}>
                 {[
                   {
@@ -573,7 +1122,7 @@ export default function Navbar() {
                   {
                     icon: Bell,
                     label: "Notifications",
-                    sub: "3 unread alerts",
+                    sub: `${unreadCount} unread alerts`,
                     color: "#f59e0b",
                   },
                   {
@@ -603,7 +1152,6 @@ export default function Navbar() {
                       gap: "12px",
                       padding: "9px 16px",
                       cursor: "pointer",
-                      transition: "background 0.15s",
                     }}
                     onMouseEnter={(e) =>
                       (e.currentTarget.style.background = isDark
@@ -623,7 +1171,6 @@ export default function Navbar() {
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        flexShrink: 0,
                       }}
                     >
                       <Icon style={{ width: "15px", height: "15px", color }} />
@@ -645,8 +1192,6 @@ export default function Navbar() {
                   </div>
                 ))}
               </div>
-
-              {/* Divider + Sign Out */}
               <div
                 style={{ borderTop: `1px solid ${border}`, padding: "6px 0" }}
               >
@@ -657,7 +1202,6 @@ export default function Navbar() {
                     gap: "12px",
                     padding: "9px 16px",
                     cursor: "pointer",
-                    transition: "background 0.15s",
                   }}
                   onMouseEnter={(e) =>
                     (e.currentTarget.style.background = "rgba(239,68,68,0.07)")

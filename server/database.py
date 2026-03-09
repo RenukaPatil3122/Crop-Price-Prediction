@@ -1,6 +1,6 @@
 """
 database.py — MongoDB layer for AgriSense
-Fix: PyMongo Collection objects must be compared with 'is not None', not bool().
+Collections: predictions, alerts, notifications
 """
 
 import os
@@ -12,10 +12,12 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 class Database:
     def __init__(self):
-        self.client      = None
-        self.db          = None
-        self.collection  = None
-        self._connected  = False   # ← simple bool flag, safe to use in if-checks
+        self.client        = None
+        self.db            = None
+        self.collection    = None   # predictions
+        self.alerts_col    = None   # price alerts set by user
+        self.notifs_col    = None   # triggered alert notifications
+        self._connected    = False
 
     # ── Connect ───────────────────────────────────────────────────────────────
 
@@ -26,25 +28,26 @@ class Database:
             self.client     = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=4000)
             self.db         = self.client[db_name]
             self.collection = self.db["predictions"]
+            self.alerts_col = self.db["alerts"]
+            self.notifs_col = self.db["notifications"]
 
-            # Verify connection
             await self.client.admin.command("ping")
 
-            # Indexes for fast queries
-            await self.collection.create_index([("crop",       1)])
-            await self.collection.create_index([("state",      1)])
-            await self.collection.create_index([("status",     1)])
+            # Indexes
+            await self.collection.create_index([("crop", 1)])
             await self.collection.create_index([("created_at", -1)])
+            await self.alerts_col.create_index([("crop", 1)])
+            await self.alerts_col.create_index([("active", 1)])
+            await self.notifs_col.create_index([("read", 1)])
+            await self.notifs_col.create_index([("created_at", -1)])
 
             self._connected = True
-            print(f"✅ MongoDB connected → {db_name}.predictions")
+            print(f"✅ MongoDB connected → {db_name}")
 
         except Exception as e:
-            print(f"⚠️  MongoDB unavailable ({e})")
-            print("   App will still work — predictions won't be saved until DB is reachable.")
-            self.client     = None
-            self.db         = None
-            self.collection = None
+            print(f"⚠️  MongoDB unavailable ({e}) — app still works without DB")
+            self.client = self.db = self.collection = None
+            self.alerts_col = self.notifs_col = None
             self._connected = False
 
     async def ping(self) -> bool:
@@ -60,19 +63,16 @@ class Database:
 
     @staticmethod
     def _serialize(doc: dict) -> dict:
-        """Convert MongoDB _id → id string, datetime → ISO string."""
         if "_id" in doc:
             doc["id"] = str(doc.pop("_id"))
-        if isinstance(doc.get("created_at"), datetime):
-            doc["created_at"] = doc["created_at"].isoformat()
-        if isinstance(doc.get("verified_at"), datetime):
-            doc["verified_at"] = doc["verified_at"].isoformat()
+        for key in ("created_at", "verified_at", "triggered_at"):
+            if isinstance(doc.get(key), datetime):
+                doc[key] = doc[key].isoformat()
         return doc
 
-    # ── Write ─────────────────────────────────────────────────────────────────
+    # ── Predictions ───────────────────────────────────────────────────────────
 
     async def save_prediction(self, doc: dict) -> Optional[str]:
-        """Insert a prediction. Returns inserted ID or None if DB unavailable."""
         if not self._connected or self.collection is None:
             return None
         try:
@@ -83,35 +83,24 @@ class Database:
             return None
 
     async def update_actual_price(self, prediction_id: str, actual_price: float) -> bool:
-        """Set real market price and mark as Verified."""
         if not self._connected or self.collection is None:
             return False
         try:
             from bson import ObjectId
             result = await self.collection.update_one(
                 {"_id": ObjectId(prediction_id)},
-                {"$set": {
-                    "actual_price": round(actual_price, 2),
-                    "status":       "Verified",
-                    "verified_at":  datetime.utcnow(),
-                }},
+                {"$set": {"actual_price": round(actual_price, 2), "status": "Verified", "verified_at": datetime.utcnow()}},
             )
             return result.modified_count > 0
         except Exception as e:
             print(f"[MongoDB] Update error: {e}")
             return False
 
-    # ── Read ──────────────────────────────────────────────────────────────────
-
     async def get_predictions(
         self,
-        crop:   Optional[str] = None,
-        state:  Optional[str] = None,
-        status: Optional[str] = None,
-        limit:  int           = 50,
-        skip:   int           = 0,
+        crop: Optional[str] = None, state: Optional[str] = None,
+        status: Optional[str] = None, limit: int = 50, skip: int = 0,
     ) -> Tuple[List[dict], int]:
-        """Fetch predictions. Returns ([], 0) if DB unavailable — never raises."""
         if not self._connected or self.collection is None:
             return [], 0
         try:
@@ -119,79 +108,164 @@ class Database:
             if crop   and crop   not in ("", "All Crops"): query["crop"]   = crop
             if state  and state  not in ("", "All"):       query["state"]  = state
             if status and status not in ("", "All"):       query["status"] = status
-
             total  = await self.collection.count_documents(query)
-            cursor = (
-                self.collection
-                .find(query)
-                .sort("created_at", -1)
-                .skip(skip)
-                .limit(limit)
-            )
-            docs = []
-            async for raw in cursor:
-                docs.append(self._serialize(raw))
+            cursor = self.collection.find(query).sort("created_at", -1).skip(skip).limit(limit)
+            docs   = [self._serialize(d) async for d in cursor]
             return docs, total
-
         except Exception as e:
             print(f"[MongoDB] get_predictions error: {e}")
             return [], 0
 
     async def get_stats(self) -> dict:
-        """Aggregate stats. Returns safe zeros if DB unavailable — never raises."""
         empty = {"total": 0, "verified": 0, "pending": 0, "avg_accuracy": 0}
-
         if not self._connected or self.collection is None:
             return empty
-
         try:
             total    = await self.collection.count_documents({})
             verified = await self.collection.count_documents({"status": "Verified"})
             pending  = await self.collection.count_documents({"status": "Pending"})
-
             pipeline = [
-                {
-                    "$match": {
-                        "status":       "Verified",
-                        "actual_price": {"$ne": None, "$gt": 0},
-                    }
-                },
-                {
-                    "$project": {
-                        "accuracy": {
-                            "$multiply": [
-                                {
-                                    "$subtract": [
-                                        1,
-                                        {
-                                            "$divide": [
-                                                {"$abs": {"$subtract": ["$predicted_price", "$actual_price"]}},
-                                                "$actual_price",
-                                            ]
-                                        },
-                                    ]
-                                },
-                                100,
-                            ]
-                        }
-                    }
-                },
+                {"$match": {"status": "Verified", "actual_price": {"$ne": None, "$gt": 0}}},
+                {"$project": {"accuracy": {"$multiply": [{"$subtract": [1, {"$divide": [{"$abs": {"$subtract": ["$predicted_price", "$actual_price"]}}, "$actual_price"]}]}, 100]}}},
                 {"$group": {"_id": None, "avg": {"$avg": "$accuracy"}}},
             ]
-
-            agg_result   = await self.collection.aggregate(pipeline).to_list(1)
-            avg_accuracy = round(agg_result[0]["avg"], 1) if agg_result else 0.0
-
-            return {
-                "total":        total,
-                "verified":     verified,
-                "pending":      pending,
-                "avg_accuracy": avg_accuracy,
-            }
-
+            agg = await self.collection.aggregate(pipeline).to_list(1)
+            return {"total": total, "verified": verified, "pending": pending, "avg_accuracy": round(agg[0]["avg"], 1) if agg else 0.0}
         except Exception as e:
             print(f"[MongoDB] get_stats error: {e}")
             return empty
+
+    # ── Alerts CRUD ───────────────────────────────────────────────────────────
+
+    async def create_alert(self, doc: dict) -> Optional[str]:
+        """Save a new price alert rule."""
+        if not self._connected or self.alerts_col is None:
+            return None
+        try:
+            result = await self.alerts_col.insert_one(doc)
+            return str(result.inserted_id)
+        except Exception as e:
+            print(f"[MongoDB] create_alert error: {e}")
+            return None
+
+    async def get_alerts(self, active_only: bool = False) -> List[dict]:
+        """Return all alert rules."""
+        if not self._connected or self.alerts_col is None:
+            return []
+        try:
+            query  = {"active": True} if active_only else {}
+            cursor = self.alerts_col.find(query).sort("created_at", -1)
+            return [self._serialize(d) async for d in cursor]
+        except Exception as e:
+            print(f"[MongoDB] get_alerts error: {e}")
+            return []
+
+    async def delete_alert(self, alert_id: str) -> bool:
+        if not self._connected or self.alerts_col is None:
+            return False
+        try:
+            from bson import ObjectId
+            result = await self.alerts_col.delete_one({"_id": ObjectId(alert_id)})
+            return result.deleted_count > 0
+        except Exception as e:
+            print(f"[MongoDB] delete_alert error: {e}")
+            return False
+
+    async def toggle_alert(self, alert_id: str, active: bool) -> bool:
+        if not self._connected or self.alerts_col is None:
+            return False
+        try:
+            from bson import ObjectId
+            result = await self.alerts_col.update_one(
+                {"_id": ObjectId(alert_id)}, {"$set": {"active": active}}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            print(f"[MongoDB] toggle_alert error: {e}")
+            return False
+
+    # ── Notifications ─────────────────────────────────────────────────────────
+
+    async def create_notification(self, doc: dict) -> Optional[str]:
+        if not self._connected or self.notifs_col is None:
+            return None
+        try:
+            result = await self.notifs_col.insert_one(doc)
+            return str(result.inserted_id)
+        except Exception as e:
+            print(f"[MongoDB] create_notification error: {e}")
+            return None
+
+    async def get_notifications(self, limit: int = 20) -> Tuple[List[dict], int]:
+        if not self._connected or self.notifs_col is None:
+            return [], 0
+        try:
+            total  = await self.notifs_col.count_documents({})
+            unread = await self.notifs_col.count_documents({"read": False})
+            cursor = self.notifs_col.find({}).sort("created_at", -1).limit(limit)
+            docs   = [self._serialize(d) async for d in cursor]
+            return docs, unread
+        except Exception as e:
+            print(f"[MongoDB] get_notifications error: {e}")
+            return [], 0
+
+    async def mark_notifications_read(self) -> int:
+        if not self._connected or self.notifs_col is None:
+            return 0
+        try:
+            result = await self.notifs_col.update_many({"read": False}, {"$set": {"read": True}})
+            return result.modified_count
+        except Exception as e:
+            print(f"[MongoDB] mark_read error: {e}")
+            return 0
+
+    async def clear_notifications(self) -> int:
+        if not self._connected or self.notifs_col is None:
+            return 0
+        try:
+            result = await self.notifs_col.delete_many({})
+            return result.deleted_count
+        except Exception as e:
+            print(f"[MongoDB] clear_notifications error: {e}")
+            return 0
+
+    async def check_and_trigger_alerts(self, crop: str, current_price: float) -> List[dict]:
+        """
+        Compare current_price against all active alerts for this crop.
+        Creates a notification doc for each triggered alert.
+        Returns list of triggered alert docs.
+        """
+        if not self._connected or self.alerts_col is None:
+            return []
+        triggered = []
+        try:
+            cursor = self.alerts_col.find({"crop": crop, "active": True})
+            async for alert in cursor:
+                condition  = alert.get("condition")   # "above" | "below"
+                threshold  = alert.get("threshold", 0)
+                alert_id   = str(alert["_id"])
+
+                hit = (condition == "above" and current_price >= threshold) or \
+                      (condition == "below" and current_price <= threshold)
+
+                if hit:
+                    emoji = "📈" if condition == "above" else "📉"
+                    notif = {
+                        "alert_id":    alert_id,
+                        "crop":        crop,
+                        "condition":   condition,
+                        "threshold":   threshold,
+                        "price":       round(current_price, 2),
+                        "message":     f"{emoji} {crop} price ₹{current_price:,.0f} is {condition} your alert of ₹{threshold:,.0f}",
+                        "type":        "price_alert",
+                        "read":        False,
+                        "created_at":  datetime.utcnow(),
+                    }
+                    await self.create_notification(notif)
+                    triggered.append(self._serialize({**notif}))
+        except Exception as e:
+            print(f"[MongoDB] check_and_trigger_alerts error: {e}")
+        return triggered
 
 
 # ── Singleton ─────────────────────────────────────────────────────────────────

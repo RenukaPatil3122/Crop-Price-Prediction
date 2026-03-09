@@ -1,57 +1,43 @@
-// All backend calls go through here
-// Backend runs on http://localhost:8000
-
 const BASE = "http://localhost:8000";
 
 async function get(path) {
   const res = await fetch(`${BASE}${path}`);
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
   return res.json();
 }
-
-async function post(path, body) {
+async function post(path, body = {}) {
   const res = await fetch(`${BASE}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
   return res.json();
 }
-
 async function patch(path) {
   const res = await fetch(`${BASE}${path}`, { method: "PATCH" });
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
+  return res.json();
+}
+async function del(path) {
+  const res = await fetch(`${BASE}${path}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
   return res.json();
 }
 
 // ── Predictions ───────────────────────────────────────────────────────────────
-
-/** Quick predict for current month — auto-saved to MongoDB */
-export async function quickPredict(crop, state) {
-  return get(
+export const quickPredict = (crop, state) =>
+  get(
     `/predict/quick?crop=${encodeURIComponent(crop)}&state=${encodeURIComponent(state)}`,
   );
-}
-
-/** Full prediction with forecast — auto-saved to MongoDB */
-export async function fullPredict(crop, state, month, year) {
-  return post("/predict", { crop, state, month, year });
-}
-
-/** Forecast for next N months */
-export async function getForecast(crop, state, months = 6) {
-  return get(
+export const fullPredict = (crop, state, month, year) =>
+  post("/predict", { crop, state, month, year });
+export const getForecast = (crop, state, months = 6) =>
+  get(
     `/forecast?crop=${encodeURIComponent(crop)}&state=${encodeURIComponent(state)}&months=${months}`,
   );
-}
 
-// ── Saved Prediction History (MongoDB) ───────────────────────────────────────
-
-/**
- * Fetch saved predictions from MongoDB
- * @param {object} filters - { crop, state, status, limit, skip }
- */
+// ── Saved History (MongoDB) ───────────────────────────────────────────────────
 export async function getPredictionHistory({
   crop,
   state,
@@ -59,64 +45,47 @@ export async function getPredictionHistory({
   limit = 50,
   skip = 0,
 } = {}) {
-  const params = new URLSearchParams();
-  if (crop && crop !== "All Crops") params.append("crop", crop);
-  if (state && state !== "All") params.append("state", state);
-  if (status && status !== "All") params.append("status", status);
-  params.append("limit", limit);
-  params.append("skip", skip);
-  return get(`/predictions/history?${params.toString()}`);
+  const p = new URLSearchParams();
+  if (crop && crop !== "All Crops") p.append("crop", crop);
+  if (state && state !== "All") p.append("state", state);
+  if (status && status !== "All") p.append("status", status);
+  p.append("limit", limit);
+  p.append("skip", skip);
+  return get(`/predictions/history?${p}`);
 }
+export const getRecentPredictions = (limit = 5) =>
+  get(`/predictions/recent?limit=${limit}`);
+export const getPredictionStats = () => get("/predictions/stats");
+export const updateActualPrice = (id, price) =>
+  patch(`/predictions/${id}/actual?actual_price=${price}`);
 
-/** 5 most recent predictions for Dashboard */
-export async function getRecentPredictions(limit = 5) {
-  return get(`/predictions/recent?limit=${limit}`);
-}
+// ── Price Alerts ──────────────────────────────────────────────────────────────
+export const getAlerts = (activeOnly = false) =>
+  get(`/alerts?active_only=${activeOnly}`);
+export const createAlert = (crop, condition, threshold, note = "") =>
+  post("/alerts", { crop, condition, threshold, note });
+export const deleteAlert = (id) => del(`/alerts/${id}`);
+export const toggleAlert = (id, active) =>
+  patch(`/alerts/${id}/toggle?active=${active}`);
 
-/** Aggregate stats: total, verified, pending, avg_accuracy */
-export async function getPredictionStats() {
-  return get("/predictions/stats");
-}
-
-/** Admin: mark actual price + set status to Verified */
-export async function updateActualPrice(predictionId, actualPrice) {
-  return patch(
-    `/predictions/${predictionId}/actual?actual_price=${actualPrice}`,
-  );
-}
+// ── Notifications ─────────────────────────────────────────────────────────────
+export const getNotifications = (limit = 20) =>
+  get(`/notifications?limit=${limit}`);
+export const markAllRead = () => post("/notifications/mark-read");
+export const clearNotifications = () => del("/notifications/clear");
 
 // ── Prices ────────────────────────────────────────────────────────────────────
-
-/** Dashboard summary — top 6 crops */
-export async function getDashboardPrices() {
-  return get("/prices/dashboard");
-}
-
-/** Current mandi prices */
-export async function getCurrentPrices(commodity = null, state = null) {
-  let url = "/prices/current";
-  const p = [];
-  if (commodity) p.push(`commodity=${encodeURIComponent(commodity)}`);
-  if (state) p.push(`state=${encodeURIComponent(state)}`);
-  if (p.length) url += "?" + p.join("&");
-  return get(url);
-}
-
-/** Price history for a crop+state */
-export async function getPriceHistory(commodity, state, days = 180) {
-  return get(
+export const getDashboardPrices = () => get("/prices/dashboard");
+export const getCurrentPrices = (commodity, state) =>
+  get(
+    `/prices/current${commodity ? `?commodity=${encodeURIComponent(commodity)}` : ""}${state ? `&state=${encodeURIComponent(state)}` : ""}`,
+  );
+export const getPriceHistory = (commodity, state, days = 180) =>
+  get(
     `/prices/history?commodity=${encodeURIComponent(commodity)}&state=${encodeURIComponent(state)}&days=${days}`,
   );
-}
 
-// ── Metadata ──────────────────────────────────────────────────────────────────
-
-export async function getCrops() {
-  return get("/crops");
-}
-export async function getStates() {
-  return get("/states");
-}
-export async function checkHealth() {
-  return get("/health");
-}
+// ── Meta ──────────────────────────────────────────────────────────────────────
+export const getCrops = () => get("/crops");
+export const getStates = () => get("/states");
+export const checkHealth = () => get("/health");
