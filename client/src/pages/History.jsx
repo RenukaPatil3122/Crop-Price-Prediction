@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { getPredictionHistory, getPredictionStats } from "../api";
 
-// ── Static fallback data (shown when MongoDB is empty / unavailable) ──────────
 const STATIC_DATA = [
   {
     id: "s1",
@@ -123,7 +122,6 @@ const CROP_CHANGES = {
   Mustard: { change: "+6%", up: true },
   Soyabean: { change: "-2%", up: false },
 };
-
 const CROP_EMOJI = {
   Wheat: "🌾",
   Rice: "🍚",
@@ -135,7 +133,6 @@ const CROP_EMOJI = {
   Potato: "🥔",
   Mustard: "🌻",
 };
-
 const CROPS = [
   "All Crops",
   "Wheat",
@@ -201,7 +198,6 @@ const PER_PAGE = 8;
 export default function History() {
   const { isDark } = useTheme();
 
-  // Data state
   const [allData, setAllData] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -209,10 +205,8 @@ export default function History() {
     pending: 0,
     avg_accuracy: 0,
   });
-  const [dbLive, setDbLive] = useState(false); // is MongoDB active?
+  const [dbLive, setDbLive] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
-
-  // Filter state
   const [search, setSearch] = useState("");
   const [cropFilter, setCropFilter] = useState("All Crops");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -221,13 +215,17 @@ export default function History() {
   const [page, setPage] = useState(1);
   const [exporting, setExporting] = useState(false);
 
-  const card = isDark ? "#1e293b" : "white";
-  const border = isDark ? "#334155" : "#f3f4f6";
-  const text = isDark ? "#f1f5f9" : "#1f2937";
-  const muted = isDark ? "#94a3b8" : "#9ca3af";
-  const rowHover = isDark ? "#243044" : "#fafafa";
+  // ── Theme tokens ─────────────────────────────────────────────────────────
+  const card = isDark ? "#1e293b" : "#ffffff";
+  const border = isDark ? "#334155" : "#e5e7eb";
+  const text = isDark ? "#f1f5f9" : "#111827";
+  const muted = isDark ? "#94a3b8" : "#6b7280";
+  const rowHover = isDark ? "#243044" : "#f8fafc";
+  const inputBg = isDark ? "#0f172a" : "#f3f4f6";
+  const cardShadow = isDark
+    ? "none"
+    : "0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)";
 
-  // ── Load data from MongoDB (with fallback) ────────────────────────────────
   const loadData = useCallback(async () => {
     setLoadingData(true);
     try {
@@ -235,13 +233,11 @@ export default function History() {
         getPredictionHistory({ limit: 200 }),
         getPredictionStats(),
       ]);
-
       if (histRes.data && histRes.data.length > 0) {
         setAllData(histRes.data);
         setStats(statsRes);
         setDbLive(true);
       } else {
-        // DB empty — use static fallback
         setAllData(STATIC_DATA);
         setStats({
           total: STATIC_DATA.length,
@@ -252,7 +248,6 @@ export default function History() {
         setDbLive(false);
       }
     } catch {
-      // DB unavailable — use static fallback
       setAllData(STATIC_DATA);
       setStats({ total: 8, verified: 5, pending: 3, avg_accuracy: 91.2 });
       setDbLive(false);
@@ -265,7 +260,6 @@ export default function History() {
     loadData();
   }, [loadData]);
 
-  // ── Filter + Sort ─────────────────────────────────────────────────────────
   const filtered = allData
     .filter((r) => cropFilter === "All Crops" || r.crop === cropFilter)
     .filter((r) => statusFilter === "All" || r.status === statusFilter)
@@ -302,14 +296,12 @@ export default function History() {
   const handleExport = () => {
     setExporting(true);
     const ts = new Date().toISOString().slice(0, 10);
-    const clabel =
-      cropFilter === "All Crops" ? "all" : cropFilter.toLowerCase();
-    const slabel = statusFilter === "All" ? "all" : statusFilter.toLowerCase();
-    exportToCSV(sorted, `agrisense_${clabel}_${slabel}_${ts}.csv`);
+    const cl = cropFilter === "All Crops" ? "all" : cropFilter.toLowerCase();
+    const sl = statusFilter === "All" ? "all" : statusFilter.toLowerCase();
+    exportToCSV(sorted, `agrisense_${cl}_${sl}_${ts}.csv`);
     setTimeout(() => setExporting(false), 1500);
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* Header */}
@@ -332,15 +324,22 @@ export default function History() {
             >
               Prediction History
             </h1>
-            {/* DB status badge */}
+            {/* ── Live from MongoDB badge — always clearly visible ── */}
             <span
               style={{
                 fontSize: "11px",
-                fontWeight: 600,
-                padding: "3px 10px",
+                fontWeight: 700,
+                padding: "4px 12px",
                 borderRadius: "20px",
-                background: dbLive ? "#dcfce7" : "rgba(245,158,11,0.15)",
+                background: dbLive
+                  ? isDark
+                    ? "rgba(22,163,74,0.2)"
+                    : "#dcfce7"
+                  : isDark
+                    ? "rgba(245,158,11,0.2)"
+                    : "#fef3c7",
                 color: dbLive ? "#16a34a" : "#d97706",
+                border: `1px solid ${dbLive ? (isDark ? "rgba(22,163,74,0.4)" : "#86efac") : isDark ? "rgba(245,158,11,0.4)" : "#fde68a"}`,
                 display: "flex",
                 alignItems: "center",
                 gap: "5px",
@@ -355,7 +354,6 @@ export default function History() {
           </p>
         </div>
         <div style={{ display: "flex", gap: "8px" }}>
-          {/* Refresh */}
           <button
             onClick={loadData}
             disabled={loadingData}
@@ -371,6 +369,7 @@ export default function History() {
               fontSize: "13px",
               border: `1px solid ${border}`,
               cursor: "pointer",
+              boxShadow: isDark ? "none" : "0 1px 3px rgba(0,0,0,0.07)",
             }}
           >
             <RefreshCw
@@ -382,7 +381,6 @@ export default function History() {
             />
             Refresh
           </button>
-          {/* Export */}
           <button
             onClick={handleExport}
             disabled={exporting || sorted.length === 0}
@@ -401,7 +399,6 @@ export default function History() {
               border: exporting ? "1px solid #bbf7d0" : "none",
               cursor: sorted.length === 0 ? "not-allowed" : "pointer",
               boxShadow: exporting ? "none" : "0 2px 8px rgba(22,163,74,0.3)",
-              transition: "all 0.2s",
               opacity: sorted.length === 0 ? 0.5 : 1,
             }}
           >
@@ -469,6 +466,7 @@ export default function History() {
               border: `1px solid ${cb}`,
               borderRadius: "14px",
               padding: "18px",
+              boxShadow: isDark ? "none" : "0 1px 4px rgba(0,0,0,0.06)",
             }}
           >
             <div
@@ -507,15 +505,17 @@ export default function History() {
           gap: "12px",
           alignItems: "center",
           flexWrap: "wrap",
+          boxShadow: cardShadow,
         }}
       >
+        {/* Search — always visible */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             gap: "8px",
-            background: isDark ? "#0f172a" : "#f9fafb",
-            border: `1px solid ${border}`,
+            background: inputBg,
+            border: `1.5px solid ${isDark ? "#475569" : "#d1d5db"}`,
             borderRadius: "10px",
             padding: "0 12px",
             flex: 1,
@@ -536,7 +536,7 @@ export default function History() {
               outline: "none",
               fontSize: "13px",
               color: text,
-              padding: "8px 0",
+              padding: "9px 0",
               width: "100%",
             }}
           />
@@ -548,13 +548,13 @@ export default function History() {
             setPage(1);
           }}
           style={{
-            height: "36px",
+            height: "38px",
             borderRadius: "10px",
             padding: "0 10px",
             fontSize: "13px",
             color: text,
-            background: isDark ? "#0f172a" : "#f9fafb",
-            border: `1px solid ${border}`,
+            background: inputBg,
+            border: `1.5px solid ${isDark ? "#475569" : "#d1d5db"}`,
             outline: "none",
           }}
         >
@@ -567,8 +567,8 @@ export default function History() {
         <div
           style={{
             display: "flex",
-            background: isDark ? "#0f172a" : "#f9fafb",
-            border: `1px solid ${border}`,
+            background: inputBg,
+            border: `1.5px solid ${isDark ? "#475569" : "#d1d5db"}`,
             borderRadius: "9px",
             padding: "3px",
             gap: "2px",
@@ -596,7 +596,14 @@ export default function History() {
             </button>
           ))}
         </div>
-        <div style={{ marginLeft: "auto", fontSize: "12px", color: muted }}>
+        <div
+          style={{
+            marginLeft: "auto",
+            fontSize: "12px",
+            color: muted,
+            fontWeight: 500,
+          }}
+        >
           {filtered.length} result{filtered.length !== 1 ? "s" : ""}
         </div>
       </div>
@@ -608,6 +615,7 @@ export default function History() {
           borderRadius: "16px",
           border: `1px solid ${border}`,
           overflow: "hidden",
+          boxShadow: cardShadow,
         }}
       >
         {loadingData ? (
@@ -635,7 +643,7 @@ export default function History() {
             <thead>
               <tr
                 style={{
-                  background: isDark ? "#0f172a" : "#f9fafb",
+                  background: isDark ? "#0f172a" : "#f8fafc",
                   borderBottom: `1px solid ${border}`,
                 }}
               >
@@ -659,10 +667,12 @@ export default function History() {
                       padding: "12px 16px",
                       fontSize: "11px",
                       color: muted,
-                      fontWeight: 600,
+                      fontWeight: 700,
                       cursor: key ? "pointer" : "default",
                       userSelect: "none",
                       whiteSpace: "nowrap",
+                      letterSpacing: "0.03em",
+                      textTransform: "uppercase",
                     }}
                   >
                     {label}
@@ -702,7 +712,7 @@ export default function History() {
                             width: "30px",
                             height: "30px",
                             borderRadius: "8px",
-                            background: isDark ? "#134e2b" : "#f0fdf4",
+                            background: isDark ? "#134e2b" : "#dcfce7",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -726,7 +736,8 @@ export default function History() {
                       style={{
                         padding: "11px 16px",
                         fontSize: "13px",
-                        color: muted,
+                        color: text,
+                        fontWeight: 500,
                       }}
                     >
                       {row.state}
@@ -735,9 +746,10 @@ export default function History() {
                       <span
                         style={{
                           fontSize: "11px",
+                          fontWeight: 600,
                           color: muted,
                           background: isDark ? "#0f172a" : "#f3f4f6",
-                          padding: "2px 8px",
+                          padding: "3px 9px",
                           borderRadius: "6px",
                         }}
                       >
@@ -748,7 +760,8 @@ export default function History() {
                       style={{
                         padding: "11px 16px",
                         fontSize: "13px",
-                        color: muted,
+                        color: text,
+                        fontWeight: 500,
                       }}
                     >
                       {row.month_name}
@@ -833,7 +846,7 @@ export default function History() {
                           style={{
                             flex: 1,
                             height: "4px",
-                            background: isDark ? "#334155" : "#f3f4f6",
+                            background: isDark ? "#334155" : "#e5e7eb",
                             borderRadius: "2px",
                             minWidth: "48px",
                           }}
@@ -872,12 +885,13 @@ export default function History() {
                             row.status === "Verified"
                               ? isDark
                                 ? "rgba(22,163,74,0.15)"
-                                : "#f0fdf4"
+                                : "#dcfce7"
                               : isDark
                                 ? "rgba(245,158,11,0.15)"
-                                : "#fffbeb",
+                                : "#fef3c7",
                           color:
                             row.status === "Verified" ? "#16a34a" : "#d97706",
+                          border: `1px solid ${row.status === "Verified" ? (isDark ? "rgba(22,163,74,0.3)" : "#86efac") : isDark ? "rgba(245,158,11,0.3)" : "#fde68a"}`,
                         }}
                       >
                         {row.status === "Verified" ? (
@@ -895,6 +909,7 @@ export default function History() {
                         padding: "11px 16px",
                         fontSize: "12px",
                         color: muted,
+                        fontWeight: 500,
                       }}
                     >
                       {new Date(row.created_at).toLocaleDateString("en-IN", {

@@ -24,7 +24,6 @@ import {
 } from "recharts";
 import { quickPredict, getDashboardPrices, getRecentPredictions } from "../api";
 
-// ── Chart data per range tab ──────────────────────────────────────────────────
 const CHART_DATA = {
   "1M": [
     { month: "W1", wheat: 2700, rice: 3400, tomato: 2600 },
@@ -85,7 +84,6 @@ const CROP_EMOJI = {
   Soyabean: "🫘",
 };
 
-// Static fallback for Recent Predictions (when MongoDB empty)
 const STATIC_RECENT = [
   { crop: "Wheat", state: "Punjab", predicted_price: 2893 },
   { crop: "Rice", state: "Punjab", predicted_price: 3754 },
@@ -162,32 +160,6 @@ const MARKET_NEWS = [
   },
 ];
 
-const S = {
-  select: {
-    height: "38px",
-    borderRadius: "10px",
-    padding: "0 10px",
-    fontSize: "13px",
-    color: "#374151",
-    background: "white",
-    border: "none",
-    outline: "none",
-    width: "100%",
-  },
-  predictBtn: {
-    height: "38px",
-    padding: "0 20px",
-    borderRadius: "10px",
-    background: "#facc15",
-    fontWeight: 700,
-    fontSize: "13px",
-    color: "#1f2937",
-    border: "none",
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-  },
-};
-
 export default function Dashboard() {
   const { isDark } = useTheme();
   const [selectedCrop, setSelectedCrop] = useState("");
@@ -195,13 +167,18 @@ export default function Dashboard() {
   const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
   const [dashboardData, setDashboardData] = useState([]);
-  const [recentFromDB, setRecentFromDB] = useState([]); // real MongoDB recent predictions
+  const [recentFromDB, setRecentFromDB] = useState([]);
   const [chartRange, setChartRange] = useState("6M");
 
-  const card = isDark ? "#1e293b" : "white";
-  const border = isDark ? "#334155" : "#f3f4f6";
-  const text = isDark ? "#f1f5f9" : "#1f2937";
-  const muted = isDark ? "#94a3b8" : "#9ca3af";
+  // ── Theme tokens ─────────────────────────────────────────────────────────
+  const card = isDark ? "#1e293b" : "#ffffff";
+  const border = isDark ? "#334155" : "#e5e7eb";
+  const text = isDark ? "#f1f5f9" : "#111827"; // darker in light mode
+  const muted = isDark ? "#94a3b8" : "#6b7280";
+  const subBg = isDark ? "#0f172a" : "#f9fafb";
+  const cardShadow = isDark
+    ? "none"
+    : "0 1px 4px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.04)";
 
   const [metricCards, setMetricCards] = useState([
     {
@@ -239,7 +216,6 @@ export default function Dashboard() {
     },
   ]);
 
-  // ── Load dashboard prices (for metric cards + Top Crops) — no DB save ────
   useEffect(() => {
     getDashboardPrices()
       .then((res) => {
@@ -262,7 +238,6 @@ export default function Dashboard() {
       .catch(() => {});
   }, []);
 
-  // ── Load Recent Predictions from MongoDB ─────────────────────────────────
   useEffect(() => {
     getRecentPredictions(5)
       .then((res) => {
@@ -271,20 +246,18 @@ export default function Dashboard() {
       .catch(() => {});
   }, []);
 
-  // ── Quick Predict — passes ?save=true so only user clicks get saved ───────
   const handlePredict = async () => {
     if (!selectedCrop || !selectedRegion) return;
     setLoading(true);
     setPrediction(null);
     try {
-      const r = await quickPredict(selectedCrop, selectedRegion, true); // save=true
+      const r = await quickPredict(selectedCrop, selectedRegion, true);
       setPrediction({
         price: `₹${Math.round(r.predicted_price).toLocaleString()}`,
         confidence: `${r.confidence}%`,
         change: `${r.predicted_price > 2000 ? "+" : ""}${((r.predicted_price / 2200 - 1) * 100).toFixed(1)}%`,
         up: r.predicted_price > 2200,
       });
-      // Refresh recent predictions after user saves one
       getRecentPredictions(5)
         .then((res) => {
           if (res.data?.length > 0) setRecentFromDB(res.data);
@@ -304,8 +277,6 @@ export default function Dashboard() {
     }
   };
 
-  // ── Build Recent Predictions list ─────────────────────────────────────────
-  // Priority: real MongoDB data → static fallback
   const recentPredictions = (
     recentFromDB.length > 0 ? recentFromDB : STATIC_RECENT
   ).map((d) => ({
@@ -315,7 +286,6 @@ export default function Dashboard() {
     ...(CROP_CHANGES[d.crop] || { change: "+5%", up: true }),
   }));
 
-  // ── Top Crops (from dashboard prices — no DB write) ───────────────────────
   const topCrops = (
     dashboardData.length > 0
       ? dashboardData.slice(0, 4)
@@ -333,9 +303,35 @@ export default function Dashboard() {
 
   const disabled = !selectedCrop || !selectedRegion || loading;
 
+  const S = {
+    select: {
+      height: "38px",
+      borderRadius: "10px",
+      padding: "0 10px",
+      fontSize: "13px",
+      color: "#374151",
+      background: "white",
+      border: "none",
+      outline: "none",
+      width: "100%",
+    },
+    predictBtn: {
+      height: "38px",
+      padding: "0 20px",
+      borderRadius: "10px",
+      background: "#facc15",
+      fontWeight: 700,
+      fontSize: "13px",
+      color: "#1f2937",
+      border: "none",
+      cursor: "pointer",
+      whiteSpace: "nowrap",
+    },
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      {/* Metric Cards */}
+      {/* ── Metric Cards ── */}
       <div
         style={{
           display: "grid",
@@ -352,7 +348,7 @@ export default function Dashboard() {
                 border: `1px solid ${isDark ? "#334155" : cb}`,
                 borderRadius: "16px",
                 padding: "20px",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+                boxShadow: cardShadow,
               }}
             >
               <div
@@ -429,7 +425,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Main Grid */}
+      {/* ── Main Grid ── */}
       <div
         style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "20px" }}
       >
@@ -601,6 +597,7 @@ export default function Dashboard() {
               height: "320px",
               display: "flex",
               flexDirection: "column",
+              boxShadow: cardShadow,
             }}
           >
             <div
@@ -716,6 +713,7 @@ export default function Dashboard() {
               borderRadius: "16px",
               border: `1px solid ${border}`,
               padding: "20px",
+              boxShadow: cardShadow,
             }}
           >
             <div
@@ -737,7 +735,7 @@ export default function Dashboard() {
               <span
                 style={{
                   fontSize: "11px",
-                  background: "#f0fdf4",
+                  background: isDark ? "rgba(22,163,74,0.15)" : "#dcfce7",
                   color: "#16a34a",
                   padding: "3px 10px",
                   borderRadius: "20px",
@@ -817,13 +815,14 @@ export default function Dashboard() {
 
         {/* Right column */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          {/* Recent Predictions — from MongoDB */}
+          {/* Recent Predictions */}
           <div
             style={{
               background: card,
               borderRadius: "16px",
               border: `1px solid ${border}`,
               padding: "20px",
+              boxShadow: cardShadow,
             }}
           >
             <div
@@ -834,7 +833,9 @@ export default function Dashboard() {
                 marginBottom: "16px",
               }}
             >
-              <div>
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "8px" }}
+              >
                 <span
                   style={{ fontSize: "14px", fontWeight: 700, color: text }}
                 >
@@ -845,11 +846,10 @@ export default function Dashboard() {
                     style={{
                       fontSize: "10px",
                       color: "#16a34a",
-                      background: "#f0fdf4",
+                      background: isDark ? "rgba(22,163,74,0.15)" : "#dcfce7",
                       padding: "2px 7px",
                       borderRadius: "20px",
                       fontWeight: 600,
-                      marginLeft: "8px",
                     }}
                   >
                     ● Live
@@ -864,14 +864,13 @@ export default function Dashboard() {
                   background: "none",
                   border: "none",
                   cursor: "pointer",
-                  fontWeight: 500,
+                  fontWeight: 600,
                   textDecoration: "none",
                 }}
               >
                 View all
               </a>
             </div>
-
             {recentPredictions.length === 0 ? (
               <div
                 style={{
@@ -893,7 +892,7 @@ export default function Dashboard() {
                       justifyContent: "space-between",
                       alignItems: "center",
                       padding: "9px 0",
-                      borderBottom: `1px solid ${isDark ? "#1e293b" : "#f9fafb"}`,
+                      borderBottom: `1px solid ${isDark ? "#1e293b" : "#f3f4f6"}`,
                     }}
                   >
                     <div
@@ -908,7 +907,7 @@ export default function Dashboard() {
                           width: "30px",
                           height: "30px",
                           borderRadius: "8px",
-                          background: isDark ? "#134e2b" : "#f0fdf4",
+                          background: isDark ? "#134e2b" : "#dcfce7",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",

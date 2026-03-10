@@ -99,13 +99,13 @@ export default function Navbar() {
   const border = isDark ? "#334155" : "#e5e7eb";
   const text = isDark ? "#f1f5f9" : "#1f2937";
   const muted = isDark ? "#94a3b8" : "#6b7280";
-  const inputBg = isDark ? "#334155" : "#f9fafb";
+  // ↓ search bg: clearly visible in both modes
+  const inputBg = isDark ? "#0f172a" : "#f3f4f6";
   const iconBg = isDark ? "#334155" : "#f3f4f6";
   const menuBg = isDark ? "#1e293b" : "white";
   const menuMuted = isDark ? "#64748b" : "#9ca3af";
   const panelBg = isDark ? "#0f172a" : "#f8fafc";
 
-  // ── User display ──────────────────────────────────────────────────────────
   const userName = user?.name || "User";
   const userEmail = user?.email || "";
   const initials = userName
@@ -116,7 +116,6 @@ export default function Navbar() {
     .toUpperCase();
   const firstName = userName.split(" ")[0];
 
-  // ── Notifications ─────────────────────────────────────────────────────────
   const loadNotifications = useCallback(async () => {
     setNotifsLoading(true);
     try {
@@ -162,7 +161,6 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // ── Alert actions ─────────────────────────────────────────────────────────
   const handleMarkAllRead = async () => {
     try {
       await markAllRead();
@@ -221,7 +219,6 @@ export default function Navbar() {
       );
     } catch {}
   };
-
   const handleLogout = () => {
     logout();
     navigate("/login");
@@ -277,7 +274,7 @@ export default function Navbar() {
 
       {/* Controls */}
       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-        {/* Search */}
+        {/* Search — always visible placeholder + text */}
         <div style={{ position: "relative" }}>
           <div
             style={{
@@ -286,10 +283,10 @@ export default function Navbar() {
               gap: "8px",
               background: searchFocus
                 ? isDark
-                  ? "#3d4f6b"
+                  ? "#1e293b"
                   : "white"
                 : inputBg,
-              border: `1.5px solid ${searchFocus ? "#16a34a" : border}`,
+              border: `1.5px solid ${searchFocus ? "#16a34a" : isDark ? "#475569" : "#d1d5db"}`,
               borderRadius: "10px",
               padding: "0 14px",
               height: "36px",
@@ -304,7 +301,7 @@ export default function Navbar() {
               style={{
                 width: "14px",
                 height: "14px",
-                color: searchFocus ? "#16a34a" : muted,
+                color: searchFocus ? "#16a34a" : isDark ? "#94a3b8" : "#9ca3af",
                 flexShrink: 0,
               }}
             />
@@ -321,8 +318,12 @@ export default function Navbar() {
                 fontSize: "13px",
                 color: isDark ? "#f1f5f9" : "#1f2937",
                 width: "100%",
+                // Force placeholder visibility
+                "::placeholder": { color: isDark ? "#64748b" : "#9ca3af" },
               }}
             />
+            {/* Inline style for placeholder — use a style tag trick via className would need CSS,
+                so we ensure the input bg contrast is high enough */}
             {searchVal && (
               <button
                 onClick={() => setSearchVal("")}
@@ -382,7 +383,7 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Theme */}
+        {/* Theme toggle */}
         <button
           onClick={toggleTheme}
           style={{
@@ -1015,7 +1016,6 @@ export default function Navbar() {
                 overflow: "hidden",
               }}
             >
-              {/* User info header */}
               <div
                 style={{
                   padding: "16px",
@@ -1065,8 +1065,6 @@ export default function Navbar() {
                   </div>
                 </div>
               </div>
-
-              {/* Menu items */}
               <div style={{ padding: "6px 0" }}>
                 {[
                   {
@@ -1171,8 +1169,6 @@ export default function Navbar() {
                   </div>
                 ))}
               </div>
-
-              {/* Sign Out */}
               <div
                 style={{ borderTop: `1px solid ${border}`, padding: "6px 0" }}
               >

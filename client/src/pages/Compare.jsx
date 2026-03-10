@@ -62,7 +62,6 @@ const CROP_EMOJI = {
   Mustard: "🌻",
 };
 const CROP_COLORS = ["#16a34a", "#2563eb", "#f59e0b", "#ef4444", "#8b5cf6"];
-
 const MONTH_NAMES = [
   "Jan",
   "Feb",
@@ -78,7 +77,6 @@ const MONTH_NAMES = [
   "Dec",
 ];
 
-// Static enrichment data per crop
 const CROP_META = {
   Wheat: {
     season: "Rabi",
@@ -169,20 +167,22 @@ const DEFAULT_SLOTS = [
 
 export default function Compare() {
   const { isDark } = useTheme();
-
   const [slots, setSlots] = useState(DEFAULT_SLOTS);
-  const [results, setResults] = useState([]); // [{crop,state,price,confidence,min,max,forecast,color}]
+  const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [chartTab, setChartTab] = useState("price"); // "price" | "forecast" | "radar" | "bar"
+  const [chartTab, setChartTab] = useState("price");
   const [loaded, setLoaded] = useState(false);
 
-  const card = isDark ? "#1e293b" : "white";
-  const border = isDark ? "#334155" : "#f3f4f6";
-  const text = isDark ? "#f1f5f9" : "#1f2937";
-  const muted = isDark ? "#94a3b8" : "#9ca3af";
+  // ── Theme tokens ─────────────────────────────────────────────────────────
+  const card = isDark ? "#1e293b" : "#ffffff";
+  const border = isDark ? "#334155" : "#e5e7eb";
+  const text = isDark ? "#f1f5f9" : "#111827";
+  const muted = isDark ? "#94a3b8" : "#6b7280";
   const panelBg = isDark ? "#0f172a" : "#f8fafc";
+  const cardShadow = isDark
+    ? "none"
+    : "0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)";
 
-  // ── Fetch all slots ───────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
     if (slots.length === 0) return;
     setLoading(true);
@@ -233,24 +233,19 @@ export default function Compare() {
     fetchAll();
   }, []);
 
-  // ── Slot management ───────────────────────────────────────────────────────
   const addSlot = () => {
     if (slots.length >= 5) return;
     const unused = ALL_CROPS.find((c) => !slots.find((s) => s.crop === c));
     setSlots([...slots, { crop: unused || "Wheat", state: "Haryana" }]);
   };
-
   const removeSlot = (idx) => {
     setSlots(slots.filter((_, i) => i !== idx));
     setResults(results.filter((_, i) => i !== idx));
   };
-
   const updateSlot = (idx, key, val) => {
-    const updated = slots.map((s, i) => (i === idx ? { ...s, [key]: val } : s));
-    setSlots(updated);
+    setSlots(slots.map((s, i) => (i === idx ? { ...s, [key]: val } : s)));
   };
 
-  // ── Build chart data ──────────────────────────────────────────────────────
   const priceData = results.map((r) => ({
     name: `${CROP_EMOJI[r.crop] || "🌱"} ${r.crop}`,
     price: r.price,
@@ -258,8 +253,6 @@ export default function Compare() {
     max: r.max,
     confidence: r.confidence,
   }));
-
-  // Forecast line chart — x-axis = months, each crop = a line
   const forecastData = MONTH_NAMES.slice(0, 6).map((month, i) => {
     const obj = { month };
     results.forEach((r) => {
@@ -267,24 +260,20 @@ export default function Compare() {
     });
     return obj;
   });
-
-  // Radar chart — one shape per crop
-  const radarDimensions = [
+  const radarDims = [
     "Price Stability",
     "Water Efficiency",
     "Market Demand",
     "Export Potential",
     "Profitability",
   ];
-  const radarData = radarDimensions.map((dim) => {
+  const radarData = radarDims.map((dim) => {
     const obj = { dim };
     results.forEach((r) => {
       obj[r.crop] = scoreCard(r.meta)[dim];
     });
     return obj;
   });
-
-  // Bar chart — price range (min/max/predicted)
   const rangeData = results.map((r) => ({
     name: `${CROP_EMOJI[r.crop] || ""} ${r.crop}`,
     min: Math.round(r.min),
@@ -292,7 +281,6 @@ export default function Compare() {
     max: Math.round(r.max),
   }));
 
-  // Winner badges
   const bestPrice =
     results.length > 0
       ? results.reduce((a, b) => (a.price > b.price ? a : b))
@@ -302,7 +290,6 @@ export default function Compare() {
       ? results.reduce((a, b) => (a.confidence > b.confidence ? a : b))
       : null;
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* Header */}
@@ -371,6 +358,7 @@ export default function Compare() {
           borderRadius: "16px",
           border: `1px solid ${border}`,
           padding: "20px",
+          boxShadow: cardShadow,
         }}
       >
         <div
@@ -396,14 +384,14 @@ export default function Compare() {
               key={idx}
               style={{
                 background: panelBg,
-                border: `2px solid ${CROP_COLORS[idx]}40`,
+                border: `2px solid ${CROP_COLORS[idx]}35`,
                 borderRadius: "14px",
                 padding: "14px",
                 minWidth: "190px",
                 position: "relative",
+                boxShadow: isDark ? "none" : "0 1px 3px rgba(0,0,0,0.06)",
               }}
             >
-              {/* Color dot */}
               <div
                 style={{
                   position: "absolute",
@@ -455,7 +443,7 @@ export default function Compare() {
                   width: "100%",
                   padding: "7px 10px",
                   borderRadius: "8px",
-                  border: `1px solid ${border}`,
+                  border: `1px solid ${isDark ? "#475569" : "#d1d5db"}`,
                   background: card,
                   color: text,
                   fontSize: "13px",
@@ -476,7 +464,7 @@ export default function Compare() {
                   width: "100%",
                   padding: "7px 10px",
                   borderRadius: "8px",
-                  border: `1px solid ${border}`,
+                  border: `1px solid ${isDark ? "#475569" : "#d1d5db"}`,
                   background: card,
                   color: text,
                   fontSize: "13px",
@@ -491,8 +479,6 @@ export default function Compare() {
               </select>
             </div>
           ))}
-
-          {/* Add crop button */}
           {slots.length < 5 && (
             <button
               onClick={addSlot}
@@ -500,7 +486,7 @@ export default function Compare() {
                 minWidth: "140px",
                 height: "110px",
                 borderRadius: "14px",
-                border: `2px dashed ${border}`,
+                border: `2px dashed ${isDark ? "#334155" : "#d1d5db"}`,
                 background: "transparent",
                 color: muted,
                 cursor: "pointer",
@@ -518,7 +504,9 @@ export default function Compare() {
                 e.currentTarget.style.color = "#16a34a";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = border;
+                e.currentTarget.style.borderColor = isDark
+                  ? "#334155"
+                  : "#d1d5db";
                 e.currentTarget.style.color = muted;
               }}
             >
@@ -529,30 +517,31 @@ export default function Compare() {
         </div>
       </div>
 
-      {/* Results — only shown after first compare */}
+      {/* Results */}
       {loaded && results.length > 0 && (
         <>
           {/* Summary Cards */}
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: `repeat(${results.length}, 1fr)`,
+              gridTemplateColumns: `repeat(${results.length},1fr)`,
               gap: "14px",
             }}
           >
-            {results.map((r, idx) => (
+            {results.map((r) => (
               <div
                 key={r.crop + r.state}
                 style={{
                   background: card,
                   borderRadius: "16px",
-                  border: `2px solid ${r.color}30`,
+                  border: `2px solid ${r.color}25`,
                   padding: "18px",
                   position: "relative",
                   overflow: "hidden",
+                  boxShadow: cardShadow,
                 }}
               >
-                {/* Color accent bar */}
+                {/* Color bar */}
                 <div
                   style={{
                     position: "absolute",
@@ -564,8 +553,7 @@ export default function Compare() {
                     borderRadius: "16px 16px 0 0",
                   }}
                 />
-
-                {/* Winner badges */}
+                {/* Badges */}
                 <div
                   style={{
                     display: "flex",
@@ -579,11 +567,14 @@ export default function Compare() {
                       <span
                         style={{
                           fontSize: "10px",
-                          background: "#fef3c7",
+                          background: isDark
+                            ? "rgba(251,191,36,0.15)"
+                            : "#fef3c7",
                           color: "#d97706",
                           padding: "2px 8px",
                           borderRadius: "20px",
                           fontWeight: 700,
+                          border: "1px solid #fde68a",
                         }}
                       >
                         👑 Highest Price
@@ -594,18 +585,20 @@ export default function Compare() {
                       <span
                         style={{
                           fontSize: "10px",
-                          background: "#dcfce7",
+                          background: isDark
+                            ? "rgba(22,163,74,0.15)"
+                            : "#dcfce7",
                           color: "#16a34a",
                           padding: "2px 8px",
                           borderRadius: "20px",
                           fontWeight: 700,
+                          border: "1px solid #86efac",
                         }}
                       >
                         🎯 Best Confidence
                       </span>
                     )}
                 </div>
-
                 <div
                   style={{
                     display: "flex",
@@ -619,7 +612,7 @@ export default function Compare() {
                       width: "36px",
                       height: "36px",
                       borderRadius: "10px",
-                      background: `${r.color}15`,
+                      background: `${r.color}18`,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -639,7 +632,6 @@ export default function Compare() {
                     </div>
                   </div>
                 </div>
-
                 <div
                   style={{
                     fontSize: "26px",
@@ -662,8 +654,6 @@ export default function Compare() {
                 >
                   per quintal · {r.season}
                 </div>
-
-                {/* Stats row */}
                 <div
                   style={{
                     display: "grid",
@@ -689,6 +679,7 @@ export default function Compare() {
                         background: panelBg,
                         borderRadius: "8px",
                         padding: "8px 10px",
+                        border: `1px solid ${isDark ? "#334155" : "#e5e7eb"}`,
                       }}
                     >
                       <div
@@ -712,8 +703,6 @@ export default function Compare() {
                     </div>
                   ))}
                 </div>
-
-                {/* Confidence bar */}
                 <div style={{ marginTop: "12px" }}>
                   <div
                     style={{
@@ -738,7 +727,7 @@ export default function Compare() {
                   <div
                     style={{
                       height: "5px",
-                      background: isDark ? "#334155" : "#f3f4f6",
+                      background: isDark ? "#334155" : "#e5e7eb",
                       borderRadius: "3px",
                     }}
                   >
@@ -757,16 +746,16 @@ export default function Compare() {
             ))}
           </div>
 
-          {/* Charts section */}
+          {/* Charts */}
           <div
             style={{
               background: card,
               borderRadius: "16px",
               border: `1px solid ${border}`,
               overflow: "hidden",
+              boxShadow: cardShadow,
             }}
           >
-            {/* Chart tab bar */}
             <div
               style={{
                 display: "flex",
@@ -807,9 +796,7 @@ export default function Compare() {
                 </button>
               ))}
             </div>
-
             <div style={{ padding: "20px" }}>
-              {/* ── Price Range Bar Chart ── */}
               {chartTab === "price" && (
                 <div>
                   <div
@@ -870,8 +857,6 @@ export default function Compare() {
                   </ResponsiveContainer>
                 </div>
               )}
-
-              {/* ── 6-Month Forecast Line Chart ── */}
               {chartTab === "forecast" && (
                 <div>
                   <div
@@ -925,8 +910,6 @@ export default function Compare() {
                   </ResponsiveContainer>
                 </div>
               )}
-
-              {/* ── Radar / Spider Chart ── */}
               {chartTab === "radar" && (
                 <div>
                   <div
@@ -936,8 +919,7 @@ export default function Compare() {
                       marginBottom: "16px",
                     }}
                   >
-                    Multi-dimensional crop profile — higher score = better for
-                    that dimension
+                    Multi-dimensional crop profile — higher score = better
                   </div>
                   <ResponsiveContainer width="100%" height={320}>
                     <RadarChart
@@ -982,13 +964,14 @@ export default function Compare() {
             </div>
           </div>
 
-          {/* Detail Comparison Table */}
+          {/* Detail Table */}
           <div
             style={{
               background: card,
               borderRadius: "16px",
               border: `1px solid ${border}`,
               overflow: "hidden",
+              boxShadow: cardShadow,
             }}
           >
             <div
@@ -1004,15 +987,17 @@ export default function Compare() {
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
-                  <tr style={{ background: isDark ? "#0f172a" : "#f9fafb" }}>
+                  <tr style={{ background: isDark ? "#0f172a" : "#f8fafc" }}>
                     <th
                       style={{
                         padding: "11px 20px",
                         fontSize: "11px",
                         color: muted,
-                        fontWeight: 600,
+                        fontWeight: 700,
                         textAlign: "left",
                         borderBottom: `1px solid ${border}`,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.03em",
                       }}
                     >
                       Attribute
@@ -1099,7 +1084,6 @@ export default function Compare() {
                           {label}
                         </td>
                         {vals.map((val, i) => {
-                          // Highlight best value for numeric columns
                           const numericKeys = ["price", "confidence", "max"];
                           const isBest =
                             numericKeys.includes(key) &&
@@ -1115,7 +1099,7 @@ export default function Compare() {
                               style={{
                                 padding: "10px 16px",
                                 fontSize: "12px",
-                                fontWeight: isBest ? 700 : 400,
+                                fontWeight: isBest ? 700 : 500,
                                 color: isBest ? results[i].color : text,
                                 textAlign: "center",
                               }}
@@ -1138,12 +1122,13 @@ export default function Compare() {
             <div
               style={{
                 background: isDark ? "rgba(22,163,74,0.08)" : "#f0fdf4",
-                border: `1px solid ${isDark ? "rgba(22,163,74,0.2)" : "#bbf7d0"}`,
+                border: `1px solid ${isDark ? "rgba(22,163,74,0.2)" : "#86efac"}`,
                 borderRadius: "16px",
                 padding: "18px 22px",
                 display: "flex",
                 alignItems: "flex-start",
                 gap: "14px",
+                boxShadow: isDark ? "none" : "0 1px 4px rgba(22,163,74,0.1)",
               }}
             >
               <span style={{ fontSize: "24px" }}>💡</span>
@@ -1185,6 +1170,7 @@ export default function Compare() {
             border: `1px solid ${border}`,
             padding: "64px",
             textAlign: "center",
+            boxShadow: cardShadow,
           }}
         >
           <GitCompare
