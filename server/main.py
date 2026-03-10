@@ -1,6 +1,7 @@
-from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
 import os
@@ -13,6 +14,7 @@ from data_fetcher import (
 )
 from model import predict_price, predict_forecast, train_model, CROPS, STATES
 from database import db
+from auth import hash_password, verify_password, create_access_token, decode_token
 
 load_dotenv()
 
@@ -23,6 +25,8 @@ app.add_middleware(
     allow_origins=["http://localhost:5173", "http://localhost:3000", "*"],
     allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
+
+security = HTTPBearer(auto_error=False)
 
 # ── Models ────────────────────────────────────────────────────────────────────
 
@@ -36,9 +40,55 @@ class PredictResponse(BaseModel):
 
 class AlertRequest(BaseModel):
     crop: str
-    condition: str      # "above" | "below"
+    condition: str
     threshold: float
     note: Optional[str] = ""
+
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+    location: Optional[str] = ""
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class UpdateProfileRequest(BaseModel):
+    name:     Optional[str] = None
+    location: Optional[str] = None
+    phone:    Optional[str] = None
+    farm_size:Optional[str] = None
+    crop_focus: Optional[str] = None
+
+# ── Auth helpers ──────────────────────────────────────────────────────────────
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    if not credentials:
+        raise HTTPException(401, "Not authenticated")
+    payload = decode_token(credentials.credentials)
+    if not payload:
+        raise HTTPException(401, "Invalid or expired token")
+    user = await db.get_user_by_id(payload["user_id"])
+    if not user:
+        raise HTTPException(401, "User not found")
+    return user
+
+async def get_optional_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Returns user or None — for optional auth routes."""
+    try:
+        if not credentials:
+            return None
+        payload = decode_token(credentials.credentials)
+        if not payload:
+            return None
+        return await db.get_user_by_id(payload["user_id"])
+    except Exception:
+        return None
+
+def safe_user(user: dict) -> dict:
+    """Strip password before returning user to client."""
+    return {k: v for k, v in user.items() if k != "password"}
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -58,7 +108,6 @@ def get_season(month: int) -> str:
     return "Rabi"
 
 async def save_prediction(data: dict, source: str = "full"):
-    """Save a user-initiated prediction to MongoDB."""
     try:
         doc = {
             "crop":            data["crop"],
@@ -92,11 +141,104 @@ async def health():
     db_status = await db.ping()
     return {"status": "healthy", "database": "connected" if db_status else "unavailable", "timestamp": datetime.now().isoformat()}
 
+# ── Auth Routes ───────────────────────────────────────────────────────────────
+
+@app.post("/auth/register")
+async def register(req: RegisterRequest):
+    """Register a new user."""
+    if len(req.name.strip()) < 2:
+        raise HTTPException(400, "Name must be at least 2 characters")
+    if len(req.password) < 6:
+        raise HTTPException(400, "Password must be at least 6 characters")
+    if "@" not in req.email:
+        raise HTTPException(400, "Invalid email address")
+
+    email = req.email.lower().strip()
+
+    # Check duplicate
+    if await db.email_exists(email):
+        raise HTTPException(409, "Email already registered. Please login.")
+
+    # Create user doc
+    now = datetime.utcnow()
+    doc = {
+        "name":       req.name.strip(),
+        "email":      email,
+        "password":   hash_password(req.password),
+        "location":   req.location or "",
+        "phone":      "",
+        "farm_size":  "",
+        "crop_focus": "",
+        "created_at": now,
+        "updated_at": now,
+    }
+
+    user_id = await db.create_user(doc)
+    if not user_id:
+        raise HTTPException(500, "Failed to create account. Please try again.")
+
+    token = create_access_token({"user_id": user_id, "email": email})
+    return {
+        "message": "Account created successfully!",
+        "token":   token,
+        "user": {
+            "id":       user_id,
+            "name":     doc["name"],
+            "email":    email,
+            "location": doc["location"],
+        }
+    }
+
+@app.post("/auth/login")
+async def login(req: LoginRequest):
+    """Login with email + password."""
+    email = req.email.lower().strip()
+    user  = await db.get_user_by_email(email)
+
+    if not user or not verify_password(req.password, user["password"]):
+        raise HTTPException(401, "Invalid email or password")
+
+    token = create_access_token({"user_id": user["id"], "email": email})
+    return {
+        "message": "Login successful!",
+        "token":   token,
+        "user":    safe_user(user),
+    }
+
+@app.get("/auth/me")
+async def get_me(current_user: dict = Depends(get_current_user)):
+    """Get current logged-in user's profile."""
+    return safe_user(current_user)
+
+@app.patch("/auth/profile")
+async def update_profile(req: UpdateProfileRequest, current_user: dict = Depends(get_current_user)):
+    """Update current user's profile fields."""
+    fields = {k: v for k, v in req.dict().items() if v is not None}
+    if not fields:
+        raise HTTPException(400, "No fields to update")
+    ok = await db.update_user(current_user["id"], fields)
+    if not ok:
+        raise HTTPException(500, "Failed to update profile")
+    updated = await db.get_user_by_id(current_user["id"])
+    return {"message": "Profile updated!", "user": safe_user(updated)}
+
+@app.post("/auth/change-password")
+async def change_password(
+    old_password: str = Query(...),
+    new_password: str = Query(...),
+    current_user: dict = Depends(get_current_user)
+):
+    if not verify_password(old_password, current_user["password"]):
+        raise HTTPException(400, "Current password is incorrect")
+    if len(new_password) < 6:
+        raise HTTPException(400, "New password must be at least 6 characters")
+    await db.update_user(current_user["id"], {"password": hash_password(new_password)})
+    return {"message": "Password changed successfully!"}
+
 # ── Predictions ───────────────────────────────────────────────────────────────
 
 @app.post("/predict", response_model=PredictResponse)
 async def predict(req: PredictRequest, background_tasks: BackgroundTasks):
-    """Full prediction — always saves to MongoDB (user clicked Predict on Predictions page)."""
     if req.crop  not in CROPS:  raise HTTPException(400, f"Unsupported crop: {CROPS}")
     if req.state not in STATES: raise HTTPException(400, f"Unsupported state: {STATES}")
     if not (1 <= req.month <= 12): raise HTTPException(400, "Month must be 1–12")
@@ -113,14 +255,9 @@ async def predict(req: PredictRequest, background_tasks: BackgroundTasks):
 async def quick_predict(
     crop:  str  = Query(...),
     state: str  = Query(...),
-    save:  bool = Query(False),   # only save when user explicitly triggered the prediction
+    save:  bool = Query(False),
     background_tasks: BackgroundTasks = None,
 ):
-    """
-    Quick prediction.
-    - save=False (default): used by Dashboard load, Compare page, TopCrops — NO DB write
-    - save=True: used when user clicks the Predict button — saves to MongoDB
-    """
     now = datetime.now()
     if crop  not in CROPS:  raise HTTPException(400, f"Unsupported crop: {CROPS}")
     if state not in STATES: raise HTTPException(400, f"Unsupported state: {STATES}")
@@ -156,7 +293,6 @@ async def predictions_history(
 
 @app.get("/predictions/recent")
 async def recent_predictions(limit: int = Query(5, ge=1, le=20)):
-    """Returns the most recent user-initiated predictions from MongoDB."""
     try:
         data, _ = await db.get_predictions(limit=limit, skip=0)
         return {"data": data}
@@ -185,32 +321,16 @@ async def update_actual_price(prediction_id: str, actual_price: float = Query(..
 
 @app.post("/alerts")
 async def create_alert(req: AlertRequest):
-    if req.crop not in CROPS:
-        raise HTTPException(400, f"Unsupported crop: {CROPS}")
-    if req.condition not in ("above", "below"):
-        raise HTTPException(400, "condition must be 'above' or 'below'")
-    if req.threshold <= 0:
-        raise HTTPException(400, "threshold must be > 0")
+    if req.crop not in CROPS: raise HTTPException(400, f"Unsupported crop")
+    if req.condition not in ("above", "below"): raise HTTPException(400, "condition must be 'above' or 'below'")
+    if req.threshold <= 0: raise HTTPException(400, "threshold must be > 0")
     try:
         now = datetime.utcnow().isoformat()
-        doc = {
-            "crop":       req.crop,
-            "condition":  req.condition,
-            "threshold":  round(req.threshold, 2),
-            "note":       req.note or "",
-            "active":     True,
-            "created_at": datetime.utcnow(),
-        }
+        doc = {"crop": req.crop, "condition": req.condition, "threshold": round(req.threshold, 2),
+               "note": req.note or "", "active": True, "created_at": datetime.utcnow()}
         alert_id = await db.create_alert(doc)
-        return {
-            "id":         alert_id or "mock",
-            "crop":       req.crop,
-            "condition":  req.condition,
-            "threshold":  round(req.threshold, 2),
-            "note":       req.note or "",
-            "active":     True,
-            "created_at": now,
-        }
+        return {"id": alert_id or "mock", "crop": req.crop, "condition": req.condition,
+                "threshold": round(req.threshold, 2), "note": req.note or "", "active": True, "created_at": now}
     except Exception as e:
         raise HTTPException(500, str(e))
 
@@ -289,20 +409,14 @@ async def price_history(commodity: str = Query(...), state: str = Query(...), da
 
 @app.get("/prices/dashboard")
 async def dashboard_prices():
-    """Live ML predictions for dashboard display — does NOT save to MongoDB."""
     top_crops = ["Wheat", "Rice", "Tomato", "Onion", "Cotton", "Maize"]
     now, result = datetime.now(), []
     for crop in top_crops:
         try:
             pred = predict_price(crop, "Punjab", now.month, now.year)
-            result.append({
-                "crop": crop,
-                "predicted_price": pred["predicted_price"],
-                "confidence": pred["confidence"],
-                "min_price": pred["min_price"],
-                "max_price": pred["max_price"],
-                "season": pred["season"],
-            })
+            result.append({"crop": crop, "predicted_price": pred["predicted_price"],
+                           "confidence": pred["confidence"], "min_price": pred["min_price"],
+                           "max_price": pred["max_price"], "season": pred["season"]})
         except Exception:
             pass
     return {"data": result}
@@ -323,7 +437,6 @@ async def retrain_model(background_tasks: BackgroundTasks):
         records = await fetch_all_crops_prices()
         df = parse_price_records(records)
         train_model(df if not df.empty else None)
-        print("Model retrained!")
     background_tasks.add_task(do_train)
     return {"message": "Model retraining started"}
 
@@ -333,7 +446,6 @@ async def retrain_model(background_tasks: BackgroundTasks):
 async def startup_event():
     await db.connect()
     if not os.path.exists("model.pkl"):
-        print("No model found — training on startup...")
         train_model()
     else:
         print("✅ Model loaded from disk")

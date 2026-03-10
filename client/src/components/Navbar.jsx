@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Search,
   Moon,
@@ -11,13 +12,13 @@ import {
   HelpCircle,
   Shield,
   ChevronDown,
-  Plus,
   Trash2,
   ToggleLeft,
   ToggleRight,
   BellOff,
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 import {
   getNotifications,
   markAllRead,
@@ -67,23 +68,20 @@ const CROP_EMOJI = {
 
 export default function Navbar() {
   const { isDark, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
-  // Panels
   const [notifOpen, setNotifOpen] = useState(false);
-  const [alertsOpen, setAlertsOpen] = useState(false); // "Set Alerts" sub-panel
   const [profileOpen, setProfileOpen] = useState(false);
-  const [tab, setTab] = useState("notifications"); // "notifications" | "alerts"
+  const [tab, setTab] = useState("notifications");
 
-  // Notification data
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifsLoading, setNotifsLoading] = useState(false);
 
-  // Alert rules
   const [alerts, setAlerts] = useState([]);
   const [alertsLoading, setAlertsLoading] = useState(false);
 
-  // New alert form
   const [newCrop, setNewCrop] = useState("Wheat");
   const [newCondition, setNewCondition] = useState("above");
   const [newThreshold, setNewThreshold] = useState("");
@@ -91,7 +89,6 @@ export default function Navbar() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
 
-  // Search
   const [searchVal, setSearchVal] = useState("");
   const [searchFocus, setSearchFocus] = useState(false);
 
@@ -108,7 +105,18 @@ export default function Navbar() {
   const menuMuted = isDark ? "#64748b" : "#9ca3af";
   const panelBg = isDark ? "#0f172a" : "#f8fafc";
 
-  // ── Load notifications ────────────────────────────────────────────────────
+  // ── User display ──────────────────────────────────────────────────────────
+  const userName = user?.name || "User";
+  const userEmail = user?.email || "";
+  const initials = userName
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  const firstName = userName.split(" ")[0];
+
+  // ── Notifications ─────────────────────────────────────────────────────────
   const loadNotifications = useCallback(async () => {
     setNotifsLoading(true);
     try {
@@ -116,13 +124,11 @@ export default function Navbar() {
       setNotifications(res.data || []);
       setUnreadCount(res.unread || 0);
     } catch {
-      // backend unavailable — keep empty
     } finally {
       setNotifsLoading(false);
     }
   }, []);
 
-  // ── Load alert rules ──────────────────────────────────────────────────────
   const loadAlerts = useCallback(async () => {
     setAlertsLoading(true);
     try {
@@ -135,19 +141,16 @@ export default function Navbar() {
     }
   }, []);
 
-  // Poll notifications every 30s while panel is open
   useEffect(() => {
     loadNotifications();
     const interval = setInterval(loadNotifications, 30000);
     return () => clearInterval(interval);
   }, [loadNotifications]);
 
-  // Load alerts when tab switches
   useEffect(() => {
     if (notifOpen && tab === "alerts") loadAlerts();
   }, [notifOpen, tab, loadAlerts]);
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e) => {
       if (notifRef.current && !notifRef.current.contains(e.target))
@@ -159,16 +162,14 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // ── Actions ───────────────────────────────────────────────────────────────
-
+  // ── Alert actions ─────────────────────────────────────────────────────────
   const handleMarkAllRead = async () => {
     try {
       await markAllRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setNotifications((p) => p.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch {}
   };
-
   const handleClearAll = async () => {
     try {
       await clearNotifications();
@@ -176,7 +177,6 @@ export default function Navbar() {
       setUnreadCount(0);
     } catch {}
   };
-
   const handleCreateAlert = async () => {
     if (
       !newThreshold ||
@@ -195,7 +195,7 @@ export default function Navbar() {
         Number(newThreshold),
         newNote,
       );
-      setAlerts((prev) => [res, ...prev]);
+      setAlerts((p) => [res, ...p]);
       setNewThreshold("");
       setNewNote("");
       setSaveMsg("✅ Alert created!");
@@ -207,21 +207,24 @@ export default function Navbar() {
       setSaving(false);
     }
   };
-
   const handleDeleteAlert = async (id) => {
     try {
       await deleteAlert(id);
-      setAlerts((prev) => prev.filter((a) => a.id !== id));
+      setAlerts((p) => p.filter((a) => a.id !== id));
     } catch {}
   };
-
   const handleToggleAlert = async (id, currentActive) => {
     try {
       await toggleAlert(id, !currentActive);
-      setAlerts((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, active: !currentActive } : a)),
+      setAlerts((p) =>
+        p.map((a) => (a.id === id ? { ...a, active: !currentActive } : a)),
       );
     } catch {}
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
   };
 
   const filtered =
@@ -230,8 +233,7 @@ export default function Navbar() {
       : [];
 
   const timeAgo = (iso) => {
-    const diff = Date.now() - new Date(iso).getTime();
-    const m = Math.floor(diff / 60000);
+    const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
     if (m < 1) return "just now";
     if (m < 60) return `${m}m ago`;
     const h = Math.floor(m / 60);
@@ -239,7 +241,6 @@ export default function Navbar() {
     return `${Math.floor(h / 24)}d ago`;
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div
       style={{
@@ -260,7 +261,7 @@ export default function Navbar() {
         <h2
           style={{ fontSize: "18px", fontWeight: 700, color: text, margin: 0 }}
         >
-          {greetingByHour()}, Renuka! 👋
+          {greetingByHour()}, {firstName}! 👋
         </h2>
         <p
           style={{
@@ -381,7 +382,7 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Theme Toggle */}
+        {/* Theme */}
         <button
           onClick={toggleTheme}
           style={{
@@ -403,7 +404,7 @@ export default function Navbar() {
           )}
         </button>
 
-        {/* ── Bell + Notifications Panel ── */}
+        {/* Bell */}
         <div style={{ position: "relative" }} ref={notifRef}>
           <button
             onClick={() => {
@@ -430,7 +431,6 @@ export default function Navbar() {
                 color: notifOpen ? "#16a34a" : muted,
               }}
             />
-            {/* Unread badge */}
             {unreadCount > 0 && (
               <span
                 style={{
@@ -454,20 +454,6 @@ export default function Navbar() {
                 {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
-            {unreadCount === 0 && (
-              <span
-                style={{
-                  position: "absolute",
-                  top: "7px",
-                  right: "7px",
-                  width: "7px",
-                  height: "7px",
-                  borderRadius: "50%",
-                  background: "#94a3b8",
-                  border: `1.5px solid ${bg}`,
-                }}
-              />
-            )}
           </button>
 
           {notifOpen && (
@@ -485,7 +471,7 @@ export default function Navbar() {
                 overflow: "hidden",
               }}
             >
-              {/* Panel Header */}
+              {/* Header */}
               <div
                 style={{
                   padding: "14px 16px 0",
@@ -518,7 +504,6 @@ export default function Navbar() {
                     <X style={{ width: "14px", height: "14px" }} />
                   </button>
                 </div>
-                {/* Tabs */}
                 <div
                   style={{ display: "flex", gap: "4px", marginBottom: "-1px" }}
                 >
@@ -542,7 +527,7 @@ export default function Navbar() {
                         color: tab === t ? "#16a34a" : muted,
                         borderBottom:
                           tab === t
-                            ? `2px solid #16a34a`
+                            ? "2px solid #16a34a"
                             : "2px solid transparent",
                       }}
                     >
@@ -554,10 +539,9 @@ export default function Navbar() {
                 </div>
               </div>
 
-              {/* ── Tab: Notifications ── */}
+              {/* Notifications tab */}
               {tab === "notifications" && (
                 <div>
-                  {/* Actions row */}
                   {notifications.length > 0 && (
                     <div
                       style={{
@@ -595,7 +579,6 @@ export default function Navbar() {
                       </button>
                     </div>
                   )}
-
                   <div style={{ maxHeight: "280px", overflowY: "auto" }}>
                     {notifsLoading ? (
                       <div
@@ -649,27 +632,10 @@ export default function Navbar() {
                                 : "#f0fdf4"
                               : "transparent",
                             borderBottom: `1px solid ${isDark ? "#1e293b" : "#f9fafb"}`,
-                            cursor: "pointer",
                           }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.background = isDark
-                              ? "rgba(255,255,255,0.04)"
-                              : "#f9fafb")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = !n.read
-                              ? isDark
-                                ? "rgba(22,163,74,0.06)"
-                                : "#f0fdf4"
-                              : "transparent")
-                          }
                         >
                           <span style={{ fontSize: "18px", flexShrink: 0 }}>
-                            {n.type === "price_alert"
-                              ? n.condition === "above"
-                                ? "📈"
-                                : "📉"
-                              : "🔔"}
+                            {n.condition === "above" ? "📈" : "📉"}
                           </span>
                           <div style={{ flex: 1 }}>
                             <div
@@ -707,7 +673,6 @@ export default function Navbar() {
                       ))
                     )}
                   </div>
-
                   <div
                     style={{
                       padding: "10px 16px",
@@ -732,10 +697,9 @@ export default function Navbar() {
                 </div>
               )}
 
-              {/* ── Tab: My Alerts ── */}
+              {/* Alerts tab */}
               {tab === "alerts" && (
                 <div>
-                  {/* Create new alert form */}
                   <div
                     style={{
                       padding: "14px 16px",
@@ -761,7 +725,6 @@ export default function Navbar() {
                         marginBottom: "8px",
                       }}
                     >
-                      {/* Crop select */}
                       <select
                         value={newCrop}
                         onChange={(e) => setNewCrop(e.target.value)}
@@ -781,7 +744,6 @@ export default function Navbar() {
                           </option>
                         ))}
                       </select>
-                      {/* Condition */}
                       <div
                         style={{
                           display: "flex",
@@ -884,8 +846,6 @@ export default function Navbar() {
                       {saving ? "Saving…" : "Create Alert"}
                     </button>
                   </div>
-
-                  {/* Existing alerts list */}
                   <div style={{ maxHeight: "220px", overflowY: "auto" }}>
                     {alertsLoading ? (
                       <div
@@ -945,10 +905,8 @@ export default function Navbar() {
                               </div>
                             )}
                           </div>
-                          {/* Toggle */}
                           <button
                             onClick={() => handleToggleAlert(a.id, a.active)}
-                            title={a.active ? "Pause" : "Activate"}
                             style={{
                               background: "none",
                               border: "none",
@@ -967,10 +925,8 @@ export default function Navbar() {
                               />
                             )}
                           </button>
-                          {/* Delete */}
                           <button
                             onClick={() => handleDeleteAlert(a.id)}
-                            title="Delete"
                             style={{
                               background: "none",
                               border: "none",
@@ -991,7 +947,7 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* ── Profile Dropdown ── */}
+        {/* Profile Dropdown */}
         <div style={{ position: "relative" }} ref={profileRef}>
           <button
             onClick={() => {
@@ -1028,10 +984,10 @@ export default function Navbar() {
                 fontSize: "11px",
               }}
             >
-              RP
+              {initials}
             </div>
             <span style={{ fontSize: "12px", fontWeight: 600, color: text }}>
-              Renuka
+              {firstName}
             </span>
             <ChevronDown
               style={{
@@ -1059,6 +1015,7 @@ export default function Navbar() {
                 overflow: "hidden",
               }}
             >
+              {/* User info header */}
               <div
                 style={{
                   padding: "16px",
@@ -1083,34 +1040,33 @@ export default function Navbar() {
                       fontSize: "16px",
                     }}
                   >
-                    RP
+                    {initials}
                   </div>
                   <div>
                     <div
                       style={{ fontSize: "14px", fontWeight: 700, color: text }}
                     >
-                      Renuka Patil
+                      {userName}
                     </div>
                     <div style={{ fontSize: "11px", color: "#16a34a" }}>
-                      renuka@agrisense.in
+                      {userEmail}
                     </div>
-                    <span
-                      style={{
-                        fontSize: "10px",
-                        background: "#dcfce7",
-                        color: "#16a34a",
-                        padding: "1px 8px",
-                        borderRadius: "20px",
-                        fontWeight: 700,
-                        marginTop: "4px",
-                        display: "inline-block",
-                      }}
-                    >
-                      ✦ Pro Plan
-                    </span>
+                    {user?.location && (
+                      <div
+                        style={{
+                          fontSize: "10px",
+                          color: muted,
+                          marginTop: "2px",
+                        }}
+                      >
+                        📍 {user.location}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
+
+              {/* Menu items */}
               <div style={{ padding: "6px 0" }}>
                 {[
                   {
@@ -1118,42 +1074,59 @@ export default function Navbar() {
                     label: "My Profile",
                     sub: "View & edit profile",
                     color: "#16a34a",
+                    action: () => {
+                      navigate("/profile");
+                      setProfileOpen(false);
+                    },
                   },
                   {
                     icon: Bell,
                     label: "Notifications",
-                    sub: `${unreadCount} unread alerts`,
+                    sub: `${unreadCount} unread`,
                     color: "#f59e0b",
+                    action: () => {
+                      setProfileOpen(false);
+                      setNotifOpen(true);
+                    },
                   },
                   {
                     icon: Settings,
                     label: "Settings",
                     sub: "App preferences",
                     color: "#6366f1",
+                    action: () => {
+                      navigate("/profile");
+                      setProfileOpen(false);
+                    },
                   },
                   {
                     icon: Shield,
                     label: "Privacy",
                     sub: "Data & security",
                     color: "#0891b2",
+                    action: null,
                   },
                   {
                     icon: HelpCircle,
                     label: "Help & Support",
                     sub: "FAQs & contact",
                     color: "#16a34a",
+                    action: null,
                   },
-                ].map(({ icon: Icon, label, sub, color }) => (
+                ].map(({ icon: Icon, label, sub, color, action }) => (
                   <div
                     key={label}
+                    onClick={action || undefined}
                     style={{
                       display: "flex",
                       alignItems: "center",
                       gap: "12px",
                       padding: "9px 16px",
-                      cursor: "pointer",
+                      cursor: action ? "pointer" : "default",
+                      opacity: action ? 1 : 0.5,
                     }}
                     onMouseEnter={(e) =>
+                      action &&
                       (e.currentTarget.style.background = isDark
                         ? "rgba(255,255,255,0.05)"
                         : "#f9fafb")
@@ -1192,10 +1165,13 @@ export default function Navbar() {
                   </div>
                 ))}
               </div>
+
+              {/* Sign Out */}
               <div
                 style={{ borderTop: `1px solid ${border}`, padding: "6px 0" }}
               >
                 <div
+                  onClick={handleLogout}
                   style={{
                     display: "flex",
                     alignItems: "center",

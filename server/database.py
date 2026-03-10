@@ -1,6 +1,6 @@
 """
 database.py — MongoDB layer for AgriSense
-Collections: predictions, alerts, notifications
+Collections: predictions, alerts, notifications, users
 """
 
 import os
@@ -15,8 +15,9 @@ class Database:
         self.client        = None
         self.db            = None
         self.collection    = None   # predictions
-        self.alerts_col    = None   # price alerts set by user
-        self.notifs_col    = None   # triggered alert notifications
+        self.alerts_col    = None
+        self.notifs_col    = None
+        self.users_col     = None   # ← NEW: auth users
         self._connected    = False
 
     # ── Connect ───────────────────────────────────────────────────────────────
@@ -30,6 +31,7 @@ class Database:
             self.collection = self.db["predictions"]
             self.alerts_col = self.db["alerts"]
             self.notifs_col = self.db["notifications"]
+            self.users_col  = self.db["users"]
 
             await self.client.admin.command("ping")
 
@@ -40,6 +42,7 @@ class Database:
             await self.alerts_col.create_index([("active", 1)])
             await self.notifs_col.create_index([("read", 1)])
             await self.notifs_col.create_index([("created_at", -1)])
+            await self.users_col.create_index([("email", 1)], unique=True)
 
             self._connected = True
             print(f"✅ MongoDB connected → {db_name}")
@@ -47,7 +50,7 @@ class Database:
         except Exception as e:
             print(f"⚠️  MongoDB unavailable ({e}) — app still works without DB")
             self.client = self.db = self.collection = None
-            self.alerts_col = self.notifs_col = None
+            self.alerts_col = self.notifs_col = self.users_col = None
             self._connected = False
 
     async def ping(self) -> bool:
@@ -65,10 +68,67 @@ class Database:
     def _serialize(doc: dict) -> dict:
         if "_id" in doc:
             doc["id"] = str(doc.pop("_id"))
-        for key in ("created_at", "verified_at", "triggered_at"):
+        for key in ("created_at", "verified_at", "triggered_at", "updated_at"):
             if isinstance(doc.get(key), datetime):
                 doc[key] = doc[key].isoformat()
         return doc
+
+    # ── Users ─────────────────────────────────────────────────────────────────
+
+    async def create_user(self, doc: dict) -> Optional[str]:
+        if not self._connected or self.users_col is None:
+            return None
+        try:
+            result = await self.users_col.insert_one(doc)
+            return str(result.inserted_id)
+        except Exception as e:
+            print(f"[MongoDB] create_user error: {e}")
+            return None
+
+    async def get_user_by_email(self, email: str) -> Optional[dict]:
+        if not self._connected or self.users_col is None:
+            return None
+        try:
+            doc = await self.users_col.find_one({"email": email.lower()})
+            return self._serialize(doc) if doc else None
+        except Exception as e:
+            print(f"[MongoDB] get_user_by_email error: {e}")
+            return None
+
+    async def get_user_by_id(self, user_id: str) -> Optional[dict]:
+        if not self._connected or self.users_col is None:
+            return None
+        try:
+            from bson import ObjectId
+            doc = await self.users_col.find_one({"_id": ObjectId(user_id)})
+            return self._serialize(doc) if doc else None
+        except Exception as e:
+            print(f"[MongoDB] get_user_by_id error: {e}")
+            return None
+
+    async def update_user(self, user_id: str, fields: dict) -> bool:
+        if not self._connected or self.users_col is None:
+            return False
+        try:
+            from bson import ObjectId
+            fields["updated_at"] = datetime.utcnow()
+            result = await self.users_col.update_one(
+                {"_id": ObjectId(user_id)},
+                {"$set": fields}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            print(f"[MongoDB] update_user error: {e}")
+            return False
+
+    async def email_exists(self, email: str) -> bool:
+        if not self._connected or self.users_col is None:
+            return False
+        try:
+            count = await self.users_col.count_documents({"email": email.lower()})
+            return count > 0
+        except Exception:
+            return False
 
     # ── Predictions ───────────────────────────────────────────────────────────
 
@@ -138,7 +198,6 @@ class Database:
     # ── Alerts CRUD ───────────────────────────────────────────────────────────
 
     async def create_alert(self, doc: dict) -> Optional[str]:
-        """Save a new price alert rule."""
         if not self._connected or self.alerts_col is None:
             return None
         try:
@@ -149,7 +208,6 @@ class Database:
             return None
 
     async def get_alerts(self, active_only: bool = False) -> List[dict]:
-        """Return all alert rules."""
         if not self._connected or self.alerts_col is None:
             return []
         try:
@@ -200,7 +258,6 @@ class Database:
         if not self._connected or self.notifs_col is None:
             return [], 0
         try:
-            total  = await self.notifs_col.count_documents({})
             unread = await self.notifs_col.count_documents({"read": False})
             cursor = self.notifs_col.find({}).sort("created_at", -1).limit(limit)
             docs   = [self._serialize(d) async for d in cursor]
@@ -230,36 +287,29 @@ class Database:
             return 0
 
     async def check_and_trigger_alerts(self, crop: str, current_price: float) -> List[dict]:
-        """
-        Compare current_price against all active alerts for this crop.
-        Creates a notification doc for each triggered alert.
-        Returns list of triggered alert docs.
-        """
         if not self._connected or self.alerts_col is None:
             return []
         triggered = []
         try:
             cursor = self.alerts_col.find({"crop": crop, "active": True})
             async for alert in cursor:
-                condition  = alert.get("condition")   # "above" | "below"
-                threshold  = alert.get("threshold", 0)
-                alert_id   = str(alert["_id"])
-
+                condition = alert.get("condition")
+                threshold = alert.get("threshold", 0)
+                alert_id  = str(alert["_id"])
                 hit = (condition == "above" and current_price >= threshold) or \
                       (condition == "below" and current_price <= threshold)
-
                 if hit:
                     emoji = "📈" if condition == "above" else "📉"
                     notif = {
-                        "alert_id":    alert_id,
-                        "crop":        crop,
-                        "condition":   condition,
-                        "threshold":   threshold,
-                        "price":       round(current_price, 2),
-                        "message":     f"{emoji} {crop} price ₹{current_price:,.0f} is {condition} your alert of ₹{threshold:,.0f}",
-                        "type":        "price_alert",
-                        "read":        False,
-                        "created_at":  datetime.utcnow(),
+                        "alert_id":   alert_id,
+                        "crop":       crop,
+                        "condition":  condition,
+                        "threshold":  threshold,
+                        "price":      round(current_price, 2),
+                        "message":    f"{emoji} {crop} price ₹{current_price:,.0f} is {condition} your alert of ₹{threshold:,.0f}",
+                        "type":       "price_alert",
+                        "read":       False,
+                        "created_at": datetime.utcnow(),
                     }
                     await self.create_notification(notif)
                     triggered.append(self._serialize({**notif}))
