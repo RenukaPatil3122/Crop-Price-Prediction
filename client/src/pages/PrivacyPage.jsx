@@ -9,13 +9,110 @@ import {
   Eye,
   AlertTriangle,
   Database,
-  Key,
   Server,
 } from "lucide-react";
 
+const BASE = "http://localhost:8000";
+
+function DeleteConfirm({
+  card,
+  border,
+  text,
+  isDark,
+  token,
+  logout,
+  navigate,
+  onCancel,
+}) {
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    setError("");
+    try {
+      const res = await fetch(`${BASE}/auth/delete-account`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Failed to delete account");
+      logout();
+      navigate("/register");
+    } catch (err) {
+      setError(err.message);
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        background: card,
+        borderRadius: "12px",
+        padding: "18px",
+        border: `1px solid ${border}`,
+      }}
+    >
+      <p
+        style={{
+          fontSize: "13px",
+          color: text,
+          marginBottom: "6px",
+          fontWeight: 600,
+        }}
+      >
+        ⚠️ Are you absolutely sure?
+      </p>
+      <p style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "14px" }}>
+        This removes your account from the database. Prediction history stays in
+        MongoDB unless cleared manually.
+      </p>
+      {error && (
+        <p style={{ fontSize: "12px", color: "#ef4444", marginBottom: "10px" }}>
+          ❌ {error}
+        </p>
+      )}
+      <div style={{ display: "flex", gap: "10px" }}>
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          style={{
+            padding: "10px 20px",
+            borderRadius: "9px",
+            background: deleting ? "#94a3b8" : "#ef4444",
+            color: "white",
+            fontWeight: 700,
+            fontSize: "13px",
+            border: "none",
+            cursor: deleting ? "not-allowed" : "pointer",
+          }}
+        >
+          {deleting ? "Deleting…" : "Yes, delete my account"}
+        </button>
+        <button
+          onClick={onCancel}
+          style={{
+            padding: "10px 20px",
+            borderRadius: "9px",
+            background: isDark ? "#334155" : "#f3f4f6",
+            color: text,
+            fontWeight: 600,
+            fontSize: "13px",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function PrivacyPage() {
   const { isDark } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, logout, token } = useAuth();
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -258,60 +355,16 @@ export default function PrivacyPage() {
             Account
           </button>
         ) : (
-          <div
-            style={{
-              background: card,
-              borderRadius: "12px",
-              padding: "18px",
-              border: `1px solid ${border}`,
-            }}
-          >
-            <p
-              style={{
-                fontSize: "13px",
-                color: text,
-                marginBottom: "14px",
-                fontWeight: 600,
-              }}
-            >
-              ⚠️ Are you absolutely sure? This cannot be undone.
-            </p>
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button
-                onClick={() => {
-                  logout();
-                  navigate("/login");
-                }}
-                style={{
-                  padding: "10px 20px",
-                  borderRadius: "9px",
-                  background: "#ef4444",
-                  color: "white",
-                  fontWeight: 700,
-                  fontSize: "13px",
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
-                Yes, delete everything
-              </button>
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                style={{
-                  padding: "10px 20px",
-                  borderRadius: "9px",
-                  background: isDark ? "#334155" : "#f3f4f6",
-                  color: text,
-                  fontWeight: 600,
-                  fontSize: "13px",
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+          <DeleteConfirm
+            card={card}
+            border={border}
+            text={text}
+            isDark={isDark}
+            token={token}
+            logout={logout}
+            navigate={navigate}
+            onCancel={() => setShowDeleteConfirm(false)}
+          />
         )}
       </div>
     </div>

@@ -127,8 +127,67 @@ async def save_prediction(data: dict, source: str = "full"):
         }
         await db.save_prediction(doc)
         await db.check_and_trigger_alerts(data["crop"], data["predicted_price"])
+
+        # Prediction Update notification
+        price  = round(data["predicted_price"], 2)
+        conf   = round(data.get("confidence", 0), 1)
+        season = data.get("season", get_season(data["month"]))
+        await db.create_notification({
+            "type":       "prediction_update",
+            "message":    f"\U0001f916 {data['crop']} ({data['state']}) predicted \u20b9{price:,.0f} for {MONTH_NAMES[data['month']-1]} {data['year']} | {conf}% confidence | {season} season",
+            "crop":       data["crop"],
+            "state":      data["state"],
+            "price":      price,
+            "confidence": conf,
+            "read":       False,
+            "created_at": datetime.utcnow(),
+        })
     except Exception as e:
         print(f"[MongoDB] Save failed (non-fatal): {e}")
+
+
+async def send_weekly_summary():
+    """Runs every Monday at 08:00 UTC — summarises the week's predictions."""
+    try:
+        from datetime import timedelta
+        data, total = await db.get_predictions(limit=100, skip=0)
+        if total == 0:
+            print("[Weekly] No predictions to summarise")
+            return
+        cutoff   = datetime.utcnow()
+        week_ago = cutoff - timedelta(days=7)
+        recent   = [p for p in data if isinstance(p.get("created_at"), str) and p["created_at"] >= week_ago.isoformat()]
+        count    = len(recent)
+        crops    = list({p["crop"] for p in recent}) or ["—"]
+        avg_conf = round(sum(p.get("confidence", 0) for p in recent) / max(count, 1), 1)
+        crops_str = ", ".join(crops[:4]) + ("..." if len(crops) > 4 else "")
+        await db.create_notification({
+            "type":       "weekly_summary",
+            "message":    f"\U0001f4ca Weekly Summary \u2014 {count} prediction{'s' if count != 1 else ''} this week across {crops_str}. Avg confidence: {avg_conf}%",
+            "count":      count,
+            "crops":      crops,
+            "avg_conf":   avg_conf,
+            "read":       False,
+            "created_at": datetime.utcnow(),
+        })
+        print(f"[Weekly] Summary sent \u2014 {count} predictions, {len(crops)} crops")
+    except Exception as e:
+        print(f"[Weekly] Summary failed: {e}")
+
+
+async def weekly_scheduler():
+    """Background loop: checks every hour, fires summary on Monday 08:00 UTC."""
+    import asyncio as _asyncio
+    last_sent_week = -1
+    while True:
+        try:
+            now = datetime.utcnow()
+            if now.weekday() == 0 and now.hour == 8 and now.isocalendar()[1] != last_sent_week:
+                await send_weekly_summary()
+                last_sent_week = now.isocalendar()[1]
+        except Exception as e:
+            print(f"[Scheduler] Error: {e}")
+        await _asyncio.sleep(3600)
 
 # ── Health ────────────────────────────────────────────────────────────────────
 
@@ -221,6 +280,19 @@ async def update_profile(req: UpdateProfileRequest, current_user: dict = Depends
         raise HTTPException(500, "Failed to update profile")
     updated = await db.get_user_by_id(current_user["id"])
     return {"message": "Profile updated!", "user": safe_user(updated)}
+
+@app.delete("/auth/delete-account")
+async def delete_account(current_user: dict = Depends(get_current_user)):
+    """Permanently delete the current user's account from MongoDB."""
+    try:
+        ok = await db.delete_user(current_user["id"])
+        if not ok:
+            raise HTTPException(404, "User not found")
+        return {"message": "Account deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
 @app.post("/auth/change-password")
 async def change_password(
@@ -389,6 +461,15 @@ async def clear_notifications():
     except Exception as e:
         raise HTTPException(500, str(e))
 
+@app.post("/notifications/weekly-summary")
+async def trigger_weekly_summary():
+    """Manually trigger a weekly summary notification (for testing / on-demand)."""
+    try:
+        await send_weekly_summary()
+        return {"message": "Weekly summary notification sent!"}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
 # ── Prices ────────────────────────────────────────────────────────────────────
 
 @app.get("/prices/current")
@@ -444,8 +525,12 @@ async def retrain_model(background_tasks: BackgroundTasks):
 
 @app.on_event("startup")
 async def startup_event():
+    import asyncio
     await db.connect()
     if not os.path.exists("model.pkl"):
         train_model()
     else:
         print("✅ Model loaded from disk")
+    # Start weekly summary scheduler in background
+    asyncio.create_task(weekly_scheduler())
+    print("✅ Weekly summary scheduler started")

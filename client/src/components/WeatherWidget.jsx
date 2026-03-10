@@ -6,120 +6,165 @@ import {
   CloudSnow,
   Wind,
   Droplets,
-  Eye,
   Thermometer,
+  MapPin,
+  AlertCircle,
 } from "lucide-react";
 
-// Free OpenWeatherMap API - get key at openweathermap.org (free tier)
-// Defaulting to New Delhi if no location found
-const API_KEY = "REDACTED"; // free demo key
-const DEFAULT_CITY = "New Delhi";
+// Uses Open-Meteo (100% free, no API key ever needed) + ip-api for location
+// Falls back to Aurangabad/Ambad area if geolocation denied
 
-const weatherIcons = {
-  Clear: Sun,
-  Clouds: Cloud,
-  Rain: CloudRain,
-  Drizzle: CloudRain,
-  Snow: CloudSnow,
-  Thunderstorm: CloudRain,
-  Mist: Cloud,
-  Fog: Cloud,
-  Haze: Cloud,
+const WMO_MAP = {
+  0: {
+    label: "Clear sky",
+    icon: Sun,
+    gradient: "linear-gradient(135deg,#f59e0b,#fbbf24)",
+  },
+  1: {
+    label: "Mainly clear",
+    icon: Sun,
+    gradient: "linear-gradient(135deg,#f59e0b,#fbbf24)",
+  },
+  2: {
+    label: "Partly cloudy",
+    icon: Cloud,
+    gradient: "linear-gradient(135deg,#6b7280,#9ca3af)",
+  },
+  3: {
+    label: "Overcast",
+    icon: Cloud,
+    gradient: "linear-gradient(135deg,#475569,#64748b)",
+  },
+  45: {
+    label: "Foggy",
+    icon: Cloud,
+    gradient: "linear-gradient(135deg,#475569,#64748b)",
+  },
+  48: {
+    label: "Freezing fog",
+    icon: Cloud,
+    gradient: "linear-gradient(135deg,#475569,#64748b)",
+  },
+  51: {
+    label: "Light drizzle",
+    icon: CloudRain,
+    gradient: "linear-gradient(135deg,#0891b2,#22d3ee)",
+  },
+  53: {
+    label: "Drizzle",
+    icon: CloudRain,
+    gradient: "linear-gradient(135deg,#0891b2,#22d3ee)",
+  },
+  61: {
+    label: "Light rain",
+    icon: CloudRain,
+    gradient: "linear-gradient(135deg,#2563eb,#3b82f6)",
+  },
+  63: {
+    label: "Rain",
+    icon: CloudRain,
+    gradient: "linear-gradient(135deg,#1d4ed8,#2563eb)",
+  },
+  71: {
+    label: "Light snow",
+    icon: CloudSnow,
+    gradient: "linear-gradient(135deg,#bfdbfe,#e0f2fe)",
+  },
+  80: {
+    label: "Rain showers",
+    icon: CloudRain,
+    gradient: "linear-gradient(135deg,#2563eb,#3b82f6)",
+  },
+  95: {
+    label: "Thunderstorm",
+    icon: CloudRain,
+    gradient: "linear-gradient(135deg,#1e1b4b,#3730a3)",
+  },
 };
 
-const weatherColors = {
-  Clear: {
-    bg: "linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)",
-    icon: "#f59e0b",
-  },
-  Clouds: {
-    bg: "linear-gradient(135deg, #6b7280 0%, #9ca3af 100%)",
-    icon: "#9ca3af",
-  },
-  Rain: {
-    bg: "linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)",
-    icon: "#60a5fa",
-  },
-  Drizzle: {
-    bg: "linear-gradient(135deg, #0891b2 0%, #22d3ee 100%)",
-    icon: "#22d3ee",
-  },
-  Snow: {
-    bg: "linear-gradient(135deg, #bfdbfe 0%, #e0f2fe 100%)",
-    icon: "#93c5fd",
-  },
-  Thunderstorm: {
-    bg: "linear-gradient(135deg, #1e1b4b 0%, #3730a3 100%)",
-    icon: "#a5b4fc",
-  },
-  default: {
-    bg: "linear-gradient(135deg, #166534 0%, #16a34a 100%)",
-    icon: "#86efac",
-  },
-};
+const getWMO = (code) =>
+  WMO_MAP[code] || {
+    label: "Cloudy",
+    icon: Cloud,
+    gradient: "linear-gradient(135deg,#166534,#16a34a)",
+  };
 
-// Agri advice based on weather
-const getAgriTip = (weather, temp) => {
-  if (weather === "Rain" || weather === "Drizzle")
+const getAgriTip = (code, temp) => {
+  if ([61, 63, 80].includes(code))
     return "💧 Good irrigation day — skip watering";
-  if (weather === "Clear" && temp > 35)
+  if ([95].includes(code)) return "⚡ Avoid field work today";
+  if ([0, 1].includes(code) && temp > 35)
     return "☀️ High heat — protect vegetable crops";
-  if (weather === "Clear" && temp < 15)
+  if ([0, 1].includes(code) && temp < 15)
     return "❄️ Cold night — cover sensitive crops";
-  if (weather === "Thunderstorm") return "⚡ Avoid field work today";
-  if (weather === "Clouds") return "🌥️ Good day for pesticide spraying";
+  if ([2, 3].includes(code)) return "🌥️ Good day for pesticide spraying";
+  if ([51, 53].includes(code)) return "🌧️ Light drizzle — monitor drainage";
   return "🌾 Favorable conditions for fieldwork";
 };
 
 export default function WeatherWidget() {
   const [weather, setWeather] = useState(null);
+  const [city, setCity] = useState("");
   const [loading, setLoading] = useState(true);
-  const [city, setCity] = useState(DEFAULT_CITY);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    // Try to get user's location
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) =>
-          fetchWeatherByCoords(pos.coords.latitude, pos.coords.longitude),
-        () => fetchWeatherByCity(DEFAULT_CITY),
+        (pos) => fetchWeather(pos.coords.latitude, pos.coords.longitude, null),
+        () => fetchByIP(),
       );
     } else {
-      fetchWeatherByCity(DEFAULT_CITY);
+      fetchByIP();
     }
   }, []);
 
-  const fetchWeatherByCoords = async (lat, lon) => {
+  const fetchByIP = async () => {
     try {
-      const res = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`,
-      );
+      const res = await fetch("http://ip-api.com/json/?fields=lat,lon,city");
       const data = await res.json();
-      if (data.cod === 200) {
-        setWeather(data);
-        setCity(data.name);
+      if (data.lat) {
+        fetchWeather(data.lat, data.lon, data.city);
       } else {
-        fetchWeatherByCity(DEFAULT_CITY);
+        fetchWeather(19.9, 75.3, "Aurangabad"); // Ambad area fallback
       }
     } catch {
-      fetchWeatherByCity(DEFAULT_CITY);
-    } finally {
-      setLoading(false);
+      fetchWeather(19.9, 75.3, "Aurangabad");
     }
   };
 
-  const fetchWeatherByCity = async (cityName) => {
+  const fetchWeather = async (lat, lon, cityName) => {
     try {
-      const res = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(cityName)}&appid=${API_KEY}&units=metric`,
-      );
+      // Reverse geocode for city name if we have coords but no city
+      let resolvedCity = cityName;
+      if (!resolvedCity) {
+        try {
+          const geo = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
+          );
+          const gd = await geo.json();
+          resolvedCity =
+            gd.address?.city ||
+            gd.address?.town ||
+            gd.address?.village ||
+            gd.address?.county ||
+            "Your Location";
+        } catch {
+          resolvedCity = "Your Location";
+        }
+      }
+      setCity(resolvedCity);
+
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code&wind_speed_unit=kmh&timezone=auto`;
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.cod === 200) {
-        setWeather(data);
-        setCity(data.name);
+      if (data.current) {
+        setWeather(data.current);
+      } else {
+        setError(true);
       }
     } catch {
-      // silently fail
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -129,35 +174,56 @@ export default function WeatherWidget() {
     return (
       <div
         style={{
-          margin: "12px 16px",
+          margin: "0 12px 12px",
           borderRadius: "14px",
-          background: "rgba(255,255,255,0.4)",
+          background: "rgba(22,163,74,0.1)",
           padding: "14px",
           textAlign: "center",
         }}
       >
-        <div style={{ fontSize: "11px", color: "#166534", opacity: 0.7 }}>
-          Loading weather...
+        <div style={{ fontSize: "11px", color: "#86efac" }}>
+          Loading weather…
         </div>
       </div>
     );
   }
 
-  if (!weather) return null;
+  if (error || !weather) {
+    return (
+      <div
+        style={{
+          margin: "0 12px 12px",
+          borderRadius: "14px",
+          background: "rgba(100,116,139,0.15)",
+          padding: "12px 14px",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+        }}
+      >
+        <AlertCircle
+          style={{
+            width: "14px",
+            height: "14px",
+            color: "#94a3b8",
+            flexShrink: 0,
+          }}
+        />
+        <span style={{ fontSize: "11px", color: "#94a3b8" }}>
+          Weather unavailable
+        </span>
+      </div>
+    );
+  }
 
-  const main = weather.weather[0].main;
-  const desc = weather.weather[0].description;
-  const temp = Math.round(weather.main.temp);
-  const feelsLike = Math.round(weather.main.feels_like);
-  const humidity = weather.main.humidity;
-  const windSpeed = Math.round(weather.wind.speed * 3.6); // m/s to km/h
-  const visibility = weather.visibility
-    ? Math.round(weather.visibility / 1000)
-    : null;
-
-  const colors = weatherColors[main] || weatherColors.default;
-  const WeatherIcon = weatherIcons[main] || Cloud;
-  const tip = getAgriTip(main, temp);
+  const code = weather.weather_code;
+  const temp = Math.round(weather.temperature_2m);
+  const feels = Math.round(weather.apparent_temperature);
+  const humidity = weather.relative_humidity_2m;
+  const wind = Math.round(weather.wind_speed_10m);
+  const wmo = getWMO(code);
+  const WeatherIcon = wmo.icon;
+  const tip = getAgriTip(code, temp);
 
   return (
     <div style={{ margin: "0 12px 12px 12px" }}>
@@ -165,11 +231,10 @@ export default function WeatherWidget() {
         style={{
           borderRadius: "14px",
           overflow: "hidden",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.18)",
         }}
       >
-        {/* Main weather block */}
-        <div style={{ background: colors.bg, padding: "14px 16px 10px" }}>
+        <div style={{ background: wmo.gradient, padding: "14px 16px 10px" }}>
           <div
             style={{
               display: "flex",
@@ -180,14 +245,30 @@ export default function WeatherWidget() {
             <div>
               <div
                 style={{
-                  fontSize: "10px",
-                  color: "rgba(255,255,255,0.75)",
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  marginBottom: "2px",
                 }}
               >
-                {city}
+                <MapPin
+                  style={{
+                    width: "10px",
+                    height: "10px",
+                    color: "rgba(255,255,255,0.75)",
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: "10px",
+                    color: "rgba(255,255,255,0.75)",
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  {city}
+                </span>
               </div>
               <div
                 style={{
@@ -195,20 +276,18 @@ export default function WeatherWidget() {
                   fontWeight: 800,
                   color: "white",
                   lineHeight: 1.1,
-                  marginTop: "2px",
                 }}
               >
-                {temp != null ? `${temp}°C` : "--°C"}
+                {temp}°C
               </div>
               <div
                 style={{
                   fontSize: "11px",
                   color: "rgba(255,255,255,0.8)",
                   marginTop: "2px",
-                  textTransform: "capitalize",
                 }}
               >
-                {desc}
+                {wmo.label}
               </div>
             </div>
             <WeatherIcon
@@ -219,78 +298,41 @@ export default function WeatherWidget() {
               }}
             />
           </div>
-
-          {/* Stats row */}
           <div style={{ display: "flex", gap: "12px", marginTop: "10px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
-              <Droplets
-                style={{
-                  width: "11px",
-                  height: "11px",
-                  color: "rgba(255,255,255,0.75)",
-                }}
-              />
-              <span
-                style={{
-                  fontSize: "10px",
-                  color: "rgba(255,255,255,0.85)",
-                  fontWeight: 600,
-                }}
+            {[
+              { Icon: Droplets, val: `${humidity}%` },
+              { Icon: Wind, val: `${wind} km/h` },
+              { Icon: Thermometer, val: `Feels ${feels}°` },
+            ].map(({ Icon, val }) => (
+              <div
+                key={val}
+                style={{ display: "flex", alignItems: "center", gap: "3px" }}
               >
-                {humidity}%
-              </span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
-              <Wind
-                style={{
-                  width: "11px",
-                  height: "11px",
-                  color: "rgba(255,255,255,0.75)",
-                }}
-              />
-              <span
-                style={{
-                  fontSize: "10px",
-                  color: "rgba(255,255,255,0.85)",
-                  fontWeight: 600,
-                }}
-              >
-                {windSpeed} km/h
-              </span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
-              <Thermometer
-                style={{
-                  width: "11px",
-                  height: "11px",
-                  color: "rgba(255,255,255,0.75)",
-                }}
-              />
-              <span
-                style={{
-                  fontSize: "10px",
-                  color: "rgba(255,255,255,0.85)",
-                  fontWeight: 600,
-                }}
-              >
-                Feels {feelsLike}°
-              </span>
-            </div>
+                <Icon
+                  style={{
+                    width: "11px",
+                    height: "11px",
+                    color: "rgba(255,255,255,0.75)",
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: "10px",
+                    color: "rgba(255,255,255,0.85)",
+                    fontWeight: 600,
+                  }}
+                >
+                  {val}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
-
-        {/* Agri tip */}
-        <div
-          style={{
-            background: "rgba(255,255,255,0.85)",
-            padding: "8px 14px",
-            borderTop: "1px solid rgba(255,255,255,0.3)",
-          }}
-        >
+        <div style={{ background: "rgba(0,0,0,0.25)", padding: "8px 14px" }}>
           <div
             style={{
               fontSize: "10px",
-              color: "#166534",
+              color: "rgba(255,255,255,0.85)",
               fontWeight: 600,
               lineHeight: 1.4,
             }}

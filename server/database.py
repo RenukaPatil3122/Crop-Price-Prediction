@@ -121,6 +121,17 @@ class Database:
             print(f"[MongoDB] update_user error: {e}")
             return False
 
+    async def delete_user(self, user_id: str) -> bool:
+        if not self._connected or self.users_col is None:
+            return False
+        try:
+            from bson import ObjectId
+            result = await self.users_col.delete_one({"_id": ObjectId(user_id)})
+            return result.deleted_count > 0
+        except Exception as e:
+            print(f"[MongoDB] delete_user error: {e}")
+            return False
+
     async def email_exists(self, email: str) -> bool:
         if not self._connected or self.users_col is None:
             return False

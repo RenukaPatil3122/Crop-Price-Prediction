@@ -4,24 +4,30 @@ import { useAuth } from "../context/AuthContext";
 import {
   Moon,
   Sun,
-  Bell,
   Save,
   CheckCircle,
   Palette,
   SlidersHorizontal,
   UserCog,
+  TrendingUp,
+  BrainCircuit,
+  CalendarDays,
 } from "lucide-react";
+
+const BASE = "http://localhost:8000";
 
 export default function SettingsPage() {
   const { isDark, toggleTheme } = useTheme();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
   const [notifSettings, setNotifSettings] = useState({
     price_alerts: true,
     predictions: true,
-    weekly_report: false,
+    weekly_summary: false,
   });
   const [saved, setSaved] = useState(false);
+  const [testMsg, setTestMsg] = useState("");
+  const [testLoading, setTestLoading] = useState(false);
 
   const card = isDark ? "#1e293b" : "white";
   const border = isDark ? "#334155" : "#e5e7eb";
@@ -87,6 +93,52 @@ export default function SettingsPage() {
       </div>
     </div>
   );
+
+  const handleTestWeeklySummary = async () => {
+    setTestLoading(true);
+    setTestMsg("");
+    try {
+      const res = await fetch(`${BASE}/notifications/weekly-summary`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Failed");
+      setTestMsg("✅ Weekly summary notification sent! Check your bell.");
+    } catch (err) {
+      setTestMsg(`❌ ${err.message}`);
+    } finally {
+      setTestLoading(false);
+      setTimeout(() => setTestMsg(""), 4000);
+    }
+  };
+
+  const NOTIF_ROWS = [
+    {
+      key: "price_alerts",
+      icon: TrendingUp,
+      color: "#16a34a",
+      label: "Price Alerts",
+      sub: "Triggered when predicted price crosses your set threshold",
+      badge: "Live",
+    },
+    {
+      key: "predictions",
+      icon: BrainCircuit,
+      color: "#6366f1",
+      label: "Prediction Updates",
+      sub: "Saved to notifications every time you click Predict",
+      badge: "Live",
+    },
+    {
+      key: "weekly_summary",
+      icon: CalendarDays,
+      color: "#f59e0b",
+      label: "Weekly Summary",
+      sub: "Auto-generated every Monday at 8:00 AM UTC (1:30 PM IST)",
+      badge: "Scheduled",
+    },
+  ];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -287,77 +339,142 @@ export default function SettingsPage() {
               color="#f59e0b"
             />
             <div style={{ display: "flex", flexDirection: "column" }}>
-              {[
-                {
-                  key: "price_alerts",
-                  label: "Price Alerts",
-                  sub: "Get notified when crop prices hit your thresholds",
-                  emoji: "📈",
-                },
-                {
-                  key: "predictions",
-                  label: "Prediction Updates",
-                  sub: "Notifications when new predictions are ready",
-                  emoji: "🤖",
-                },
-                {
-                  key: "weekly_report",
-                  label: "Weekly Summary",
-                  sub: "Receive a weekly market digest every Monday",
-                  emoji: "📊",
-                },
-              ].map(({ key, label, sub, emoji }, i, arr) => (
-                <div
-                  key={key}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
-                    padding: "14px 0",
-                    borderBottom:
-                      i < arr.length - 1 ? `1px solid ${border}` : "none",
-                  }}
-                >
+              {NOTIF_ROWS.map(
+                ({ key, icon: Icon, color, label, sub, badge }, i) => (
                   <div
+                    key={key}
                     style={{
-                      width: "36px",
-                      height: "36px",
-                      borderRadius: "10px",
-                      background: bg2,
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "17px",
-                      flexShrink: 0,
+                      gap: "12px",
+                      padding: "14px 0",
+                      borderBottom:
+                        i < NOTIF_ROWS.length - 1
+                          ? `1px solid ${border}`
+                          : "none",
                     }}
                   >
-                    {emoji}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div
-                      style={{ fontSize: "13px", fontWeight: 600, color: text }}
-                    >
-                      {label}
-                    </div>
                     <div
                       style={{
-                        fontSize: "11px",
-                        color: muted,
-                        marginTop: "2px",
+                        width: "36px",
+                        height: "36px",
+                        borderRadius: "10px",
+                        background: `${color}18`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
                       }}
                     >
-                      {sub}
+                      <Icon style={{ width: "17px", height: "17px", color }} />
                     </div>
+                    <div style={{ flex: 1 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "7px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: text,
+                          }}
+                        >
+                          {label}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: 700,
+                            padding: "2px 7px",
+                            borderRadius: "20px",
+                            background:
+                              badge === "Live"
+                                ? "rgba(22,163,74,0.15)"
+                                : "rgba(245,158,11,0.15)",
+                            color: badge === "Live" ? "#16a34a" : "#f59e0b",
+                          }}
+                        >
+                          {badge === "Live" ? "● Live" : "⏰ Scheduled"}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          color: muted,
+                          marginTop: "2px",
+                        }}
+                      >
+                        {sub}
+                      </div>
+                    </div>
+                    <Toggle
+                      value={notifSettings[key]}
+                      onChange={(v) =>
+                        setNotifSettings((p) => ({ ...p, [key]: v }))
+                      }
+                    />
                   </div>
-                  <Toggle
-                    value={notifSettings[key]}
-                    onChange={(v) =>
-                      setNotifSettings((p) => ({ ...p, [key]: v }))
-                    }
-                  />
-                </div>
-              ))}
+                ),
+              )}
             </div>
+
+            {/* Test weekly summary */}
+            {notifSettings.weekly_summary && (
+              <div
+                style={{
+                  marginTop: "14px",
+                  paddingTop: "14px",
+                  borderTop: `1px solid ${border}`,
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: "12px",
+                    color: muted,
+                    marginBottom: "10px",
+                  }}
+                >
+                  Don't want to wait till Monday? Trigger it now:
+                </p>
+                <button
+                  onClick={handleTestWeeklySummary}
+                  disabled={testLoading}
+                  style={{
+                    padding: "9px 18px",
+                    borderRadius: "9px",
+                    background: isDark ? "#334155" : "#f3f4f6",
+                    color: text,
+                    fontWeight: 600,
+                    fontSize: "12px",
+                    border: `1px solid ${border}`,
+                    cursor: testLoading ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "7px",
+                  }}
+                >
+                  <CalendarDays
+                    style={{ width: "14px", height: "14px", color: "#f59e0b" }}
+                  />
+                  {testLoading ? "Generating…" : "Send Weekly Summary Now"}
+                </button>
+                {testMsg && (
+                  <p
+                    style={{
+                      fontSize: "12px",
+                      marginTop: "8px",
+                      color: testMsg.startsWith("✅") ? "#16a34a" : "#ef4444",
+                    }}
+                  >
+                    {testMsg}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Save */}
@@ -371,7 +488,7 @@ export default function SettingsPage() {
               alignItems: "center",
               justifyContent: "center",
               gap: "8px",
-              padding: "13px 24px",
+              padding: "11px 28px",
               borderRadius: "12px",
               background: saved
                 ? "#16a34a"
@@ -382,12 +499,12 @@ export default function SettingsPage() {
               border: "none",
               cursor: "pointer",
               boxShadow: "0 4px 12px rgba(22,163,74,0.3)",
+              width: "fit-content",
             }}
           >
             {saved ? (
               <>
-                <CheckCircle style={{ width: "15px", height: "15px" }} />{" "}
-                Settings Saved!
+                <CheckCircle style={{ width: "15px", height: "15px" }} /> Saved!
               </>
             ) : (
               <>
