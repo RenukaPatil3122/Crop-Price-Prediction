@@ -3,6 +3,9 @@ import pandas as pd
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
+import certifi
+import requests
+import subprocess, json
 
 load_dotenv()
 
@@ -15,35 +18,34 @@ SUPPORTED_STATES = ["Punjab", "Haryana", "Maharashtra", "Gujarat", "Rajasthan", 
 
 
 async def fetch_mandi_prices(commodity: str = None, state: str = None, limit: int = 500) -> list[dict]:
-    """Fetch live mandi prices from data.gov.in API"""
-    params = {
-        "api-key": API_KEY,
-        "format": "json",
-        "limit": limit,
-    }
+    """Fetch live mandi prices using curl (httpx times out on this network)"""
+    url = f"{BASE_URL}?api-key={API_KEY}&format=json&limit={limit}"
     if commodity:
-        params["filters[commodity]"] = commodity
+        url += f"&filters%5Bcommodity%5D={commodity}"
     if state:
-        params["filters[state]"] = state
+        url += f"&filters%5Bstate%5D={state}"
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        try:
-            response = await client.get(BASE_URL, params=params)
-            response.raise_for_status()
-            data = response.json()
-            return data.get("records", [])
-        except httpx.HTTPError as e:
-            print(f"API Error: {e}")
+    try:
+        result = subprocess.run(
+            ["curl", "-s", "--max-time", "30", url],
+            capture_output=True, text=True, timeout=35
+        )
+        if result.returncode != 0:
+            print(f"curl error: {result.stderr}")
             return []
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            return []
+        data = json.loads(result.stdout)
+        records = data.get("records", [])
+        print(f"✅ Fetched {len(records)} records from data.gov.in")
+        return records
+    except Exception as e:
+        print(f"curl fetch failed: {type(e).__name__}: {e}")
+        return []
 
 
 async def fetch_all_crops_prices() -> list[dict]:
     """Fetch prices for all supported crops"""
     all_records = []
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=60.0) as client:
         for crop in SUPPORTED_CROPS:
             params = {
                 "api-key": API_KEY,

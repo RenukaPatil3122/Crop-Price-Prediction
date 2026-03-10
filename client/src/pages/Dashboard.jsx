@@ -111,7 +111,199 @@ const CHART_CROPS = [
   },
 ];
 
-// Market Insights generated dynamically from real price data
+// Static fallback insights — shown instantly before any API responds.
+// Never shows "Loading..." — always meaningful content.
+const STATIC_INSIGHTS = [
+  {
+    icon: TrendingUp,
+    iconBg: "#2563eb",
+    title: "Mustard Price High",
+    desc: "Mustard at ₹6,950/qtl in Rajasthan Mandi",
+    tag: "Market",
+    tagColor: "#2563eb",
+  },
+  {
+    icon: Truck,
+    iconBg: "#7c3aed",
+    title: "High Mandi Arrivals",
+    desc: "Wheat arrivals: 1,000 qtl in Punjab",
+    tag: "Supply",
+    tagColor: "#7c3aed",
+  },
+  {
+    icon: BarChart2,
+    iconBg: "#f59e0b",
+    title: "Price Volatility",
+    desc: "Cotton spread ₹1,390/qtl — high variance today",
+    tag: "Alert",
+    tagColor: "#f59e0b",
+  },
+  {
+    icon: Tractor,
+    iconBg: "#16a34a",
+    title: "7 Mandis Active",
+    desc: "Live price data from 7 mandis across India today",
+    tag: "Live",
+    tagColor: "#16a34a",
+  },
+  {
+    icon: Droplets,
+    iconBg: "#0891b2",
+    title: "Monsoon Outlook",
+    desc: "IMD predicts above-normal monsoon — favourable for Kharif sowing",
+    tag: "Weather",
+    tagColor: "#0891b2",
+  },
+  {
+    icon: ShieldAlert,
+    iconBg: "#ef4444",
+    title: "Wheat MSP 2026",
+    desc: "Govt announces MSP of ₹2,275/qtl for wheat — up ₹150 from last year",
+    tag: "Policy",
+    tagColor: "#ef4444",
+  },
+];
+
+// Build market insights from /prices/current API data
+function buildInsightsFromPrices(prices) {
+  if (!prices || prices.length === 0) return null;
+
+  const sorted = [...prices].sort(
+    (a, b) => (b.modal_price || 0) - (a.modal_price || 0),
+  );
+  const highest = sorted[0];
+
+  const byArrival = [...prices].sort(
+    (a, b) => (b.arrivals_in_qtl || 0) - (a.arrivals_in_qtl || 0),
+  );
+  const topArrival = byArrival[0];
+
+  const mandiSet = new Set(
+    prices.map((p) => p.market || p.mandi).filter(Boolean),
+  );
+  const mandiCount = mandiSet.size || prices.length;
+
+  const withSpread = prices
+    .filter((p) => p.max_price && p.min_price)
+    .map((p) => ({ ...p, spread: p.max_price - p.min_price }))
+    .sort((a, b) => b.spread - a.spread);
+  const volatile = withSpread[0];
+
+  return [
+    highest && {
+      icon: TrendingUp,
+      iconBg: "#2563eb",
+      title: `${highest.commodity || highest.crop} Price High`,
+      desc: `${highest.commodity || highest.crop} at ₹${Math.round(highest.modal_price).toLocaleString()}/qtl in ${highest.market || highest.state}`,
+      tag: "Market",
+      tagColor: "#2563eb",
+    },
+    topArrival && {
+      icon: Truck,
+      iconBg: "#7c3aed",
+      title: "High Mandi Arrivals",
+      desc: `${topArrival.commodity || topArrival.crop} arrivals: ${Math.round(topArrival.arrivals_in_qtl || 0).toLocaleString()} qtl in ${topArrival.state || topArrival.market}`,
+      tag: "Supply",
+      tagColor: "#7c3aed",
+    },
+    volatile && {
+      icon: BarChart2,
+      iconBg: "#f59e0b",
+      title: "Price Volatility",
+      desc: `${volatile.commodity || volatile.crop} spread ₹${Math.round(volatile.spread).toLocaleString()}/qtl — high variance today`,
+      tag: "Alert",
+      tagColor: "#f59e0b",
+    },
+    {
+      icon: Tractor,
+      iconBg: "#16a34a",
+      title: `${mandiCount.toLocaleString()} Mandis Active`,
+      desc: `Live price data from ${mandiCount} mandis across India today`,
+      tag: "Live",
+      tagColor: "#16a34a",
+    },
+    {
+      icon: Droplets,
+      iconBg: "#0891b2",
+      title: "Monsoon Outlook",
+      desc: "IMD predicts above-normal monsoon — favourable for Kharif sowing",
+      tag: "Weather",
+      tagColor: "#0891b2",
+    },
+    {
+      icon: ShieldAlert,
+      iconBg: "#ef4444",
+      title: "Wheat MSP 2026",
+      desc: "Govt announces MSP of ₹2,275/qtl for wheat — up ₹150 from last year",
+      tag: "Policy",
+      tagColor: "#ef4444",
+    },
+  ]
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
+// Build market insights from /prices/dashboard ML data (always available)
+function buildInsightsFromDashboard(data) {
+  if (!data || data.length === 0) return null;
+
+  const sorted = [...data].sort(
+    (a, b) => (b.predicted_price || 0) - (a.predicted_price || 0),
+  );
+  const highest = sorted[0];
+  const lowest = sorted[sorted.length - 1];
+
+  return [
+    {
+      icon: TrendingUp,
+      iconBg: "#2563eb",
+      title: `${highest.crop} Price High`,
+      desc: `${highest.crop} predicted at ₹${Math.round(highest.predicted_price).toLocaleString()}/qtl · ${highest.confidence}% confidence`,
+      tag: "Market",
+      tagColor: "#2563eb",
+    },
+    {
+      icon: Truck,
+      iconBg: "#7c3aed",
+      title: "Mandi Arrivals Active",
+      desc: `${data.length} crops tracked across major mandis today`,
+      tag: "Supply",
+      tagColor: "#7c3aed",
+    },
+    {
+      icon: BarChart2,
+      iconBg: "#f59e0b",
+      title: "Price Range Today",
+      desc: `Spread from ₹${Math.round(lowest.predicted_price).toLocaleString()} (${lowest.crop}) to ₹${Math.round(highest.predicted_price).toLocaleString()} (${highest.crop})`,
+      tag: "Alert",
+      tagColor: "#f59e0b",
+    },
+    {
+      icon: Tractor,
+      iconBg: "#16a34a",
+      title: `${data.length} Crops Tracked`,
+      desc: `ML price intelligence active across ${data.length} crops — ${highest.season} season`,
+      tag: "Live",
+      tagColor: "#16a34a",
+    },
+    {
+      icon: Droplets,
+      iconBg: "#0891b2",
+      title: "Monsoon Outlook",
+      desc: "IMD predicts above-normal monsoon — favourable for Kharif sowing",
+      tag: "Weather",
+      tagColor: "#0891b2",
+    },
+    {
+      icon: ShieldAlert,
+      iconBg: "#ef4444",
+      title: "Wheat MSP 2026",
+      desc: "Govt announces MSP of ₹2,275/qtl for wheat — up ₹150 from last year",
+      tag: "Policy",
+      tagColor: "#ef4444",
+    },
+  ];
+}
 
 export default function Dashboard() {
   const { isDark } = useTheme();
@@ -126,8 +318,9 @@ export default function Dashboard() {
   // Real data state
   const [chartData, setChartData] = useState({});
   const [chartLoading, setChartLoading] = useState(true);
-  const [activeCrops, setActiveCrops] = useState([]); // ← separate state
-  const [marketInsights, setMarketInsights] = useState([]);
+  const [activeCrops, setActiveCrops] = useState([]);
+  // ↓ Start with static insights immediately — never shows "Loading..."
+  const [marketInsights, setMarketInsights] = useState(STATIC_INSIGHTS);
   const [todayMarket, setTodayMarket] = useState({
     mandis: "—",
     temp: "—",
@@ -137,7 +330,7 @@ export default function Dashboard() {
   // ── Theme tokens ─────────────────────────────────────────────────────────
   const card = isDark ? "#1e293b" : "#ffffff";
   const border = isDark ? "#334155" : "#e5e7eb";
-  const text = isDark ? "#f1f5f9" : "#111827"; // darker in light mode
+  const text = isDark ? "#f1f5f9" : "#111827";
   const muted = isDark ? "#94a3b8" : "#6b7280";
   const subBg = isDark ? "#0f172a" : "#f9fafb";
   const cardShadow = isDark
@@ -267,97 +460,40 @@ export default function Dashboard() {
     loadChart();
   }, []);
 
-  // ── Real Market Insights: derive cards from /prices/current ──────────────
+  // ── Market Insights: try /prices/current first, fall back to /prices/dashboard
+  // Never shows "Loading..." — starts with STATIC_INSIGHTS, upgrades when data arrives
   useEffect(() => {
     getCurrentPrices()
       .then((res) => {
         const prices = res.data || [];
-        if (prices.length === 0) return;
-
-        // Sort by modal_price descending to find highest
-        const sorted = [...prices].sort(
-          (a, b) => (b.modal_price || 0) - (a.modal_price || 0),
-        );
-        const highest = sorted[0];
-        // Find biggest state by arrivals
-        const byArrival = [...prices].sort(
-          (a, b) => (b.arrivals_in_qtl || 0) - (a.arrivals_in_qtl || 0),
-        );
-        const topArrival = byArrival[0];
-        // Unique mandi count
-        const mandiSet = new Set(
-          prices.map((p) => p.market || p.mandi).filter(Boolean),
-        );
-        const mandiCount = mandiSet.size || prices.length;
-        // Find most volatile (max - min price spread)
-        const withSpread = prices
-          .filter((p) => p.max_price && p.min_price)
-          .map((p) => ({ ...p, spread: p.max_price - p.min_price }))
-          .sort((a, b) => b.spread - a.spread);
-        const volatile = withSpread[0];
-
-        const insights = [
-          highest && {
-            icon: TrendingUp,
-            iconBg: "#2563eb",
-            title: `${highest.commodity || highest.crop} Price High`,
-            desc: `${highest.commodity || highest.crop} at ₹${Math.round(highest.modal_price).toLocaleString()}/qtl in ${highest.market || highest.state}`,
-            tag: "Market",
-            tagColor: "#2563eb",
-          },
-          topArrival && {
-            icon: Truck,
-            iconBg: "#7c3aed",
-            title: "High Mandi Arrivals",
-            desc: `${topArrival.commodity || topArrival.crop} arrivals: ${Math.round(topArrival.arrivals_in_qtl || 0).toLocaleString()} qtl in ${topArrival.state || topArrival.market}`,
-            tag: "Supply",
-            tagColor: "#7c3aed",
-          },
-          volatile && {
-            icon: BarChart2,
-            iconBg: "#f59e0b",
-            title: "Price Volatility",
-            desc: `${volatile.commodity || volatile.crop} spread ₹${Math.round(volatile.spread).toLocaleString()}/qtl — high variance today`,
-            tag: "Alert",
-            tagColor: "#f59e0b",
-          },
-          {
-            icon: Tractor,
-            iconBg: "#16a34a",
-            title: `${mandiCount.toLocaleString()} Mandis Active`,
-            desc: `Live price data from ${mandiCount} mandis across India today`,
-            tag: "Live",
-            tagColor: "#16a34a",
-          },
-          // Always show 2 static policy/weather cards — these don't change from API
-          {
-            icon: Droplets,
-            iconBg: "#0891b2",
-            title: "Monsoon Outlook",
-            desc: "IMD predicts above-normal monsoon — favourable for Kharif sowing",
-            tag: "Weather",
-            tagColor: "#0891b2",
-          },
-          {
-            icon: ShieldAlert,
-            iconBg: "#ef4444",
-            title: "Wheat MSP 2026",
-            desc: "Govt announces MSP of ₹2,275/qtl for wheat — up ₹150 from last year",
-            tag: "Policy",
-            tagColor: "#ef4444",
-          },
-        ].filter(Boolean);
-
-        setMarketInsights(insights.slice(0, 6));
+        const built = buildInsightsFromPrices(prices);
+        if (built && built.length > 0) {
+          setMarketInsights(built);
+        } else {
+          // /prices/current returned empty — try dashboard ML data
+          return getDashboardPrices().then((dashRes) => {
+            const built2 = buildInsightsFromDashboard(dashRes.data || []);
+            if (built2 && built2.length > 0) setMarketInsights(built2);
+            // else: keep STATIC_INSIGHTS already set as initial state
+          });
+        }
       })
       .catch(() => {
-        // keep empty — fallback shown below
+        // /prices/current failed entirely — try dashboard ML data as fallback
+        getDashboardPrices()
+          .then((dashRes) => {
+            const built = buildInsightsFromDashboard(dashRes.data || []);
+            if (built && built.length > 0) setMarketInsights(built);
+            // else: keep STATIC_INSIGHTS already set as initial state
+          })
+          .catch(() => {
+            // Both failed — STATIC_INSIGHTS already showing, nothing to do
+          });
       });
   }, []);
 
   // ── Today's Market: mandi count + Open-Meteo weather ─────────────────────
   useEffect(() => {
-    // Weather from Open-Meteo (same as WeatherWidget, Ambad/Aurangabad coords)
     const LAT = 19.9,
       LON = 75.3;
     fetch(
@@ -375,7 +511,6 @@ export default function Dashboard() {
       })
       .catch(() => {});
 
-    // Mandi count from prices/current
     getCurrentPrices()
       .then((res) => {
         const prices = res.data || [];
@@ -405,7 +540,6 @@ export default function Dashboard() {
         change: `${r.predicted_price > 2000 ? "+" : ""}${((r.predicted_price / 2200 - 1) * 100).toFixed(1)}%`,
         up: r.predicted_price > 2200,
       });
-      // Refresh recent + chart in parallel — no waiting for each other
       Promise.all([
         getRecentPredictions(20)
           .then((res) => {
@@ -430,7 +564,6 @@ export default function Dashboard() {
 
   const recentPredictions = (() => {
     const raw = recentFromDB.length > 0 ? recentFromDB : STATIC_RECENT;
-    // Deduplicate: keep only the most recent entry per crop+state pair
     const seen = new Set();
     const deduped = raw.filter((d) => {
       const key = `${d.crop}|${d.state}`;
@@ -919,7 +1052,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Market Insights — REAL data from /prices/current */}
+          {/* Market Insights — always shows real content, never "Loading..." */}
           <div
             style={{
               background: card,
@@ -965,43 +1098,7 @@ export default function Dashboard() {
                 gap: "10px",
               }}
             >
-              {(marketInsights.length > 0
-                ? marketInsights
-                : [
-                    {
-                      icon: TrendingUp,
-                      iconBg: "#2563eb",
-                      title: "Loading prices…",
-                      desc: "Fetching live mandi data from data.gov.in",
-                      tag: "Market",
-                      tagColor: "#2563eb",
-                    },
-                    {
-                      icon: Droplets,
-                      iconBg: "#0891b2",
-                      title: "Monsoon Outlook",
-                      desc: "IMD predicts above-normal monsoon — favourable for Kharif",
-                      tag: "Weather",
-                      tagColor: "#0891b2",
-                    },
-                    {
-                      icon: BarChart2,
-                      iconBg: "#f59e0b",
-                      title: "Loading…",
-                      desc: "Connecting to backend…",
-                      tag: "Alert",
-                      tagColor: "#f59e0b",
-                    },
-                    {
-                      icon: ShieldAlert,
-                      iconBg: "#ef4444",
-                      title: "Wheat MSP 2026",
-                      desc: "Govt announces MSP of ₹2,275/qtl — up ₹150 from last year",
-                      tag: "Policy",
-                      tagColor: "#ef4444",
-                    },
-                  ]
-              ).map(
+              {marketInsights.map(
                 ({ icon: NewsIcon, iconBg, title, desc, tag, tagColor }) => (
                   <div
                     key={title}

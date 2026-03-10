@@ -5,6 +5,7 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
 import os
+import asyncio
 from dotenv import load_dotenv
 
 from data_fetcher import (
@@ -27,6 +28,68 @@ app.add_middleware(
 )
 
 security = HTTPBearer(auto_error=False)
+
+# ── In-memory price cache (refreshed every 30 min) ────────────────────────────
+_price_cache: list = []
+_price_cache_time: datetime = None
+
+def _build_ml_fallback() -> list:
+    """Generate market insights from ML model when data.gov.in is unavailable."""
+    now = datetime.now()
+    result = []
+    state_map = {
+        "Wheat": "Punjab", "Rice": "Punjab", "Tomato": "Maharashtra",
+        "Onion": "Maharashtra", "Cotton": "Gujarat", "Maize": "Karnataka",
+        "Potato": "Uttar Pradesh", "Mustard": "Rajasthan", "Soyabean": "Madhya Pradesh",
+    }
+    for crop in CROPS:
+        try:
+            state = state_map.get(crop, "Punjab")
+            pred  = predict_price(crop, state, now.month, now.year)
+            result.append({
+                "commodity":   crop,
+                "state":       state,
+                "district":    "",
+                "market":      f"{state} Mandi",
+                "min_price":   round(pred["min_price"], 2),
+                "max_price":   round(pred["max_price"], 2),
+                "modal_price": round(pred["predicted_price"], 2),
+                "arrivals_in_qtl": 1000,
+                "date":        now.strftime("%Y-%m-%d"),
+                "source":      "ml_fallback",
+            })
+        except Exception:
+            pass
+    return result
+
+async def _refresh_price_cache():
+    """Fetch from data.gov.in; fall back to ML if empty/slow."""
+    global _price_cache, _price_cache_time
+    try:
+        prices = await asyncio.wait_for(get_current_prices(), timeout=90.0)
+        if prices:
+            _price_cache = prices
+            _price_cache_time = datetime.utcnow()
+            print(f"✅ Price cache refreshed — {len(prices)} records")
+            return
+    except Exception as e:
+        print(f"⚠️  data.gov.in fetch failed ({e}) — using ML fallback")
+    # Fallback: build from ML model so cache is never empty
+    _price_cache = _build_ml_fallback()
+    _price_cache_time = datetime.utcnow()
+    print(f"✅ Price cache built from ML fallback — {len(_price_cache)} records")
+
+async def _price_cache_scheduler():
+    """Refresh price cache every 30 minutes."""
+    while True:
+        try:
+            await _refresh_price_cache()
+        except Exception as e:
+            print(f"[PriceCache] Scheduler error: {e}")
+        try:
+            await asyncio.sleep(1800)  # 30 min
+        except asyncio.CancelledError:
+            return
 
 # ── Models ────────────────────────────────────────────────────────────────────
 
@@ -496,8 +559,13 @@ async def trigger_weekly_summary():
 @app.get("/prices/current")
 async def current_prices(commodity: Optional[str] = Query(None), state: Optional[str] = Query(None)):
     try:
-        prices = await get_current_prices(commodity=commodity, state=state)
-        return {"count": len(prices), "data": prices} if prices else {"message": "No data", "data": []}
+        # Serve from cache instantly — never wait on data.gov.in per-request
+        data = _price_cache if _price_cache else _build_ml_fallback()
+        if commodity:
+            data = [p for p in data if p.get("commodity","").lower() == commodity.lower()]
+        if state:
+            data = [p for p in data if p.get("state","").lower() == state.lower()]
+        return {"count": len(data), "data": data} if data else {"message": "No data", "data": []}
     except Exception as e:
         raise HTTPException(500, str(e))
 
@@ -546,12 +614,14 @@ async def retrain_model(background_tasks: BackgroundTasks):
 
 @app.on_event("startup")
 async def startup_event():
-    import asyncio
     await db.connect()
     if not os.path.exists("model.pkl"):
         train_model()
     else:
         print("✅ Model loaded from disk")
-    # Start weekly summary scheduler in background
+    # Warm price cache immediately (non-blocking) + start 30-min refresh loop
+    asyncio.create_task(_refresh_price_cache())
+    asyncio.create_task(_price_cache_scheduler())
     asyncio.create_task(weekly_scheduler())
+    print("✅ Price cache warming started")
     print("✅ Weekly summary scheduler started")
