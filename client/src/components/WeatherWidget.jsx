@@ -11,9 +11,6 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-// Uses Open-Meteo (100% free, no API key ever needed) + ip-api for location
-// Falls back to Aurangabad/Ambad area if geolocation denied
-
 const WMO_MAP = {
   0: {
     label: "Clear sky",
@@ -23,62 +20,62 @@ const WMO_MAP = {
   1: {
     label: "Mainly clear",
     icon: Sun,
-    gradient: "linear-gradient(135deg,#f59e0b,#fbbf24)",
+    gradient: "linear-gradient(135deg,#f59e0b,#f97316)",
   },
   2: {
     label: "Partly cloudy",
     icon: Cloud,
-    gradient: "linear-gradient(135deg,#6b7280,#9ca3af)",
+    gradient: "linear-gradient(135deg,#4b6cb7,#6b7280)",
   },
   3: {
     label: "Overcast",
     icon: Cloud,
-    gradient: "linear-gradient(135deg,#475569,#64748b)",
+    gradient: "linear-gradient(135deg,#374151,#4b5563)",
   },
   45: {
     label: "Foggy",
     icon: Cloud,
-    gradient: "linear-gradient(135deg,#475569,#64748b)",
+    gradient: "linear-gradient(135deg,#374151,#4b5563)",
   },
   48: {
     label: "Freezing fog",
     icon: Cloud,
-    gradient: "linear-gradient(135deg,#475569,#64748b)",
+    gradient: "linear-gradient(135deg,#374151,#4b5563)",
   },
   51: {
     label: "Light drizzle",
     icon: CloudRain,
-    gradient: "linear-gradient(135deg,#0891b2,#22d3ee)",
+    gradient: "linear-gradient(135deg,#0891b2,#0ea5e9)",
   },
   53: {
     label: "Drizzle",
     icon: CloudRain,
-    gradient: "linear-gradient(135deg,#0891b2,#22d3ee)",
+    gradient: "linear-gradient(135deg,#0891b2,#0ea5e9)",
   },
   61: {
     label: "Light rain",
     icon: CloudRain,
-    gradient: "linear-gradient(135deg,#2563eb,#3b82f6)",
+    gradient: "linear-gradient(135deg,#1d4ed8,#3b82f6)",
   },
   63: {
     label: "Rain",
     icon: CloudRain,
-    gradient: "linear-gradient(135deg,#1d4ed8,#2563eb)",
+    gradient: "linear-gradient(135deg,#1e3a8a,#1d4ed8)",
   },
   71: {
     label: "Light snow",
     icon: CloudSnow,
-    gradient: "linear-gradient(135deg,#bfdbfe,#e0f2fe)",
+    gradient: "linear-gradient(135deg,#7dd3fc,#bfdbfe)",
   },
   80: {
     label: "Rain showers",
     icon: CloudRain,
-    gradient: "linear-gradient(135deg,#2563eb,#3b82f6)",
+    gradient: "linear-gradient(135deg,#1d4ed8,#3b82f6)",
   },
   95: {
     label: "Thunderstorm",
     icon: CloudRain,
-    gradient: "linear-gradient(135deg,#1e1b4b,#3730a3)",
+    gradient: "linear-gradient(135deg,#1e1b4b,#4c1d95)",
   },
 };
 
@@ -90,13 +87,12 @@ const getWMO = (code) =>
   };
 
 const getAgriTip = (code, temp) => {
-  if ([61, 63, 80].includes(code))
-    return "💧 Good irrigation day — skip watering";
+  if ([61, 63, 80].includes(code)) return "💧 Skip watering — good rain today";
   if ([95].includes(code)) return "⚡ Avoid field work today";
   if ([0, 1].includes(code) && temp > 35)
-    return "☀️ High heat — protect vegetable crops";
+    return "🥵 High heat — protect vegetable crops";
   if ([0, 1].includes(code) && temp < 15)
-    return "❄️ Cold night — cover sensitive crops";
+    return "🧊 Cold night — cover sensitive crops";
   if ([2, 3].includes(code)) return "🌥️ Good day for pesticide spraying";
   if ([51, 53].includes(code)) return "🌧️ Light drizzle — monitor drainage";
   return "🌾 Favorable conditions for fieldwork";
@@ -123,11 +119,11 @@ export default function WeatherWidget() {
     try {
       const res = await fetch("http://ip-api.com/json/?fields=lat,lon,city");
       const data = await res.json();
-      if (data.lat) {
-        fetchWeather(data.lat, data.lon, data.city);
-      } else {
-        fetchWeather(19.9, 75.3, "Aurangabad"); // Ambad area fallback
-      }
+      fetchWeather(
+        data.lat || 19.9,
+        data.lon || 75.3,
+        data.city || "Aurangabad",
+      );
     } catch {
       fetchWeather(19.9, 75.3, "Aurangabad");
     }
@@ -135,7 +131,6 @@ export default function WeatherWidget() {
 
   const fetchWeather = async (lat, lon, cityName) => {
     try {
-      // Reverse geocode for city name if we have coords but no city
       let resolvedCity = cityName;
       if (!resolvedCity) {
         try {
@@ -147,22 +142,17 @@ export default function WeatherWidget() {
             gd.address?.city ||
             gd.address?.town ||
             gd.address?.village ||
-            gd.address?.county ||
             "Your Location";
         } catch {
           resolvedCity = "Your Location";
         }
       }
       setCity(resolvedCity);
-
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code&wind_speed_unit=kmh&timezone=auto`;
-      const res = await fetch(url);
+      const res = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code&wind_speed_unit=kmh&timezone=auto`,
+      );
       const data = await res.json();
-      if (data.current) {
-        setWeather(data.current);
-      } else {
-        setError(true);
-      }
+      data.current ? setWeather(data.current) : setError(true);
     } catch {
       setError(true);
     } finally {
@@ -170,31 +160,30 @@ export default function WeatherWidget() {
     }
   };
 
-  if (loading) {
+  if (loading)
     return (
       <div
         style={{
           margin: "0 12px 12px",
           borderRadius: "14px",
-          background: "rgba(22,163,74,0.1)",
-          padding: "14px",
+          background: "rgba(22,163,74,0.08)",
+          padding: "16px",
           textAlign: "center",
         }}
       >
-        <div style={{ fontSize: "11px", color: "#86efac" }}>
+        <div style={{ fontSize: "11px", color: "#86efac", fontWeight: 600 }}>
           Loading weather…
         </div>
       </div>
     );
-  }
 
-  if (error || !weather) {
+  if (error || !weather)
     return (
       <div
         style={{
           margin: "0 12px 12px",
           borderRadius: "14px",
-          background: "rgba(100,116,139,0.15)",
+          background: "rgba(100,116,139,0.1)",
           padding: "12px 14px",
           display: "flex",
           alignItems: "center",
@@ -202,19 +191,13 @@ export default function WeatherWidget() {
         }}
       >
         <AlertCircle
-          style={{
-            width: "14px",
-            height: "14px",
-            color: "#94a3b8",
-            flexShrink: 0,
-          }}
+          style={{ width: "14px", height: "14px", color: "#94a3b8" }}
         />
         <span style={{ fontSize: "11px", color: "#94a3b8" }}>
           Weather unavailable
         </span>
       </div>
     );
-  }
 
   const code = weather.weather_code;
   const temp = Math.round(weather.temperature_2m);
@@ -226,7 +209,7 @@ export default function WeatherWidget() {
   const tip = getAgriTip(code, temp);
 
   return (
-    <div style={{ margin: "0 12px 12px 12px" }}>
+    <div style={{ margin: "0 12px 12px" }}>
       <div
         style={{
           borderRadius: "14px",
@@ -234,6 +217,7 @@ export default function WeatherWidget() {
           boxShadow: "0 4px 12px rgba(0,0,0,0.18)",
         }}
       >
+        {/* Gradient top section */}
         <div style={{ background: wmo.gradient, padding: "14px 16px 10px" }}>
           <div
             style={{
@@ -248,23 +232,23 @@ export default function WeatherWidget() {
                   display: "flex",
                   alignItems: "center",
                   gap: "4px",
-                  marginBottom: "2px",
+                  marginBottom: "4px",
                 }}
               >
                 <MapPin
                   style={{
                     width: "10px",
                     height: "10px",
-                    color: "rgba(255,255,255,0.75)",
+                    color: "rgba(255,255,255,0.7)",
                   }}
                 />
                 <span
                   style={{
                     fontSize: "10px",
-                    color: "rgba(255,255,255,0.75)",
-                    fontWeight: 600,
+                    color: "rgba(255,255,255,0.7)",
+                    fontWeight: 700,
                     textTransform: "uppercase",
-                    letterSpacing: "0.5px",
+                    letterSpacing: "0.8px",
                   }}
                 >
                   {city}
@@ -284,7 +268,8 @@ export default function WeatherWidget() {
                 style={{
                   fontSize: "11px",
                   color: "rgba(255,255,255,0.8)",
-                  marginTop: "2px",
+                  marginTop: "3px",
+                  fontWeight: 500,
                 }}
               >
                 {wmo.label}
@@ -298,6 +283,7 @@ export default function WeatherWidget() {
               }}
             />
           </div>
+
           <div style={{ display: "flex", gap: "12px", marginTop: "10px" }}>
             {[
               { Icon: Droplets, val: `${humidity}%` },
@@ -328,12 +314,22 @@ export default function WeatherWidget() {
             ))}
           </div>
         </div>
-        <div style={{ background: "rgba(0,0,0,0.25)", padding: "8px 14px" }}>
+
+        {/* Agri tip — clean white strip */}
+        <div
+          style={{
+            background: "rgba(255,255,255,0.95)",
+            padding: "9px 14px",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
           <div
             style={{
-              fontSize: "10px",
-              color: "rgba(255,255,255,0.85)",
-              fontWeight: 600,
+              fontSize: "11px",
+              color: "#166534",
+              fontWeight: 700,
               lineHeight: 1.4,
             }}
           >
