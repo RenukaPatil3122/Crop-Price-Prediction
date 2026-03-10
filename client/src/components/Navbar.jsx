@@ -106,6 +106,21 @@ export default function Navbar() {
   const menuMuted = isDark ? "#64748b" : "#9ca3af";
   const panelBg = isDark ? "#0f172a" : "#f8fafc";
 
+  // Inject placeholder color CSS once on mount
+  useEffect(() => {
+    const id = "agrisense-placeholder-style";
+    if (!document.getElementById(id)) {
+      const style = document.createElement("style");
+      style.id = id;
+      style.textContent = `
+        .as-search-input::placeholder { color: #9ca3af !important; opacity: 1; }
+        .as-search-input:focus::placeholder { color: #6b7280 !important; }
+        .as-input-dark::placeholder { color: #64748b !important; opacity: 1; }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
+
   const userName = user?.name || "User";
   const userEmail = user?.email || "";
   const initials = userName
@@ -285,7 +300,9 @@ export default function Navbar() {
                 ? isDark
                   ? "#1e293b"
                   : "white"
-                : inputBg,
+                : isDark
+                  ? "#0f172a"
+                  : "#f3f4f6",
               border: `1.5px solid ${searchFocus ? "#16a34a" : isDark ? "#475569" : "#d1d5db"}`,
               borderRadius: "10px",
               padding: "0 14px",
@@ -311,19 +328,18 @@ export default function Navbar() {
               onFocus={() => setSearchFocus(true)}
               onBlur={() => setTimeout(() => setSearchFocus(false), 150)}
               placeholder="Search crops..."
+              className={
+                isDark ? "as-search-input as-input-dark" : "as-search-input"
+              }
               style={{
                 border: "none",
                 background: "transparent",
                 outline: "none",
                 fontSize: "13px",
-                color: isDark ? "#f1f5f9" : "#1f2937",
+                color: isDark ? "#e2e8f0" : "#1f2937",
                 width: "100%",
-                // Force placeholder visibility
-                "::placeholder": { color: isDark ? "#64748b" : "#9ca3af" },
               }}
             />
-            {/* Inline style for placeholder — use a style tag trick via className would need CSS,
-                so we ensure the input bg contrast is high enough */}
             {searchVal && (
               <button
                 onClick={() => setSearchVal("")}
