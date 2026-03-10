@@ -1,9 +1,8 @@
 import { useState } from "react";
+import { useTheme } from "../context/ThemeContext";
 import {
   TrendingUp,
   TrendingDown,
-  BarChart3,
-  Activity,
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
@@ -27,7 +26,6 @@ import {
   PolarRadiusAxis,
 } from "recharts";
 
-// ── Data ──
 const monthlyData = [
   {
     month: "Oct",
@@ -78,7 +76,6 @@ const monthlyData = [
     cotton: 6400,
   },
 ];
-
 const regionData = [
   { region: "Punjab", avgPrice: 2847, volume: 4200, growth: 12.4 },
   { region: "Haryana", avgPrice: 3120, volume: 3800, growth: 8.1 },
@@ -87,7 +84,6 @@ const regionData = [
   { region: "Nashik", avgPrice: 1650, volume: 3200, growth: -5.8 },
   { region: "UP", avgPrice: 2100, volume: 6100, growth: 6.3 },
 ];
-
 const radarData = [
   { subject: "Wheat", A: 85, B: 72 },
   { subject: "Rice", A: 78, B: 80 },
@@ -96,7 +92,6 @@ const radarData = [
   { subject: "Cotton", A: 88, B: 75 },
   { subject: "Maize", A: 74, B: 70 },
 ];
-
 const volatilityData = [
   { month: "Oct", high: 2400, low: 1800, avg: 2100 },
   { month: "Nov", high: 2600, low: 2000, avg: 2300 },
@@ -105,7 +100,6 @@ const volatilityData = [
   { month: "Feb", high: 2700, low: 2100, avg: 2400 },
   { month: "Mar", high: 3100, low: 2500, avg: 2800 },
 ];
-
 const cropColors = {
   wheat: "#16a34a",
   rice: "#2563eb",
@@ -113,7 +107,6 @@ const cropColors = {
   onion: "#9333ea",
   cotton: "#0891b2",
 };
-
 const statCards = [
   {
     label: "Avg Market Price",
@@ -144,32 +137,60 @@ const statCards = [
     sub: "Nashik region",
   },
 ];
-
 const CROP_TABS = ["All", "Wheat", "Rice", "Tomato", "Onion", "Cotton"];
 const TIME_TABS = ["1M", "3M", "6M", "1Y"];
 
 export default function Analytics() {
+  const { isDark } = useTheme();
   const [activeCrop, setActiveCrop] = useState("All");
   const [activeTime, setActiveTime] = useState("6M");
+
+  const card = isDark ? "#1e293b" : "white";
+  const border = isDark ? "#334155" : "#f3f4f6";
+  const text = isDark ? "#f1f5f9" : "#1f2937";
+  const muted = isDark ? "#94a3b8" : "#6b7280";
+  const faint = isDark ? "#64748b" : "#9ca3af";
+  const bg2 = isDark ? "#0f172a" : "#f9fafb";
+  const gridC = isDark ? "#334155" : "#F0F0F0";
+  const ttStyle = {
+    borderRadius: "10px",
+    border: `1px solid ${border}`,
+    fontSize: "12px",
+    background: card,
+    color: text,
+  };
 
   const visibleLines =
     activeCrop === "All" ? Object.keys(cropColors) : [activeCrop.toLowerCase()];
 
+  const TabBtn = ({ label, active, onClick, activeColor = "#16a34a" }) => (
+    <button
+      onClick={onClick}
+      style={{
+        padding: "4px 10px",
+        borderRadius: "6px",
+        fontSize: "11px",
+        fontWeight: 600,
+        border: "none",
+        cursor: "pointer",
+        background: active ? activeColor : "transparent",
+        color: active ? "white" : muted,
+        transition: "all 0.15s",
+      }}
+    >
+      {label}
+    </button>
+  );
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      {/* Header */}
       <div>
         <h1
-          style={{
-            fontSize: "22px",
-            fontWeight: 700,
-            color: "#1f2937",
-            margin: 0,
-          }}
+          style={{ fontSize: "22px", fontWeight: 700, color: text, margin: 0 }}
         >
           Market Analytics
         </h1>
-        <p style={{ fontSize: "13px", color: "#9ca3af", marginTop: "4px" }}>
+        <p style={{ fontSize: "13px", color: faint, marginTop: "4px" }}>
           Price trends, regional insights & crop performance overview
         </p>
       </div>
@@ -186,17 +207,17 @@ export default function Analytics() {
           <div
             key={label}
             style={{
-              background: "white",
+              background: card,
               borderRadius: "14px",
-              border: "1px solid #f3f4f6",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+              border: `1px solid ${border}`,
+              boxShadow: isDark ? "none" : "0 1px 3px rgba(0,0,0,0.07)",
               padding: "18px",
             }}
           >
             <div
               style={{
                 fontSize: "12px",
-                color: "#6b7280",
+                color: muted,
                 fontWeight: 500,
                 marginBottom: "6px",
               }}
@@ -207,7 +228,7 @@ export default function Analytics() {
               style={{
                 fontSize: "20px",
                 fontWeight: 700,
-                color: "#1f2937",
+                color: text,
                 marginBottom: "4px",
               }}
             >
@@ -239,11 +260,7 @@ export default function Analytics() {
                 {change}
               </span>
               <span
-                style={{
-                  fontSize: "11px",
-                  color: "#9ca3af",
-                  marginLeft: "2px",
-                }}
+                style={{ fontSize: "11px", color: faint, marginLeft: "2px" }}
               >
                 · {sub}
               </span>
@@ -255,10 +272,10 @@ export default function Analytics() {
       {/* Price Trend Chart */}
       <div
         style={{
-          background: "white",
+          background: card,
           borderRadius: "16px",
-          border: "1px solid #f3f4f6",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+          border: `1px solid ${border}`,
+          boxShadow: isDark ? "none" : "0 1px 3px rgba(0,0,0,0.07)",
           padding: "20px",
           height: "340px",
           display: "flex",
@@ -275,74 +292,49 @@ export default function Analytics() {
           }}
         >
           <div>
-            <div
-              style={{ fontSize: "15px", fontWeight: 700, color: "#1f2937" }}
-            >
+            <div style={{ fontSize: "15px", fontWeight: 700, color: text }}>
               Price Trend Analysis
             </div>
-            <div style={{ fontSize: "11px", color: "#9ca3af" }}>
+            <div style={{ fontSize: "11px", color: faint }}>
               ₹ per quintal · filtered by crop
             </div>
           </div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-            {/* Crop filter */}
             <div
               style={{
                 display: "flex",
-                background: "#f9fafb",
+                background: bg2,
                 borderRadius: "8px",
                 padding: "3px",
                 gap: "2px",
               }}
             >
               {CROP_TABS.map((c) => (
-                <button
+                <TabBtn
                   key={c}
+                  label={c}
+                  active={activeCrop === c}
                   onClick={() => setActiveCrop(c)}
-                  style={{
-                    padding: "4px 10px",
-                    borderRadius: "6px",
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    border: "none",
-                    cursor: "pointer",
-                    background: activeCrop === c ? "#16a34a" : "transparent",
-                    color: activeCrop === c ? "white" : "#6b7280",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  {c}
-                </button>
+                />
               ))}
             </div>
-            {/* Time filter */}
             <div
               style={{
                 display: "flex",
-                background: "#f9fafb",
+                background: bg2,
                 borderRadius: "8px",
                 padding: "3px",
                 gap: "2px",
               }}
             >
               {TIME_TABS.map((t) => (
-                <button
+                <TabBtn
                   key={t}
+                  label={t}
+                  active={activeTime === t}
                   onClick={() => setActiveTime(t)}
-                  style={{
-                    padding: "4px 10px",
-                    borderRadius: "6px",
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    border: "none",
-                    cursor: "pointer",
-                    background: activeTime === t ? "#1f2937" : "transparent",
-                    color: activeTime === t ? "white" : "#6b7280",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  {t}
-                </button>
+                  activeColor={isDark ? "#334155" : "#1f2937"}
+                />
               ))}
             </div>
           </div>
@@ -350,21 +342,17 @@ export default function Analytics() {
         <div style={{ flex: 1, minHeight: 0 }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#9CA3AF" }} />
-              <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridC} />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: faint }} />
+              <YAxis tick={{ fontSize: 11, fill: faint }} />
               <Tooltip
-                contentStyle={{
-                  borderRadius: "10px",
-                  border: "1px solid #E5E7EB",
-                  fontSize: "12px",
-                }}
+                contentStyle={ttStyle}
                 formatter={(v, n) => [
                   `₹${v.toLocaleString()}`,
                   n.charAt(0).toUpperCase() + n.slice(1),
                 ]}
               />
-              <Legend wrapperStyle={{ fontSize: "12px" }} />
+              <Legend wrapperStyle={{ fontSize: "12px", color: muted }} />
               {visibleLines.map((crop) => (
                 <Line
                   key={crop}
@@ -381,7 +369,7 @@ export default function Analytics() {
         </div>
       </div>
 
-      {/* Bottom Row — 3 charts */}
+      {/* Bottom 3 charts */}
       <div
         style={{
           display: "grid",
@@ -389,13 +377,12 @@ export default function Analytics() {
           gap: "20px",
         }}
       >
-        {/* Regional Bar Chart */}
+        {/* Regional Bar */}
         <div
           style={{
-            background: "white",
+            background: card,
             borderRadius: "16px",
-            border: "1px solid #f3f4f6",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+            border: `1px solid ${border}`,
             padding: "20px",
             height: "300px",
             display: "flex",
@@ -403,36 +390,28 @@ export default function Analytics() {
           }}
         >
           <div style={{ marginBottom: "12px", flexShrink: 0 }}>
-            <div
-              style={{ fontSize: "14px", fontWeight: 700, color: "#1f2937" }}
-            >
+            <div style={{ fontSize: "14px", fontWeight: 700, color: text }}>
               Avg Price by Region
             </div>
-            <div style={{ fontSize: "11px", color: "#9ca3af" }}>
-              ₹ per quintal
-            </div>
+            <div style={{ fontSize: "11px", color: faint }}>₹ per quintal</div>
           </div>
           <div style={{ flex: 1, minHeight: 0 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={regionData} layout="vertical" barSize={14}>
                 <CartesianGrid
                   strokeDasharray="3 3"
-                  stroke="#F0F0F0"
+                  stroke={gridC}
                   horizontal={false}
                 />
-                <XAxis type="number" tick={{ fontSize: 10, fill: "#9CA3AF" }} />
+                <XAxis type="number" tick={{ fontSize: 10, fill: faint }} />
                 <YAxis
                   dataKey="region"
                   type="category"
-                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tick={{ fontSize: 11, fill: muted }}
                   width={72}
                 />
                 <Tooltip
-                  contentStyle={{
-                    borderRadius: "10px",
-                    border: "1px solid #E5E7EB",
-                    fontSize: "12px",
-                  }}
+                  contentStyle={ttStyle}
                   formatter={(v) => [`₹${v.toLocaleString()}`, "Avg Price"]}
                 />
                 <Bar dataKey="avgPrice" fill="#16a34a" radius={[0, 6, 6, 0]} />
@@ -441,13 +420,12 @@ export default function Analytics() {
           </div>
         </div>
 
-        {/* Area Chart — Wheat Volatility */}
+        {/* Volatility Area */}
         <div
           style={{
-            background: "white",
+            background: card,
             borderRadius: "16px",
-            border: "1px solid #f3f4f6",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+            border: `1px solid ${border}`,
             padding: "20px",
             height: "300px",
             display: "flex",
@@ -455,12 +433,10 @@ export default function Analytics() {
           }}
         >
           <div style={{ marginBottom: "12px", flexShrink: 0 }}>
-            <div
-              style={{ fontSize: "14px", fontWeight: 700, color: "#1f2937" }}
-            >
+            <div style={{ fontSize: "14px", fontWeight: 700, color: text }}>
               Wheat Price Volatility
             </div>
-            <div style={{ fontSize: "11px", color: "#9ca3af" }}>
+            <div style={{ fontSize: "11px", color: faint }}>
               High / Low / Average range
             </div>
           </div>
@@ -473,18 +449,11 @@ export default function Analytics() {
                     <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" />
-                <XAxis
-                  dataKey="month"
-                  tick={{ fontSize: 10, fill: "#9CA3AF" }}
-                />
-                <YAxis tick={{ fontSize: 10, fill: "#9CA3AF" }} />
+                <CartesianGrid strokeDasharray="3 3" stroke={gridC} />
+                <XAxis dataKey="month" tick={{ fontSize: 10, fill: faint }} />
+                <YAxis tick={{ fontSize: 10, fill: faint }} />
                 <Tooltip
-                  contentStyle={{
-                    borderRadius: "10px",
-                    border: "1px solid #E5E7EB",
-                    fontSize: "12px",
-                  }}
+                  contentStyle={ttStyle}
                   formatter={(v) => [`₹${v.toLocaleString()}`, ""]}
                 />
                 <Area
@@ -517,13 +486,12 @@ export default function Analytics() {
           </div>
         </div>
 
-        {/* Radar Chart */}
+        {/* Radar */}
         <div
           style={{
-            background: "white",
+            background: card,
             borderRadius: "16px",
-            border: "1px solid #f3f4f6",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+            border: `1px solid ${border}`,
             padding: "20px",
             height: "300px",
             display: "flex",
@@ -531,24 +499,22 @@ export default function Analytics() {
           }}
         >
           <div style={{ marginBottom: "12px", flexShrink: 0 }}>
-            <div
-              style={{ fontSize: "14px", fontWeight: 700, color: "#1f2937" }}
-            >
+            <div style={{ fontSize: "14px", fontWeight: 700, color: text }}>
               Crop Performance Score
             </div>
-            <div style={{ fontSize: "11px", color: "#9ca3af" }}>
+            <div style={{ fontSize: "11px", color: faint }}>
               This season vs last season
             </div>
           </div>
           <div style={{ flex: 1, minHeight: 0 }}>
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={radarData}>
-                <PolarGrid stroke="#e5e7eb" />
+                <PolarGrid stroke={isDark ? "#334155" : "#e5e7eb"} />
                 <PolarAngleAxis
                   dataKey="subject"
-                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tick={{ fontSize: 11, fill: muted }}
                 />
-                <PolarRadiusAxis tick={{ fontSize: 9, fill: "#9ca3af" }} />
+                <PolarRadiusAxis tick={{ fontSize: 9, fill: faint }} />
                 <Radar
                   name="This Season"
                   dataKey="A"
@@ -565,14 +531,8 @@ export default function Analytics() {
                   fillOpacity={0.15}
                   strokeWidth={2}
                 />
-                <Legend wrapperStyle={{ fontSize: "11px" }} />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: "10px",
-                    border: "1px solid #E5E7EB",
-                    fontSize: "12px",
-                  }}
-                />
+                <Legend wrapperStyle={{ fontSize: "11px", color: muted }} />
+                <Tooltip contentStyle={ttStyle} />
               </RadarChart>
             </ResponsiveContainer>
           </div>
@@ -582,10 +542,9 @@ export default function Analytics() {
       {/* Regional Table */}
       <div
         style={{
-          background: "white",
+          background: card,
           borderRadius: "16px",
-          border: "1px solid #f3f4f6",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+          border: `1px solid ${border}`,
           padding: "20px",
         }}
       >
@@ -593,7 +552,7 @@ export default function Analytics() {
           style={{
             fontSize: "15px",
             fontWeight: 700,
-            color: "#1f2937",
+            color: text,
             marginBottom: "16px",
           }}
         >
@@ -601,7 +560,7 @@ export default function Analytics() {
         </div>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ borderBottom: "2px solid #f3f4f6" }}>
+            <tr style={{ borderBottom: `2px solid ${border}` }}>
               {[
                 "Region",
                 "Avg Price (₹/qtl)",
@@ -615,7 +574,7 @@ export default function Analytics() {
                     textAlign: "left",
                     padding: "8px 12px",
                     fontSize: "12px",
-                    color: "#9ca3af",
+                    color: faint,
                     fontWeight: 600,
                   }}
                 >
@@ -626,13 +585,13 @@ export default function Analytics() {
           </thead>
           <tbody>
             {regionData.map(({ region, avgPrice, volume, growth }) => (
-              <tr key={region} style={{ borderBottom: "1px solid #f9fafb" }}>
+              <tr key={region} style={{ borderBottom: `1px solid ${border}` }}>
                 <td
                   style={{
                     padding: "10px 12px",
                     fontSize: "13px",
                     fontWeight: 600,
-                    color: "#374151",
+                    color: text,
                   }}
                 >
                   {region}
@@ -641,7 +600,7 @@ export default function Analytics() {
                   style={{
                     padding: "10px 12px",
                     fontSize: "13px",
-                    color: "#1f2937",
+                    color: text,
                     fontWeight: 700,
                   }}
                 >
@@ -651,7 +610,7 @@ export default function Analytics() {
                   style={{
                     padding: "10px 12px",
                     fontSize: "13px",
-                    color: "#6b7280",
+                    color: muted,
                   }}
                 >
                   {volume.toLocaleString()} qtl
@@ -702,10 +661,16 @@ export default function Analytics() {
                       borderRadius: "20px",
                       background:
                         growth > 10
-                          ? "#f0fdf4"
+                          ? isDark
+                            ? "rgba(22,163,74,0.15)"
+                            : "#f0fdf4"
                           : growth > 0
-                            ? "#fffbeb"
-                            : "#fef2f2",
+                            ? isDark
+                              ? "rgba(245,158,11,0.15)"
+                              : "#fffbeb"
+                            : isDark
+                              ? "rgba(239,68,68,0.15)"
+                              : "#fef2f2",
                       color:
                         growth > 10
                           ? "#16a34a"

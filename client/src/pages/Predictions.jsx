@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTheme } from "../context/ThemeContext";
 import {
   Sprout,
   TrendingUp,
@@ -57,7 +58,6 @@ const months = [
   "November",
   "December",
 ];
-
 const MONTH_MAP = {
   January: 1,
   February: 2,
@@ -72,33 +72,14 @@ const MONTH_MAP = {
   November: 11,
   December: 12,
 };
-
 const factorColors = {
   positive: "#16a34a",
   negative: "#ef4444",
   neutral: "#f59e0b",
 };
 
-const inputStyle = {
-  width: "100%",
-  height: "42px",
-  borderRadius: "10px",
-  padding: "0 12px",
-  fontSize: "14px",
-  color: "#374151",
-  background: "white",
-  border: "1px solid #e5e7eb",
-  outline: "none",
-};
-const labelStyle = {
-  fontSize: "12px",
-  fontWeight: 600,
-  color: "#6b7280",
-  display: "block",
-  marginBottom: "6px",
-};
-
 export default function Predictions() {
+  const { isDark } = useTheme();
   const [form, setForm] = useState({
     crop: "",
     region: "",
@@ -109,6 +90,36 @@ export default function Predictions() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
+
+  const card = isDark ? "#1e293b" : "white";
+  const border = isDark ? "#334155" : "#f3f4f6";
+  const text = isDark ? "#f1f5f9" : "#1f2937";
+  const muted = isDark ? "#94a3b8" : "#6b7280";
+  const faint = isDark ? "#64748b" : "#9ca3af";
+  const bg2 = isDark ? "#0f172a" : "#f9fafb";
+  const inputBg = isDark ? "#0f172a" : "white";
+  const inputBorder = isDark ? "#334155" : "#e5e7eb";
+  const inputColor = isDark ? "#f1f5f9" : "#374151";
+
+  const inputStyle = {
+    width: "100%",
+    height: "42px",
+    borderRadius: "10px",
+    padding: "0 12px",
+    fontSize: "14px",
+    color: inputColor,
+    background: inputBg,
+    border: `1px solid ${inputBorder}`,
+    outline: "none",
+    WebkitAppearance: "none",
+  };
+  const labelStyle = {
+    fontSize: "12px",
+    fontWeight: 600,
+    color: muted,
+    display: "block",
+    marginBottom: "6px",
+  };
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const allFilled = form.crop && form.region && form.season && form.month;
@@ -121,13 +132,11 @@ export default function Predictions() {
       const monthNum = MONTH_MAP[form.month];
       const year = new Date().getFullYear();
       const data = await fullPredict(form.crop, form.region, monthNum, year);
-
       const forecast = (data.forecast || []).map((f) => ({
         month: f.month,
         price: f.predicted_price,
         predicted: true,
       }));
-
       setResult({
         price: data.predicted_price,
         confidence: data.confidence,
@@ -173,7 +182,7 @@ export default function Predictions() {
         ],
       });
       setStep(1);
-    } catch (err) {
+    } catch {
       setError(
         "Could not reach backend. Make sure your server is running on port 8000.",
       );
@@ -187,6 +196,17 @@ export default function Predictions() {
     setResult(null);
     setForm({ crop: "", region: "", season: "", month: "" });
     setError("");
+  };
+
+  const factorBg = (type) => {
+    if (type === "positive") return isDark ? "rgba(22,163,74,0.1)" : "#f0fdf4";
+    if (type === "negative") return isDark ? "rgba(239,68,68,0.1)" : "#fef2f2";
+    return isDark ? "rgba(245,158,11,0.1)" : "#fffbeb";
+  };
+  const factorBorder = (type) => {
+    if (type === "positive") return isDark ? "rgba(22,163,74,0.3)" : "#bbf7d0";
+    if (type === "negative") return isDark ? "rgba(239,68,68,0.3)" : "#fecaca";
+    return isDark ? "rgba(245,158,11,0.3)" : "#fde68a";
   };
 
   return (
@@ -204,13 +224,13 @@ export default function Predictions() {
             style={{
               fontSize: "22px",
               fontWeight: 700,
-              color: "#1f2937",
+              color: text,
               margin: 0,
             }}
           >
             Crop Price Prediction
           </h1>
-          <p style={{ fontSize: "13px", color: "#9ca3af", marginTop: "4px" }}>
+          <p style={{ fontSize: "13px", color: faint, marginTop: "4px" }}>
             AI-powered price forecasting for Indian agricultural markets
           </p>
         </div>
@@ -220,11 +240,11 @@ export default function Predictions() {
             style={{
               padding: "8px 18px",
               borderRadius: "10px",
-              background: "#f0fdf4",
+              background: isDark ? "rgba(22,163,74,0.1)" : "#f0fdf4",
               color: "#16a34a",
               fontWeight: 600,
               fontSize: "13px",
-              border: "1px solid #bbf7d0",
+              border: `1px solid ${isDark ? "rgba(22,163,74,0.3)" : "#bbf7d0"}`,
               cursor: "pointer",
             }}
           >
@@ -236,8 +256,8 @@ export default function Predictions() {
       {error && (
         <div
           style={{
-            background: "#fef2f2",
-            border: "1px solid #fecaca",
+            background: isDark ? "rgba(239,68,68,0.1)" : "#fef2f2",
+            border: `1px solid ${isDark ? "rgba(239,68,68,0.3)" : "#fecaca"}`,
             borderRadius: "10px",
             padding: "12px 16px",
             color: "#ef4444",
@@ -259,10 +279,10 @@ export default function Predictions() {
           {/* Form Card */}
           <div
             style={{
-              background: "white",
+              background: card,
               borderRadius: "16px",
-              border: "1px solid #f3f4f6",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+              border: `1px solid ${border}`,
+              boxShadow: isDark ? "none" : "0 1px 3px rgba(0,0,0,0.07)",
               padding: "28px",
             }}
           >
@@ -276,7 +296,7 @@ export default function Predictions() {
             >
               <div
                 style={{
-                  background: "#f0fdf4",
+                  background: isDark ? "rgba(22,163,74,0.1)" : "#f0fdf4",
                   borderRadius: "10px",
                   padding: "8px",
                 }}
@@ -286,16 +306,10 @@ export default function Predictions() {
                 />
               </div>
               <div>
-                <div
-                  style={{
-                    fontSize: "15px",
-                    fontWeight: 700,
-                    color: "#1f2937",
-                  }}
-                >
+                <div style={{ fontSize: "15px", fontWeight: 700, color: text }}>
                   Prediction Parameters
                 </div>
-                <div style={{ fontSize: "12px", color: "#9ca3af" }}>
+                <div style={{ fontSize: "12px", color: faint }}>
                   Fill all fields to generate prediction
                 </div>
               </div>
@@ -303,66 +317,48 @@ export default function Predictions() {
             <div
               style={{ display: "flex", flexDirection: "column", gap: "16px" }}
             >
-              <div>
-                <label style={labelStyle}>Crop Type</label>
-                <select
-                  value={form.crop}
-                  onChange={(e) => set("crop", e.target.value)}
-                  style={inputStyle}
-                >
-                  <option value="">Select a crop...</option>
-                  {CROPS.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label style={labelStyle}>Region / State</label>
-                <select
-                  value={form.region}
-                  onChange={(e) => set("region", e.target.value)}
-                  style={inputStyle}
-                >
-                  <option value="">Select a region...</option>
-                  {STATES.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label style={labelStyle}>Season</label>
-                <select
-                  value={form.season}
-                  onChange={(e) => set("season", e.target.value)}
-                  style={inputStyle}
-                >
-                  <option value="">Select a season...</option>
-                  {seasons.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label style={labelStyle}>Target Month</label>
-                <select
-                  value={form.month}
-                  onChange={(e) => set("month", e.target.value)}
-                  style={inputStyle}
-                >
-                  <option value="">Select a month...</option>
-                  {months.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {[
+                {
+                  label: "Crop Type",
+                  key: "crop",
+                  opts: CROPS,
+                  placeholder: "Select a crop...",
+                },
+                {
+                  label: "Region / State",
+                  key: "region",
+                  opts: STATES,
+                  placeholder: "Select a region...",
+                },
+                {
+                  label: "Season",
+                  key: "season",
+                  opts: seasons,
+                  placeholder: "Select a season...",
+                },
+                {
+                  label: "Target Month",
+                  key: "month",
+                  opts: months,
+                  placeholder: "Select a month...",
+                },
+              ].map(({ label, key, opts, placeholder }) => (
+                <div key={key}>
+                  <label style={labelStyle}>{label}</label>
+                  <select
+                    value={form[key]}
+                    onChange={(e) => set(key, e.target.value)}
+                    style={inputStyle}
+                  >
+                    <option value="">{placeholder}</option>
+                    {opts.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
               <button
                 onClick={handlePredict}
                 disabled={!allFilled || loading}
@@ -371,9 +367,11 @@ export default function Predictions() {
                   height: "46px",
                   borderRadius: "12px",
                   background: allFilled
-                    ? "linear-gradient(135deg, #166534 0%, #16A34A 100%)"
-                    : "#e5e7eb",
-                  color: allFilled ? "white" : "#9ca3af",
+                    ? "linear-gradient(135deg,#166534,#16A34A)"
+                    : isDark
+                      ? "#1e293b"
+                      : "#e5e7eb",
+                  color: allFilled ? "white" : isDark ? "#475569" : "#9ca3af",
                   fontWeight: 700,
                   fontSize: "15px",
                   border: "none",
@@ -396,13 +394,13 @@ export default function Predictions() {
             </div>
           </div>
 
-          {/* Info Card */}
+          {/* Right side */}
           <div
             style={{ display: "flex", flexDirection: "column", gap: "16px" }}
           >
             <div
               style={{
-                background: "linear-gradient(135deg, #166534 0%, #16A34A 100%)",
+                background: "linear-gradient(135deg,#166534,#16A34A)",
                 borderRadius: "16px",
                 padding: "24px",
                 color: "white",
@@ -468,9 +466,9 @@ export default function Predictions() {
             </div>
             <div
               style={{
-                background: "white",
+                background: card,
                 borderRadius: "16px",
-                border: "1px solid #f3f4f6",
+                border: `1px solid ${border}`,
                 padding: "20px",
               }}
             >
@@ -478,7 +476,7 @@ export default function Predictions() {
                 style={{
                   fontSize: "13px",
                   fontWeight: 700,
-                  color: "#1f2937",
+                  color: text,
                   marginBottom: "12px",
                 }}
               >
@@ -521,25 +519,17 @@ export default function Predictions() {
                     justifyContent: "space-between",
                     alignItems: "center",
                     padding: "8px 0",
-                    borderBottom: "1px solid #f9fafb",
+                    borderBottom: `1px solid ${border}`,
                   }}
                 >
                   <div
-                    style={{
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      color: "#374151",
-                    }}
+                    style={{ fontSize: "13px", fontWeight: 600, color: muted }}
                   >
                     {crop} · {region}
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <div
-                      style={{
-                        fontSize: "13px",
-                        fontWeight: 700,
-                        color: "#1f2937",
-                      }}
+                      style={{ fontSize: "13px", fontWeight: 700, color: text }}
                     >
                       {price}
                     </div>
@@ -559,8 +549,8 @@ export default function Predictions() {
           </div>
         </div>
       ) : (
-        /* RESULT */
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          {/* Result stat cards */}
           <div
             style={{
               display: "grid",
@@ -574,39 +564,51 @@ export default function Predictions() {
                 value: `₹${result.price.toLocaleString()}`,
                 sub: `${form.crop} · ${form.month}`,
                 color: "#16a34a",
-                bg: "#f0fdf4",
-                border: "#bbf7d0",
+                bg: isDark ? "rgba(22,163,74,0.1)" : "#f0fdf4",
+                bd: isDark ? "rgba(22,163,74,0.3)" : "#bbf7d0",
               },
               {
                 label: "Price Range",
                 value: `₹${result.minPrice.toLocaleString()} – ₹${result.maxPrice.toLocaleString()}`,
                 sub: "Min – Max estimate",
                 color: "#2563eb",
-                bg: "#eff6ff",
-                border: "#bfdbfe",
+                bg: isDark ? "rgba(37,99,235,0.1)" : "#eff6ff",
+                bd: isDark ? "rgba(37,99,235,0.3)" : "#bfdbfe",
               },
               {
                 label: "Confidence",
                 value: `${result.confidence}%`,
                 sub: "Model accuracy score",
                 color: result.confidence > 85 ? "#16a34a" : "#f59e0b",
-                bg: result.confidence > 85 ? "#f0fdf4" : "#fffbeb",
-                border: result.confidence > 85 ? "#bbf7d0" : "#fde68a",
+                bg: isDark
+                  ? result.confidence > 85
+                    ? "rgba(22,163,74,0.1)"
+                    : "rgba(245,158,11,0.1)"
+                  : result.confidence > 85
+                    ? "#f0fdf4"
+                    : "#fffbeb",
+                bd: isDark
+                  ? result.confidence > 85
+                    ? "rgba(22,163,74,0.3)"
+                    : "rgba(245,158,11,0.3)"
+                  : result.confidence > 85
+                    ? "#bbf7d0"
+                    : "#fde68a",
               },
               {
                 label: "vs Historical Avg",
                 value: `+${result.change}%`,
                 sub: `Avg: ₹${result.historicalAvg.toLocaleString()}`,
                 color: "#16a34a",
-                bg: "#f0fdf4",
-                border: "#bbf7d0",
+                bg: isDark ? "rgba(22,163,74,0.1)" : "#f0fdf4",
+                bd: isDark ? "rgba(22,163,74,0.3)" : "#bbf7d0",
               },
-            ].map(({ label, value, sub, color, bg, border }) => (
+            ].map(({ label, value, sub, color, bg, bd }) => (
               <div
                 key={label}
                 style={{
                   background: bg,
-                  border: `1px solid ${border}`,
+                  border: `1px solid ${bd}`,
                   borderRadius: "14px",
                   padding: "18px",
                 }}
@@ -614,7 +616,7 @@ export default function Predictions() {
                 <div
                   style={{
                     fontSize: "12px",
-                    color: "#6b7280",
+                    color: muted,
                     fontWeight: 500,
                     marginBottom: "6px",
                   }}
@@ -631,7 +633,7 @@ export default function Predictions() {
                 >
                   {value}
                 </div>
-                <div style={{ fontSize: "11px", color: "#9ca3af" }}>{sub}</div>
+                <div style={{ fontSize: "11px", color: faint }}>{sub}</div>
               </div>
             ))}
           </div>
@@ -646,10 +648,9 @@ export default function Predictions() {
             {/* Forecast Chart */}
             <div
               style={{
-                background: "white",
+                background: card,
                 borderRadius: "16px",
-                border: "1px solid #f3f4f6",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+                border: `1px solid ${border}`,
                 padding: "20px",
                 height: "320px",
                 display: "flex",
@@ -657,16 +658,10 @@ export default function Predictions() {
               }}
             >
               <div style={{ marginBottom: "12px", flexShrink: 0 }}>
-                <div
-                  style={{
-                    fontSize: "15px",
-                    fontWeight: 700,
-                    color: "#1f2937",
-                  }}
-                >
+                <div style={{ fontSize: "15px", fontWeight: 700, color: text }}>
                   6-Month Price Forecast
                 </div>
-                <div style={{ fontSize: "11px", color: "#9ca3af" }}>
+                <div style={{ fontSize: "11px", color: faint }}>
                   {form.crop} · {form.region} · ₹ per quintal
                 </div>
               </div>
@@ -675,22 +670,24 @@ export default function Predictions() {
                   <BarChart data={result.forecast} barSize={32}>
                     <CartesianGrid
                       strokeDasharray="3 3"
-                      stroke="#F0F0F0"
+                      stroke={isDark ? "#334155" : "#F0F0F0"}
                       vertical={false}
                     />
                     <XAxis
                       dataKey="month"
-                      tick={{ fontSize: 11, fill: "#9CA3AF" }}
+                      tick={{ fontSize: 11, fill: faint }}
                     />
                     <YAxis
-                      tick={{ fontSize: 11, fill: "#9CA3AF" }}
+                      tick={{ fontSize: 11, fill: faint }}
                       domain={["auto", "auto"]}
                     />
                     <Tooltip
                       contentStyle={{
                         borderRadius: "10px",
-                        border: "1px solid #E5E7EB",
+                        border: `1px solid ${border}`,
                         fontSize: "12px",
+                        background: card,
+                        color: text,
                       }}
                       formatter={(v) => [
                         `₹${v.toLocaleString()}`,
@@ -699,9 +696,9 @@ export default function Predictions() {
                     />
                     <ReferenceLine
                       y={result.historicalAvg}
-                      stroke="#9ca3af"
+                      stroke={faint}
                       strokeDasharray="4 4"
-                      label={{ value: "Avg", fill: "#9ca3af", fontSize: 10 }}
+                      label={{ value: "Avg", fill: faint, fontSize: 10 }}
                     />
                     <Bar dataKey="price" fill="#16a34a" radius={[6, 6, 0, 0]} />
                   </BarChart>
@@ -712,10 +709,9 @@ export default function Predictions() {
             {/* Market Factors */}
             <div
               style={{
-                background: "white",
+                background: card,
                 borderRadius: "16px",
-                border: "1px solid #f3f4f6",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+                border: `1px solid ${border}`,
                 padding: "20px",
               }}
             >
@@ -730,13 +726,7 @@ export default function Predictions() {
                 <BarChart3
                   style={{ width: "16px", height: "16px", color: "#16a34a" }}
                 />
-                <div
-                  style={{
-                    fontSize: "15px",
-                    fontWeight: 700,
-                    color: "#1f2937",
-                  }}
-                >
+                <div style={{ fontSize: "15px", fontWeight: 700, color: text }}>
                   Market Factors
                 </div>
               </div>
@@ -746,13 +736,8 @@ export default function Predictions() {
                   style={{
                     padding: "12px",
                     borderRadius: "10px",
-                    background:
-                      type === "positive"
-                        ? "#f0fdf4"
-                        : type === "negative"
-                          ? "#fef2f2"
-                          : "#fffbeb",
-                    border: `1px solid ${type === "positive" ? "#bbf7d0" : type === "negative" ? "#fecaca" : "#fde68a"}`,
+                    background: factorBg(type),
+                    border: `1px solid ${factorBorder(type)}`,
                     marginBottom: "10px",
                   }}
                 >
@@ -765,11 +750,7 @@ export default function Predictions() {
                     }}
                   >
                     <span
-                      style={{
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        color: "#374151",
-                      }}
+                      style={{ fontSize: "13px", fontWeight: 600, color: text }}
                     >
                       {label}
                     </span>
@@ -778,7 +759,7 @@ export default function Predictions() {
                         fontSize: "11px",
                         fontWeight: 700,
                         color: factorColors[type],
-                        background: "white",
+                        background: isDark ? "rgba(0,0,0,0.3)" : "white",
                         padding: "2px 8px",
                         borderRadius: "20px",
                       }}
@@ -786,18 +767,15 @@ export default function Predictions() {
                       {impact}
                     </span>
                   </div>
-                  <div style={{ fontSize: "11px", color: "#6b7280" }}>
-                    {detail}
-                  </div>
+                  <div style={{ fontSize: "11px", color: muted }}>{detail}</div>
                 </div>
               ))}
               <div
                 style={{
-                  marginTop: "4px",
                   padding: "12px",
                   borderRadius: "10px",
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
+                  background: isDark ? "rgba(100,116,139,0.1)" : "#f8fafc",
+                  border: `1px solid ${isDark ? "#334155" : "#e2e8f0"}`,
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
@@ -807,24 +785,16 @@ export default function Predictions() {
                   style={{ display: "flex", alignItems: "center", gap: "6px" }}
                 >
                   <Info
-                    style={{ width: "14px", height: "14px", color: "#64748b" }}
+                    style={{ width: "14px", height: "14px", color: muted }}
                   />
                   <span
-                    style={{
-                      fontSize: "12px",
-                      color: "#64748b",
-                      fontWeight: 500,
-                    }}
+                    style={{ fontSize: "12px", color: muted, fontWeight: 500 }}
                   >
                     MSP Reference
                   </span>
                 </div>
                 <span
-                  style={{
-                    fontSize: "13px",
-                    fontWeight: 700,
-                    color: "#1e293b",
-                  }}
+                  style={{ fontSize: "13px", fontWeight: 700, color: text }}
                 >
                   ₹{result.mspPrice.toLocaleString()}
                 </span>
@@ -835,7 +805,7 @@ export default function Predictions() {
           {/* Summary Banner */}
           <div
             style={{
-              background: "linear-gradient(135deg, #166534 0%, #16A34A 100%)",
+              background: "linear-gradient(135deg,#166534,#16A34A)",
               borderRadius: "14px",
               padding: "20px 24px",
               display: "flex",
