@@ -171,14 +171,16 @@ class Database:
         self,
         crop: Optional[str] = None, state: Optional[str] = None,
         status: Optional[str] = None, limit: int = 50, skip: int = 0,
+        user_id: Optional[str] = None,
     ) -> Tuple[List[dict], int]:
         if not self._connected or self.collection is None:
             return [], 0
         try:
             query: dict = {}
-            if crop   and crop   not in ("", "All Crops"): query["crop"]   = crop
-            if state  and state  not in ("", "All"):       query["state"]  = state
-            if status and status not in ("", "All"):       query["status"] = status
+            if crop    and crop   not in ("", "All Crops"): query["crop"]   = crop
+            if state   and state  not in ("", "All"):       query["state"]  = state
+            if status  and status not in ("", "All"):       query["status"] = status
+            if user_id:                                     query["user_id"] = user_id
             total  = await self.collection.count_documents(query)
             cursor = self.collection.find(query).sort("created_at", -1).skip(skip).limit(limit)
             docs   = [self._serialize(d) async for d in cursor]

@@ -1,26 +1,46 @@
 const BASE = "http://localhost:8000";
 
-async function get(path) {
-  const res = await fetch(`${BASE}${path}`);
+function getToken() {
+  return localStorage.getItem("agrisense_token") || null;
+}
+
+function authHeaders() {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function get(path, auth = false) {
+  const res = await fetch(`${BASE}${path}`, {
+    headers: auth ? authHeaders() : {},
+  });
   if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
   return res.json();
 }
-async function post(path, body = {}) {
+async function post(path, body = {}, auth = false) {
   const res = await fetch(`${BASE}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(auth ? authHeaders() : {}),
+    },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
   return res.json();
 }
-async function patch(path) {
-  const res = await fetch(`${BASE}${path}`, { method: "PATCH" });
+async function patch(path, auth = false) {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "PATCH",
+    headers: auth ? authHeaders() : {},
+  });
   if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
   return res.json();
 }
-async function del(path) {
-  const res = await fetch(`${BASE}${path}`, { method: "DELETE" });
+async function del(path, auth = false) {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "DELETE",
+    headers: auth ? authHeaders() : {},
+  });
   if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
   return res.json();
 }
@@ -32,10 +52,11 @@ async function del(path) {
 export const quickPredict = (crop, state, save = false) =>
   get(
     `/predict/quick?crop=${encodeURIComponent(crop)}&state=${encodeURIComponent(state)}&save=${save}`,
+    true,
   );
 
 export const fullPredict = (crop, state, month, year) =>
-  post("/predict", { crop, state, month, year });
+  post("/predict", { crop, state, month, year }, true);
 
 export const getForecast = (crop, state, months = 6) =>
   get(
@@ -56,13 +77,13 @@ export async function getPredictionHistory({
   if (status && status !== "All") p.append("status", status);
   p.append("limit", limit);
   p.append("skip", skip);
-  return get(`/predictions/history?${p}`);
+  return get(`/predictions/history?${p}`, true); // ← auth
 }
 export const getRecentPredictions = (limit = 5) =>
-  get(`/predictions/recent?limit=${limit}`);
-export const getPredictionStats = () => get("/predictions/stats");
+  get(`/predictions/recent?limit=${Math.min(limit, 20)}`, true); // ← auth
+export const getPredictionStats = () => get("/predictions/stats", true);
 export const updateActualPrice = (id, price) =>
-  patch(`/predictions/${id}/actual?actual_price=${price}`);
+  patch(`/predictions/${id}/actual?actual_price=${price}`, true);
 
 // ── Price Alerts ──────────────────────────────────────────────────────────────
 export const getAlerts = (activeOnly = false) =>

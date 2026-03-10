@@ -107,7 +107,7 @@ def get_season(month: int) -> str:
         if name in months: return season
     return "Rabi"
 
-async def save_prediction(data: dict, source: str = "full"):
+async def save_prediction(data: dict, source: str = "full", user_id: str = None):
     try:
         doc = {
             "crop":            data["crop"],
@@ -124,6 +124,7 @@ async def save_prediction(data: dict, source: str = "full"):
             "actual_price":    None,
             "status":          "Pending",
             "created_at":      datetime.utcnow(),
+            "user_id":         user_id,   # ← store which user made this prediction
         }
         await db.save_prediction(doc)
         await db.check_and_trigger_alerts(data["crop"], data["predicted_price"])
@@ -185,9 +186,16 @@ async def weekly_scheduler():
             if now.weekday() == 0 and now.hour == 8 and now.isocalendar()[1] != last_sent_week:
                 await send_weekly_summary()
                 last_sent_week = now.isocalendar()[1]
+        except _asyncio.CancelledError:
+            print("[Scheduler] Shutdown — weekly scheduler stopped cleanly.")
+            return   # ← exit gracefully on server shutdown
         except Exception as e:
             print(f"[Scheduler] Error: {e}")
-        await _asyncio.sleep(3600)
+        try:
+            await _asyncio.sleep(3600)
+        except _asyncio.CancelledError:
+            print("[Scheduler] Shutdown during sleep — stopped cleanly.")
+            return
 
 # ── Health ────────────────────────────────────────────────────────────────────
 
@@ -310,7 +318,11 @@ async def change_password(
 # ── Predictions ───────────────────────────────────────────────────────────────
 
 @app.post("/predict", response_model=PredictResponse)
-async def predict(req: PredictRequest, background_tasks: BackgroundTasks):
+async def predict(
+    req: PredictRequest,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_optional_user),
+):
     if req.crop  not in CROPS:  raise HTTPException(400, f"Unsupported crop: {CROPS}")
     if req.state not in STATES: raise HTTPException(400, f"Unsupported state: {STATES}")
     if not (1 <= req.month <= 12): raise HTTPException(400, "Month must be 1–12")
@@ -318,7 +330,8 @@ async def predict(req: PredictRequest, background_tasks: BackgroundTasks):
         result   = predict_price(req.crop, req.state, req.month, req.year)
         forecast = predict_forecast(req.crop, req.state, months=6)
         result["forecast"] = forecast
-        background_tasks.add_task(save_prediction, result, "full")
+        uid = current_user["id"] if current_user else None
+        background_tasks.add_task(save_prediction, result, "full", uid)
         return result
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -329,6 +342,7 @@ async def quick_predict(
     state: str  = Query(...),
     save:  bool = Query(False),
     background_tasks: BackgroundTasks = None,
+    current_user: dict = Depends(get_optional_user),
 ):
     now = datetime.now()
     if crop  not in CROPS:  raise HTTPException(400, f"Unsupported crop: {CROPS}")
@@ -336,7 +350,8 @@ async def quick_predict(
     try:
         result = predict_price(crop, state, now.month, now.year)
         if save and background_tasks:
-            background_tasks.add_task(save_prediction, result, "quick")
+            uid = current_user["id"] if current_user else None
+            background_tasks.add_task(save_prediction, result, "quick", uid)
         return result
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -356,17 +371,23 @@ async def forecast(crop: str = Query(...), state: str = Query(...), months: int 
 async def predictions_history(
     crop: Optional[str] = Query(None), state: Optional[str] = Query(None),
     status: Optional[str] = Query(None), limit: int = Query(50, ge=1, le=200), skip: int = Query(0, ge=0),
+    current_user: dict = Depends(get_optional_user),
 ):
     try:
-        data, total = await db.get_predictions(crop=crop, state=state, status=status, limit=limit, skip=skip)
+        uid = current_user["id"] if current_user else None
+        data, total = await db.get_predictions(crop=crop, state=state, status=status, limit=limit, skip=skip, user_id=uid)
         return {"total": total, "limit": limit, "skip": skip, "data": data}
     except Exception as e:
         raise HTTPException(500, str(e))
 
 @app.get("/predictions/recent")
-async def recent_predictions(limit: int = Query(5, ge=1, le=20)):
+async def recent_predictions(
+    limit: int = Query(5, ge=1, le=20),
+    current_user: dict = Depends(get_optional_user),
+):
     try:
-        data, _ = await db.get_predictions(limit=limit, skip=0)
+        uid = current_user["id"] if current_user else None
+        data, _ = await db.get_predictions(limit=limit, skip=0, user_id=uid)
         return {"data": data}
     except Exception as e:
         raise HTTPException(500, str(e))
