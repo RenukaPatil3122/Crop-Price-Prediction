@@ -1095,7 +1095,7 @@ export default function Navbar() {
                     sub: "App preferences",
                     color: "#6366f1",
                     action: () => {
-                      navigate("/profile");
+                      navigate("/settings");
                       setProfileOpen(false);
                     },
                   },
@@ -1104,14 +1104,20 @@ export default function Navbar() {
                     label: "Privacy",
                     sub: "Data & security",
                     color: "#0891b2",
-                    action: null,
+                    action: () => {
+                      navigate("/privacy");
+                      setProfileOpen(false);
+                    },
                   },
                   {
                     icon: HelpCircle,
                     label: "Help & Support",
                     sub: "FAQs & contact",
                     color: "#16a34a",
-                    action: null,
+                    action: () => {
+                      navigate("/help");
+                      setProfileOpen(false);
+                    },
                   },
                 ].map(({ icon: Icon, label, sub, color, action }) => (
                   <div

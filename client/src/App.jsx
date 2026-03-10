@@ -11,8 +11,10 @@ import Compare from "./pages/Compare";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ProfilePage from "./pages/ProfilePage";
+import SettingsPage from "./pages/SettingsPage";
+import PrivacyPage from "./pages/PrivacyPage";
+import HelpPage from "./pages/HelpPage";
 
-// ── Spinner shown while token is being verified ───────────────────────────────
 function LoadingScreen() {
   return (
     <div
@@ -42,7 +44,6 @@ function LoadingScreen() {
   );
 }
 
-// ── Protected route wrapper ───────────────────────────────────────────────────
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <LoadingScreen />;
@@ -50,7 +51,6 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
-// ── Public route (redirect to / if already logged in) ────────────────────────
 function PublicRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <LoadingScreen />;
@@ -58,7 +58,6 @@ function PublicRoute({ children }) {
   return children;
 }
 
-// ── Main app layout (sidebar + navbar + content) ──────────────────────────────
 function AppLayout() {
   const { isDark } = useTheme();
   const bg = isDark ? "#0f172a" : "#f0fdf4";
@@ -85,6 +84,9 @@ function AppLayout() {
             <Route path="/history" element={<History />} />
             <Route path="/compare" element={<Compare />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/help" element={<HelpPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
@@ -93,14 +95,12 @@ function AppLayout() {
   );
 }
 
-// ── Root ──────────────────────────────────────────────────────────────────────
 export default function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
         <BrowserRouter>
           <Routes>
-            {/* Public routes */}
             <Route
               path="/login"
               element={
@@ -117,8 +117,6 @@ export default function App() {
                 </PublicRoute>
               }
             />
-
-            {/* Protected routes */}
             <Route
               path="/*"
               element={

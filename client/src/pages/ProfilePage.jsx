@@ -98,22 +98,26 @@ export default function ProfilePage() {
     setPwdSaving(true);
     setPwdMsg("");
     try {
-      const res = await fetch(
-        `${BASE}/auth/change-password?old_password=${encodeURIComponent(pwdForm.old)}&new_password=${encodeURIComponent(pwdForm.new)}`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
+      const params = new URLSearchParams({
+        old_password: pwdForm.old,
+        new_password: pwdForm.new,
+      });
+      const res = await fetch(`${BASE}/auth/change-password?${params}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
-      );
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Failed");
-      setPwdMsg("✅ Password changed!");
+      setPwdMsg("✅ Password changed successfully!");
       setPwdForm({ old: "", new: "", confirm: "" });
     } catch (err) {
       setPwdMsg(`❌ ${err.message}`);
     } finally {
       setPwdSaving(false);
-      setTimeout(() => setPwdMsg(""), 3000);
+      setTimeout(() => setPwdMsg(""), 4000);
     }
   };
 
