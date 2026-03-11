@@ -6,6 +6,7 @@ import {
   History,
   Sprout,
   GitCompare,
+  X,
 } from "lucide-react";
 import WeatherWidget from "./WeatherWidget";
 import { useTheme } from "../context/ThemeContext";
@@ -19,11 +20,10 @@ const navItems = [
   { to: "/history", icon: History, label: "History" },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ onNavigate }) {
   const { isDark } = useTheme();
   const { user } = useAuth();
 
-  // Derive display values from logged-in user
   const userName = user?.name || "User";
   const userSub = user?.email || "—";
   const initials = userName
@@ -59,15 +59,16 @@ export default function Sidebar() {
         background: bg,
         borderRight: `1px solid ${borderCol}`,
         transition: "background 0.3s",
+        overflowY: "auto",
       }}
     >
-      {/* Logo */}
+      {/* Logo row — close button appears on mobile (onNavigate prop set) */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           gap: "12px",
-          padding: "0 20px",
+          padding: "0 16px",
           height: "65px",
           borderBottom: `1px solid ${borderCol}`,
           flexShrink: 0,
@@ -84,7 +85,7 @@ export default function Sidebar() {
         >
           <Sprout style={{ width: "18px", height: "18px", color: "white" }} />
         </div>
-        <div>
+        <div style={{ flex: 1 }}>
           <h1
             style={{
               fontSize: "16px",
@@ -107,6 +108,24 @@ export default function Sidebar() {
             Price Intelligence
           </p>
         </div>
+        {/* Close button — only shown when drawer (onNavigate passed) */}
+        {onNavigate && (
+          <button
+            onClick={onNavigate}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: inactiveClr,
+              display: "flex",
+              padding: "4px",
+              borderRadius: "8px",
+              flexShrink: 0,
+            }}
+          >
+            <X style={{ width: "18px", height: "18px" }} />
+          </button>
+        )}
       </div>
 
       {/* Nav */}
@@ -124,6 +143,7 @@ export default function Sidebar() {
             to={to}
             end={to === "/"}
             style={{ textDecoration: "none" }}
+            onClick={onNavigate}
           >
             {({ isActive }) => (
               <div
@@ -168,7 +188,7 @@ export default function Sidebar() {
       <div style={{ flex: 1 }} />
       <WeatherWidget />
 
-      {/* User Profile — dynamic, no PRO badge */}
+      {/* User Profile */}
       <div
         style={{
           padding: "10px",
@@ -187,7 +207,6 @@ export default function Sidebar() {
             border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : borderCol}`,
           }}
         >
-          {/* Avatar */}
           <div
             style={{
               width: "30px",
@@ -206,8 +225,6 @@ export default function Sidebar() {
           >
             {initials}
           </div>
-
-          {/* Name + sub */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <p
               style={{

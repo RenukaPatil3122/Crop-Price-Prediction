@@ -10,14 +10,11 @@ import {
   MapPin,
   Thermometer,
   CloudRain,
-  TrendingDown as TrendDown,
-  CloudSun,
-  Truck,
-  Wheat,
-  ShieldAlert,
   BarChart2,
   Droplets,
   Tractor,
+  Wheat,
+  ShieldAlert,
 } from "lucide-react";
 import {
   LineChart,
@@ -38,6 +35,23 @@ import {
   getCurrentPrices,
 } from "../api";
 
+// ── Responsive hook ───────────────────────────────────────────────────────────
+function useBreakpoint() {
+  const [bp, setBp] = useState(() => {
+    const w = window.innerWidth;
+    return w < 768 ? "mobile" : w < 1024 ? "tablet" : "desktop";
+  });
+  useEffect(() => {
+    const fn = () => {
+      const w = window.innerWidth;
+      setBp(w < 768 ? "mobile" : w < 1024 ? "tablet" : "desktop");
+    };
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+  return bp;
+}
+
 const CROP_CHANGES = {
   Wheat: { change: "+12%", up: true },
   Rice: { change: "+5%", up: true },
@@ -49,7 +63,6 @@ const CROP_CHANGES = {
   Mustard: { change: "+6%", up: true },
   Soyabean: { change: "-2%", up: false },
 };
-
 const CROP_EMOJI = {
   Wheat: "🌾",
   Rice: "🍚",
@@ -61,7 +74,6 @@ const CROP_EMOJI = {
   Mustard: "🌻",
   Soyabean: "🫘",
 };
-
 const STATIC_RECENT = [
   { crop: "Wheat", state: "Punjab", predicted_price: 2893 },
   { crop: "Rice", state: "Punjab", predicted_price: 3754 },
@@ -69,7 +81,6 @@ const STATIC_RECENT = [
   { crop: "Onion", state: "Punjab", predicted_price: 2194 },
   { crop: "Cotton", state: "Gujarat", predicted_price: 6772 },
 ];
-
 const CROPS = [
   "Wheat",
   "Rice",
@@ -92,7 +103,6 @@ const STATES = [
   "Karnataka",
   "Andhra Pradesh",
 ];
-
 const CHART_CROPS = [
   { crop: "Wheat", state: "Punjab", color: "#16A34A", key: "wheat" },
   { crop: "Rice", state: "Punjab", color: "#2563EB", key: "rice" },
@@ -109,22 +119,20 @@ const CHART_CROPS = [
     key: "soyabean",
   },
 ];
-
-// Static fallback insights — shown instantly, never shows "Loading..."
 const STATIC_INSIGHTS = [
   {
     icon: TrendingUp,
     iconBg: "#2563eb",
-    title: "Mustard Price High",
-    desc: "Mustard at ₹6,950/qtl in Rajasthan Mandi",
+    title: "Rice Price High",
+    desc: "Rice at ₹5,100/qtl in Lamlong Bazaar APMC",
     tag: "Market",
     tagColor: "#2563eb",
   },
   {
-    icon: Truck,
+    icon: Tractor,
     iconBg: "#7c3aed",
     title: "High Mandi Arrivals",
-    desc: "Wheat arrivals: 1,000 qtl in Punjab",
+    desc: "Rice arrivals: 1,000 qtl in West Bengal",
     tag: "Supply",
     tagColor: "#7c3aed",
   },
@@ -132,15 +140,15 @@ const STATIC_INSIGHTS = [
     icon: BarChart2,
     iconBg: "#f59e0b",
     title: "Price Volatility",
-    desc: "Cotton spread ₹1,390/qtl — high variance today",
+    desc: "Tomato spread ₹2,250/qtl — high variance today",
     tag: "Alert",
     tagColor: "#f59e0b",
   },
   {
     icon: Tractor,
     iconBg: "#16a34a",
-    title: "7 Mandis Active",
-    desc: "Live price data from 7 mandis across India today",
+    title: "98 Mandis Active",
+    desc: "Live price data from 98 mandis across India today",
     tag: "Live",
     tagColor: "#16a34a",
   },
@@ -176,11 +184,10 @@ function buildInsightsFromPrices(prices) {
     prices.map((p) => p.market || p.mandi).filter(Boolean),
   );
   const mandiCount = mandiSet.size || prices.length;
-  const withSpread = prices
+  const volatile = [...prices]
     .filter((p) => p.max_price && p.min_price)
     .map((p) => ({ ...p, spread: p.max_price - p.min_price }))
-    .sort((a, b) => b.spread - a.spread);
-  const volatile = withSpread[0];
+    .sort((a, b) => b.spread - a.spread)[0];
   return [
     highest && {
       icon: TrendingUp,
@@ -191,7 +198,7 @@ function buildInsightsFromPrices(prices) {
       tagColor: "#2563eb",
     },
     topArrival && {
-      icon: Truck,
+      icon: Tractor,
       iconBg: "#7c3aed",
       title: "High Mandi Arrivals",
       desc: `${topArrival.commodity || topArrival.crop} arrivals: ${Math.round(topArrival.arrivals_in_qtl || 0).toLocaleString()} qtl in ${topArrival.state || topArrival.market}`,
@@ -235,67 +242,12 @@ function buildInsightsFromPrices(prices) {
     .slice(0, 6);
 }
 
-function buildInsightsFromDashboard(data) {
-  if (!data || data.length === 0) return null;
-  const sorted = [...data].sort(
-    (a, b) => (b.predicted_price || 0) - (a.predicted_price || 0),
-  );
-  const highest = sorted[0];
-  const lowest = sorted[sorted.length - 1];
-  return [
-    {
-      icon: TrendingUp,
-      iconBg: "#2563eb",
-      title: `${highest.crop} Price High`,
-      desc: `${highest.crop} predicted at ₹${Math.round(highest.predicted_price).toLocaleString()}/qtl · ${highest.confidence}% confidence`,
-      tag: "Market",
-      tagColor: "#2563eb",
-    },
-    {
-      icon: Truck,
-      iconBg: "#7c3aed",
-      title: "Mandi Arrivals Active",
-      desc: `${data.length} crops tracked across major mandis today`,
-      tag: "Supply",
-      tagColor: "#7c3aed",
-    },
-    {
-      icon: BarChart2,
-      iconBg: "#f59e0b",
-      title: "Price Range Today",
-      desc: `Spread from ₹${Math.round(lowest.predicted_price).toLocaleString()} (${lowest.crop}) to ₹${Math.round(highest.predicted_price).toLocaleString()} (${highest.crop})`,
-      tag: "Alert",
-      tagColor: "#f59e0b",
-    },
-    {
-      icon: Tractor,
-      iconBg: "#16a34a",
-      title: `${data.length} Crops Tracked`,
-      desc: `ML price intelligence active across ${data.length} crops — ${highest.season} season`,
-      tag: "Live",
-      tagColor: "#16a34a",
-    },
-    {
-      icon: Droplets,
-      iconBg: "#0891b2",
-      title: "Monsoon Outlook",
-      desc: "IMD predicts above-normal monsoon — favourable for Kharif sowing",
-      tag: "Weather",
-      tagColor: "#0891b2",
-    },
-    {
-      icon: ShieldAlert,
-      iconBg: "#ef4444",
-      title: "Wheat MSP 2026",
-      desc: "Govt announces MSP of ₹2,275/qtl for wheat — up ₹150 from last year",
-      tag: "Policy",
-      tagColor: "#ef4444",
-    },
-  ];
-}
-
 export default function Dashboard() {
   const { isDark } = useTheme();
+  const bp = useBreakpoint();
+  const isMobile = bp === "mobile";
+  const isTablet = bp === "tablet";
+
   const [selectedCrop, setSelectedCrop] = useState("");
   const [selectedRegion, setSelectedRegion] = useState("");
   const [prediction, setPrediction] = useState(null);
@@ -305,26 +257,13 @@ export default function Dashboard() {
   const [chartRange, setChartRange] = useState("6M");
   const [chartData, setChartData] = useState({});
   const [chartLoading, setChartLoading] = useState(true);
-  const [activeCrops, setActiveCrops] = useState([]);
-  // starts with static — never shows "Loading..."
   const [marketInsights, setMarketInsights] = useState(STATIC_INSIGHTS);
-  // real mandi prices for Top Crops card
   const [liveTopCrops, setLiveTopCrops] = useState([]);
   const [todayMarket, setTodayMarket] = useState({
     mandis: "—",
     temp: "—",
     rain: "—",
   });
-
-  const card = isDark ? "#1e293b" : "#ffffff";
-  const border = isDark ? "#334155" : "#e5e7eb";
-  const text = isDark ? "#f1f5f9" : "#111827";
-  const muted = isDark ? "#94a3b8" : "#6b7280";
-  const subBg = isDark ? "#0f172a" : "#f9fafb";
-  const cardShadow = isDark
-    ? "none"
-    : "0 1px 4px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.04)";
-
   const [metricCards, setMetricCards] = useState([
     {
       title: "Predicted Price",
@@ -361,23 +300,30 @@ export default function Dashboard() {
     },
   ]);
 
+  const card = isDark ? "#1e293b" : "#ffffff";
+  const border = isDark ? "#334155" : "#e5e7eb";
+  const text = isDark ? "#f1f5f9" : "#111827";
+  const muted = isDark ? "#94a3b8" : "#6b7280";
+  const cardShadow = isDark
+    ? "none"
+    : "0 1px 4px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.04)";
+
   useEffect(() => {
     getDashboardPrices()
       .then((res) => {
         if (res.data?.length > 0) {
           setDashboardData(res.data);
           const wheat = res.data.find((d) => d.crop === "Wheat");
-          if (wheat) {
-            setMetricCards((prev) => [
+          if (wheat)
+            setMetricCards((p) => [
               {
-                ...prev[0],
+                ...p[0],
                 value: `₹${Math.round(wheat.predicted_price).toLocaleString()}`,
                 sub: "Wheat · Next Month",
               },
-              { ...prev[1], value: `${wheat.confidence}%` },
-              prev[2],
+              { ...p[1], value: `${wheat.confidence}%` },
+              p[2],
             ]);
-          }
         }
       })
       .catch(() => {});
@@ -385,8 +331,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     getRecentPredictions(20)
-      .then((res) => {
-        if (res.data?.length > 0) setRecentFromDB(res.data);
+      .then((r) => {
+        if (r.data?.length > 0) setRecentFromDB(r.data);
       })
       .catch(() => {});
   }, []);
@@ -397,17 +343,14 @@ export default function Dashboard() {
       let userCrops = CHART_CROPS;
       try {
         const histRes = await getPredictionHistory({ limit: 100 });
-        const userPredictions = histRes.data || [];
-        if (userPredictions.length > 0) {
-          const filtered = CHART_CROPS.filter((cc) =>
-            userPredictions.some((p) => p.crop === cc.crop),
+        const up = histRes.data || [];
+        if (up.length > 0) {
+          const f = CHART_CROPS.filter((cc) =>
+            up.some((p) => p.crop === cc.crop),
           );
-          if (filtered.length > 0) userCrops = filtered;
+          if (f.length > 0) userCrops = f;
         }
-      } catch {
-        /* use all crops */
-      }
-
+      } catch {}
       const results = await Promise.allSettled(
         userCrops.map(({ crop, state }) => getForecast(crop, state, 12)),
       );
@@ -422,11 +365,11 @@ export default function Dashboard() {
       if (goodCrops.length === 0) return;
       const maxLen = Math.max(...forecasts.map((f) => f.length), 1);
       const all = Array.from({ length: maxLen }, (_, i) => {
-        const point = { month: forecasts[0][i]?.month || `M${i + 1}` };
+        const pt = { month: forecasts[0][i]?.month || `M${i + 1}` };
         goodCrops.forEach(({ key }, ci) => {
-          point[key] = Math.round(forecasts[ci]?.[i]?.predicted_price || 0);
+          pt[key] = Math.round(forecasts[ci]?.[i]?.predicted_price || 0);
         });
-        return point;
+        return pt;
       });
       setChartData({
         "3M": all.slice(0, 3),
@@ -440,64 +383,19 @@ export default function Dashboard() {
       setChartLoading(false);
     }
   };
-
   useEffect(() => {
     loadChart();
   }, []);
 
-  // Market Insights: /prices/current → /prices/dashboard → STATIC_INSIGHTS
   useEffect(() => {
     getCurrentPrices()
       .then((res) => {
         const built = buildInsightsFromPrices(res.data || []);
-        if (built && built.length > 0) {
-          setMarketInsights(built);
-        } else {
-          return getDashboardPrices().then((dashRes) => {
-            const built2 = buildInsightsFromDashboard(dashRes.data || []);
-            if (built2 && built2.length > 0) setMarketInsights(built2);
-          });
-        }
-      })
-      .catch(() => {
-        getDashboardPrices()
-          .then((dashRes) => {
-            const built = buildInsightsFromDashboard(dashRes.data || []);
-            if (built && built.length > 0) setMarketInsights(built);
-          })
-          .catch(() => {});
-      });
-  }, []);
-
-  // Live Top Crops: real modal prices from /prices/current
-  useEffect(() => {
-    const TARGET_CROPS = ["Wheat", "Rice", "Tomato", "Onion"];
-    getCurrentPrices()
-      .then((res) => {
-        const prices = res.data || [];
-        if (prices.length === 0) return;
-        const result = TARGET_CROPS.map((cropName) => {
-          const matches = prices.filter(
-            (p) =>
-              (p.commodity || p.crop || "").toLowerCase() ===
-              cropName.toLowerCase(),
-          );
-          if (matches.length === 0) return null;
-          const best = matches.sort(
-            (a, b) => (b.modal_price || 0) - (a.modal_price || 0),
-          )[0];
-          return {
-            name: cropName,
-            price: `₹${Math.round(best.modal_price).toLocaleString()}`,
-            ...(CROP_CHANGES[cropName] || { change: "+5%", up: true }),
-          };
-        }).filter(Boolean);
-        if (result.length > 0) setLiveTopCrops(result);
+        if (built && built.length > 0) setMarketInsights(built);
       })
       .catch(() => {});
   }, []);
 
-  // Today's Market: weather + mandi count
   useEffect(() => {
     const LAT = 19.9,
       LON = 75.3;
@@ -506,16 +404,15 @@ export default function Dashboard() {
     )
       .then((r) => r.json())
       .then((d) => {
-        const temp = d.current?.temperature_2m;
-        const rain = d.current?.rain;
-        setTodayMarket((prev) => ({
-          ...prev,
+        const temp = d.current?.temperature_2m,
+          rain = d.current?.rain;
+        setTodayMarket((p) => ({
+          ...p,
           temp: temp != null ? `${Math.round(temp)}°C` : "—",
           rain: rain != null ? `${rain} mm` : "0 mm",
         }));
       })
       .catch(() => {});
-
     getCurrentPrices()
       .then((res) => {
         const prices = res.data || [];
@@ -523,14 +420,12 @@ export default function Dashboard() {
           prices.map((p) => p.market || p.mandi).filter(Boolean),
         );
         const count = mandiSet.size || prices.length;
-        setTodayMarket((prev) => ({
-          ...prev,
+        setTodayMarket((p) => ({
+          ...p,
           mandis: count > 0 ? count.toLocaleString() : "2,847",
         }));
       })
-      .catch(() => {
-        setTodayMarket((prev) => ({ ...prev, mandis: "2,847" }));
-      });
+      .catch(() => setTodayMarket((p) => ({ ...p, mandis: "2,847" })));
   }, []);
 
   const handlePredict = async () => {
@@ -545,14 +440,11 @@ export default function Dashboard() {
         change: `${r.predicted_price > 2000 ? "+" : ""}${((r.predicted_price / 2200 - 1) * 100).toFixed(1)}%`,
         up: r.predicted_price > 2200,
       });
-      Promise.all([
-        getRecentPredictions(20)
-          .then((res) => {
-            if (res.data?.length > 0) setRecentFromDB(res.data);
-          })
-          .catch(() => {}),
-        loadChart(),
-      ]);
+      getRecentPredictions(20)
+        .then((res) => {
+          if (res.data?.length > 0) setRecentFromDB(res.data);
+        })
+        .catch(() => {});
     } catch {
       const base = Math.floor(Math.random() * 3000) + 1500;
       const ch = (Math.random() * 20 - 5).toFixed(1);
@@ -570,21 +462,21 @@ export default function Dashboard() {
   const recentPredictions = (() => {
     const raw = recentFromDB.length > 0 ? recentFromDB : STATIC_RECENT;
     const seen = new Set();
-    const deduped = raw.filter((d) => {
-      const key = `${d.crop}|${d.state}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-    return deduped.map((d) => ({
-      crop: d.crop,
-      region: d.state,
-      price: `₹${Math.round(d.predicted_price).toLocaleString()}`,
-      ...(CROP_CHANGES[d.crop] || { change: "+5%", up: true }),
-    }));
+    return raw
+      .filter((d) => {
+        const k = `${d.crop}|${d.state}`;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      })
+      .map((d) => ({
+        crop: d.crop,
+        region: d.state,
+        price: `₹${Math.round(d.predicted_price).toLocaleString()}`,
+        ...(CROP_CHANGES[d.crop] || { change: "+5%", up: true }),
+      }));
   })();
 
-  // Top Crops: real mandi prices → ML dashboard → static fallback
   const topCrops =
     liveTopCrops.length > 0
       ? liveTopCrops
@@ -604,40 +496,24 @@ export default function Dashboard() {
 
   const disabled = !selectedCrop || !selectedRegion || loading;
 
-  const S = {
-    select: {
-      height: "38px",
-      borderRadius: "10px",
-      padding: "0 10px",
-      fontSize: "13px",
-      color: "#374151",
-      background: "white",
-      border: "none",
-      outline: "none",
-      width: "100%",
-    },
-    predictBtn: {
-      height: "38px",
-      padding: "0 20px",
-      borderRadius: "10px",
-      background: "#facc15",
-      fontWeight: 700,
-      fontSize: "13px",
-      color: "#1f2937",
-      border: "none",
-      cursor: "pointer",
-      whiteSpace: "nowrap",
-    },
-  };
+  // ── Layout helpers ────────────────────────────────────────────────────────
+  // metric cards: 1 col on mobile, 3 on tablet+
+  const metricCols = isMobile ? "1fr" : "1fr 1fr 1fr";
+  // main grid: single col on mobile/tablet, 2fr 1fr on desktop
+  const mainCols = isMobile || isTablet ? "1fr" : "2fr 1fr";
+  // market insights: 1 col on mobile, 2 col on tablet+
+  const insightCols = isMobile ? "1fr" : "1fr 1fr";
+  // quick predict row: stack on mobile
+  const predictWrap = isMobile ? "wrap" : "nowrap";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      {/* Metric Cards */}
+      {/* ── Metric Cards ─────────────────────────────────────────────────── */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: "20px",
+          gridTemplateColumns: metricCols,
+          gap: "16px",
         }}
       >
         {metricCards.map(
@@ -661,13 +537,18 @@ export default function Dashboard() {
               >
                 <div>
                   <p
-                    style={{ fontSize: "13px", color: muted, fontWeight: 500 }}
+                    style={{
+                      fontSize: "13px",
+                      color: muted,
+                      fontWeight: 500,
+                      margin: 0,
+                    }}
                   >
                     {title}
                   </p>
                   <h3
                     style={{
-                      fontSize: "24px",
+                      fontSize: isMobile ? "22px" : "24px",
                       fontWeight: 700,
                       color: text,
                       margin: "4px 0",
@@ -675,13 +556,16 @@ export default function Dashboard() {
                   >
                     {value}
                   </h3>
-                  <p style={{ fontSize: "11px", color: muted }}>{sub}</p>
+                  <p style={{ fontSize: "11px", color: muted, margin: 0 }}>
+                    {sub}
+                  </p>
                 </div>
                 <div
                   style={{
                     backgroundColor: iconBg,
                     borderRadius: "10px",
                     padding: "10px",
+                    flexShrink: 0,
                   }}
                 >
                   <Icon
@@ -726,16 +610,16 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Main Grid */}
+      {/* ── Main Grid ────────────────────────────────────────────────────── */}
       <div
-        style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "20px" }}
+        style={{ display: "grid", gridTemplateColumns: mainCols, gap: "20px" }}
       >
-        {/* Left column */}
+        {/* ── Left column ────────────────────────────────────────────────── */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           {/* Quick Predict */}
           <div
             style={{
-              background: "linear-gradient(135deg, #166534 0%, #16A34A 100%)",
+              background: "linear-gradient(135deg,#166534 0%,#16A34A 100%)",
               borderRadius: "16px",
               padding: "20px",
               boxShadow: "0 4px 12px rgba(22,163,74,0.25)",
@@ -749,27 +633,32 @@ export default function Dashboard() {
                 marginBottom: "14px",
               }}
             >
-              <Zap
-                style={{ width: "18px", height: "18px", color: "#fde047" }}
-              />
+              <span style={{ fontSize: "18px" }}>⚡</span>
               <span
                 style={{ color: "white", fontWeight: 700, fontSize: "15px" }}
               >
                 Quick Predict
               </span>
-              <span style={{ color: "#bbf7d0", fontSize: "12px" }}>
-                Get instant price prediction
-              </span>
+              {!isMobile && (
+                <span style={{ color: "#bbf7d0", fontSize: "12px" }}>
+                  Get instant price prediction
+                </span>
+              )}
             </div>
             <div
               style={{
                 display: "flex",
                 alignItems: "flex-end",
                 gap: "10px",
-                flexWrap: "wrap",
+                flexWrap: predictWrap,
               }}
             >
-              <div style={{ flex: 1, minWidth: "120px" }}>
+              <div
+                style={{
+                  flex: 1,
+                  minWidth: isMobile ? "calc(50% - 5px)" : "120px",
+                }}
+              >
                 <label
                   style={{
                     color: "#bbf7d0",
@@ -784,7 +673,17 @@ export default function Dashboard() {
                 <select
                   value={selectedCrop}
                   onChange={(e) => setSelectedCrop(e.target.value)}
-                  style={S.select}
+                  style={{
+                    height: "38px",
+                    borderRadius: "10px",
+                    padding: "0 10px",
+                    fontSize: "13px",
+                    color: "#374151",
+                    background: "white",
+                    border: "none",
+                    outline: "none",
+                    width: "100%",
+                  }}
                 >
                   <option value="">Select crop...</option>
                   {CROPS.map((c) => (
@@ -794,7 +693,12 @@ export default function Dashboard() {
                   ))}
                 </select>
               </div>
-              <div style={{ flex: 1, minWidth: "120px" }}>
+              <div
+                style={{
+                  flex: 1,
+                  minWidth: isMobile ? "calc(50% - 5px)" : "120px",
+                }}
+              >
                 <label
                   style={{
                     color: "#bbf7d0",
@@ -809,7 +713,17 @@ export default function Dashboard() {
                 <select
                   value={selectedRegion}
                   onChange={(e) => setSelectedRegion(e.target.value)}
-                  style={S.select}
+                  style={{
+                    height: "38px",
+                    borderRadius: "10px",
+                    padding: "0 10px",
+                    fontSize: "13px",
+                    color: "#374151",
+                    background: "white",
+                    border: "none",
+                    outline: "none",
+                    width: "100%",
+                  }}
                 >
                   <option value="">Select region...</option>
                   {STATES.map((r) => (
@@ -823,69 +737,80 @@ export default function Dashboard() {
                 onClick={handlePredict}
                 disabled={disabled}
                 style={{
-                  ...S.predictBtn,
-                  ...(disabled ? { opacity: 0.5, cursor: "not-allowed" } : {}),
+                  height: "38px",
+                  padding: "0 20px",
+                  borderRadius: "10px",
+                  background: "#facc15",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  color: "#1f2937",
+                  border: "none",
+                  cursor: disabled ? "not-allowed" : "pointer",
+                  whiteSpace: "nowrap",
+                  opacity: disabled ? 0.5 : 1,
+                  flexShrink: 0,
                 }}
               >
                 {loading ? "⏳" : "Predict →"}
               </button>
-              {prediction && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    background: "rgba(255,255,255,0.18)",
-                    borderRadius: "10px",
-                    padding: "0 14px",
-                    height: "38px",
-                  }}
-                >
-                  {[
-                    ["Price", prediction.price, "white"],
-                    ["Confidence", prediction.confidence, "white"],
-                    [
-                      "Change",
-                      prediction.change,
-                      prediction.up ? "#fde047" : "#fca5a5",
-                    ],
-                  ].map(([label, val, col], i) => (
-                    <div
-                      key={label}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                      }}
-                    >
-                      {i > 0 && (
-                        <div
-                          style={{
-                            width: "1px",
-                            height: "18px",
-                            background: "rgba(255,255,255,0.25)",
-                          }}
-                        />
-                      )}
-                      <div style={{ textAlign: "center" }}>
-                        <div style={{ color: "#bbf7d0", fontSize: "10px" }}>
-                          {label}
-                        </div>
-                        <div
-                          style={{
-                            color: col,
-                            fontWeight: 700,
-                            fontSize: "13px",
-                          }}
-                        >
-                          {val}
-                        </div>
+            </div>
+            {prediction && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  background: "rgba(255,255,255,0.18)",
+                  borderRadius: "10px",
+                  padding: "10px 14px",
+                  marginTop: "10px",
+                  flexWrap: "wrap",
+                }}
+              >
+                {[
+                  ["Price", prediction.price, "white"],
+                  ["Confidence", prediction.confidence, "white"],
+                  [
+                    "Change",
+                    prediction.change,
+                    prediction.up ? "#fde047" : "#fca5a5",
+                  ],
+                ].map(([label, val, col], i) => (
+                  <div
+                    key={label}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                    }}
+                  >
+                    {i > 0 && (
+                      <div
+                        style={{
+                          width: "1px",
+                          height: "18px",
+                          background: "rgba(255,255,255,0.25)",
+                        }}
+                      />
+                    )}
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ color: "#bbf7d0", fontSize: "10px" }}>
+                        {label}
+                      </div>
+                      <div
+                        style={{
+                          color: col,
+                          fontWeight: 700,
+                          fontSize: "13px",
+                        }}
+                      >
+                        {val}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Price Trends Chart */}
@@ -895,7 +820,7 @@ export default function Dashboard() {
               borderRadius: "16px",
               border: `1px solid ${border}`,
               padding: "20px 20px 12px",
-              height: "320px",
+              height: isMobile ? "280px" : "320px",
               display: "flex",
               flexDirection: "column",
               boxShadow: cardShadow,
@@ -935,14 +860,8 @@ export default function Dashboard() {
                   )}
                 </div>
                 <div style={{ fontSize: "11px", color: muted }}>
-                  {
-                    {
-                      "3M": "Next 3 months",
-                      "6M": "Next 6 months",
-                      "12M": "Next 12 months",
-                    }[chartRange]
-                  }{" "}
-                  · ₹ per quintal
+                  Next {{ "3M": "3", "6M": "6", "12M": "12" }[chartRange]}{" "}
+                  months · ₹ per quintal
                 </div>
               </div>
               <div
@@ -959,13 +878,12 @@ export default function Dashboard() {
                     key={p}
                     onClick={() => setChartRange(p)}
                     style={{
-                      padding: "5px 12px",
+                      padding: isMobile ? "4px 8px" : "5px 12px",
                       borderRadius: "7px",
                       fontSize: "12px",
                       fontWeight: 600,
                       border: "none",
                       cursor: "pointer",
-                      transition: "all 0.15s",
                       background: chartRange === p ? "#16a34a" : "transparent",
                       color: chartRange === p ? "white" : muted,
                     }}
@@ -1025,7 +943,10 @@ export default function Dashboard() {
                       dataKey="month"
                       tick={{ fontSize: 11, fill: muted }}
                     />
-                    <YAxis tick={{ fontSize: 11, fill: muted }} />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: muted }}
+                      width={isMobile ? 45 : 50}
+                    />
                     <Tooltip
                       contentStyle={{
                         borderRadius: "10px",
@@ -1039,7 +960,9 @@ export default function Dashboard() {
                         name.charAt(0).toUpperCase() + name.slice(1),
                       ]}
                     />
-                    <Legend wrapperStyle={{ fontSize: "12px" }} />
+                    {!isMobile && (
+                      <Legend wrapperStyle={{ fontSize: "12px" }} />
+                    )}
                     {(chartData._activeCrops || CHART_CROPS).map(
                       ({ key, color, crop }) => (
                         <Line
@@ -1060,7 +983,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Market Insights — never shows "Loading..." */}
+          {/* Market Insights */}
           <div
             style={{
               background: card,
@@ -1102,7 +1025,7 @@ export default function Dashboard() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr",
+                gridTemplateColumns: insightCols,
                 gap: "10px",
               }}
             >
@@ -1197,7 +1120,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Right column */}
+        {/* ── Right column ───────────────────────────────────────────────── */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           {/* Recent Predictions */}
           <div
@@ -1245,9 +1168,6 @@ export default function Dashboard() {
                 style={{
                   fontSize: "12px",
                   color: "#16a34a",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
                   fontWeight: 600,
                   textDecoration: "none",
                 }}
@@ -1341,13 +1261,13 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Top Crops — real mandi prices when available */}
+          {/* Top Crops */}
           <TopCropsCard crops={topCrops} />
 
           {/* Today's Market */}
           <div
             style={{
-              background: "linear-gradient(135deg, #1e3a5f 0%, #1d4ed8 100%)",
+              background: "linear-gradient(135deg,#1e3a5f 0%,#1d4ed8 100%)",
               borderRadius: "16px",
               padding: "20px",
             }}
