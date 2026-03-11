@@ -738,6 +738,51 @@ def get_crops(): return {"crops": APP_CROPS}
 @app.get("/states")
 def get_states(): return {"states": STATES}
 
+CROP_META_DB = {
+    "Wheat":    {"water": "Low",    "risk": "Low",    "demand": "High",   "export": "High"},
+    "Rice":     {"water": "High",   "risk": "Medium", "demand": "High",   "export": "High"},
+    "Tomato":   {"water": "Medium", "risk": "High",   "demand": "Medium", "export": "Low"},
+    "Onion":    {"water": "Medium", "risk": "High",   "demand": "High",   "export": "Medium"},
+    "Cotton":   {"water": "Medium", "risk": "Medium", "demand": "High",   "export": "High"},
+    "Maize":    {"water": "Medium", "risk": "Low",    "demand": "Medium", "export": "Medium"},
+    "Potato":   {"water": "Medium", "risk": "Medium", "demand": "High",   "export": "Low"},
+    "Mustard":  {"water": "Low",    "risk": "Low",    "demand": "Medium", "export": "Medium"},
+    "Soyabean": {"water": "Low",    "risk": "Low",    "demand": "Medium", "export": "Medium"},
+}
+
+@app.get("/crops/meta")
+def get_crops_meta():
+    """
+    Returns agronomic metadata for all crops.
+    season is computed dynamically from the current month using the ML model's
+    get_season() so it always reflects the real current season.
+    """
+    from model import get_season
+    now = datetime.now()
+    season_idx = get_season(now.month)
+    season_name = ["Kharif", "Rabi", "Zaid"][season_idx]
+
+    # Per-crop season override — each crop has its own primary season
+    CROP_SEASONS = {
+        "Wheat":    "Rabi",
+        "Rice":     "Kharif",
+        "Tomato":   "Zaid",
+        "Onion":    "Rabi",
+        "Cotton":   "Kharif",
+        "Maize":    "Kharif",
+        "Potato":   "Rabi",
+        "Mustard":  "Rabi",
+        "Soyabean": "Kharif",
+    }
+
+    result = {}
+    for crop, meta in CROP_META_DB.items():
+        result[crop] = {
+            **meta,
+            "season": CROP_SEASONS.get(crop, season_name),
+        }
+    return {"data": result}
+
 # ── Admin ─────────────────────────────────────────────────────────────────────
 
 @app.post("/admin/train")

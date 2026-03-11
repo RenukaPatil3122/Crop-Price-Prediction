@@ -27,6 +27,8 @@ import {
 } from "lucide-react";
 import { quickPredict, getForecast } from "../api";
 
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
 const ALL_CROPS = [
   "Wheat",
   "Rice",
@@ -62,22 +64,9 @@ const CROP_EMOJI = {
   Mustard: "🌻",
 };
 const CROP_COLORS = ["#16a34a", "#2563eb", "#f59e0b", "#ef4444", "#8b5cf6"];
-const MONTH_NAMES = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
 
-const CROP_META = {
+// Fallback if API call fails — same as before
+const CROP_META_FALLBACK = {
   Wheat: {
     season: "Rabi",
     water: "Low",
@@ -172,8 +161,9 @@ export default function Compare() {
   const [loading, setLoading] = useState(false);
   const [chartTab, setChartTab] = useState("price");
   const [loaded, setLoaded] = useState(false);
+  // Live crop metadata from backend
+  const [cropMeta, setCropMeta] = useState(CROP_META_FALLBACK);
 
-  // ── Theme tokens ─────────────────────────────────────────────────────────
   const card = isDark ? "#1e293b" : "#ffffff";
   const border = isDark ? "#334155" : "#e5e7eb";
   const text = isDark ? "#f1f5f9" : "#111827";
@@ -182,6 +172,25 @@ export default function Compare() {
   const cardShadow = isDark
     ? "none"
     : "0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)";
+
+  // ── Fetch live crop metadata from backend on mount ──────────────────────
+  useEffect(() => {
+    async function loadMeta() {
+      try {
+        const res = await fetch(`${API_BASE}/crops/meta`);
+        if (!res.ok) throw new Error("meta fetch failed");
+        const json = await res.json();
+        if (json.data) setCropMeta(json.data);
+      } catch (e) {
+        console.warn(
+          "[CompareCrops] /crops/meta failed, using fallback:",
+          e.message,
+        );
+        // silently keep CROP_META_FALLBACK
+      }
+    }
+    loadMeta();
+  }, []);
 
   const fetchAll = useCallback(async () => {
     if (slots.length === 0) return;
@@ -204,7 +213,11 @@ export default function Compare() {
               season: pred.season,
               forecast: fcast.forecast || [],
               color: CROP_COLORS[idx % CROP_COLORS.length],
-              meta: CROP_META[crop] || CROP_META["Wheat"],
+              // Use live backend meta, fall back to static if crop missing
+              meta:
+                cropMeta[crop] ||
+                CROP_META_FALLBACK[crop] ||
+                CROP_META_FALLBACK["Wheat"],
             };
           } catch {
             return {
@@ -217,7 +230,10 @@ export default function Compare() {
               season: "—",
               forecast: [],
               color: CROP_COLORS[idx],
-              meta: CROP_META[crop] || CROP_META["Wheat"],
+              meta:
+                cropMeta[crop] ||
+                CROP_META_FALLBACK[crop] ||
+                CROP_META_FALLBACK["Wheat"],
             };
           }
         }),
@@ -227,7 +243,7 @@ export default function Compare() {
     } finally {
       setLoading(false);
     }
-  }, [slots]);
+  }, [slots, cropMeta]);
 
   useEffect(() => {
     fetchAll();
@@ -242,19 +258,17 @@ export default function Compare() {
     setSlots(slots.filter((_, i) => i !== idx));
     setResults(results.filter((_, i) => i !== idx));
   };
-  const updateSlot = (idx, key, val) => {
+  const updateSlot = (idx, key, val) =>
     setSlots(slots.map((s, i) => (i === idx ? { ...s, [key]: val } : s)));
-  };
 
-  const priceData = results.map((r) => ({
-    name: `${CROP_EMOJI[r.crop] || "🌱"} ${r.crop}`,
-    price: r.price,
-    min: r.min,
-    max: r.max,
-    confidence: r.confidence,
+  const rangeData = results.map((r) => ({
+    name: `${CROP_EMOJI[r.crop] || ""} ${r.crop}`,
+    min: Math.round(r.min),
+    price: Math.round(r.price),
+    max: Math.round(r.max),
   }));
-  const forecastData = MONTH_NAMES.slice(0, 6).map((month, i) => {
-    const obj = { month };
+  const forecastData = Array.from({ length: 6 }, (_, i) => {
+    const obj = { month: results[0]?.forecast[i]?.month || `M${i + 1}` };
     results.forEach((r) => {
       obj[r.crop] = r.forecast[i]?.predicted_price ?? null;
     });
@@ -274,12 +288,6 @@ export default function Compare() {
     });
     return obj;
   });
-  const rangeData = results.map((r) => ({
-    name: `${CROP_EMOJI[r.crop] || ""} ${r.crop}`,
-    min: Math.round(r.min),
-    price: Math.round(r.price),
-    max: Math.round(r.max),
-  }));
 
   const bestPrice =
     results.length > 0
@@ -290,8 +298,17 @@ export default function Compare() {
       ? results.reduce((a, b) => (a.confidence > b.confidence ? a : b))
       : null;
 
+  const tt = {
+    background: card,
+    border: `1px solid ${border}`,
+    borderRadius: "10px",
+    fontSize: "12px",
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+
       {/* Header */}
       <div
         style={{
@@ -351,7 +368,7 @@ export default function Compare() {
         </button>
       </div>
 
-      {/* Crop Selector Row */}
+      {/* Crop Selector */}
       <div
         style={{
           background: card,
@@ -389,7 +406,6 @@ export default function Compare() {
                 padding: "14px",
                 minWidth: "190px",
                 position: "relative",
-                boxShadow: isDark ? "none" : "0 1px 3px rgba(0,0,0,0.06)",
               }}
             >
               <div
@@ -541,7 +557,6 @@ export default function Compare() {
                   boxShadow: cardShadow,
                 }}
               >
-                {/* Color bar */}
                 <div
                   style={{
                     position: "absolute",
@@ -553,7 +568,6 @@ export default function Compare() {
                     borderRadius: "16px 16px 0 0",
                   }}
                 />
-                {/* Badges */}
                 <div
                   style={{
                     display: "flex",
@@ -827,11 +841,50 @@ export default function Compare() {
                       />
                       <Tooltip
                         formatter={(v) => `₹${v.toLocaleString()}`}
-                        contentStyle={{
-                          background: card,
-                          border: `1px solid ${border}`,
-                          borderRadius: "10px",
-                          fontSize: "12px",
+                        contentStyle={tt}
+                        content={({ active, payload }) => {
+                          if (!active || !payload?.length) return null;
+                          const crop = results.find(
+                            (r) =>
+                              `${CROP_EMOJI[r.crop] || ""} ${r.crop}` ===
+                              payload[0]?.payload?.name,
+                          );
+                          return (
+                            <div style={{ ...tt, padding: "10px 14px" }}>
+                              <div
+                                style={{
+                                  fontWeight: 700,
+                                  marginBottom: 6,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                }}
+                              >
+                                <span>{CROP_EMOJI[crop?.crop]}</span>{" "}
+                                {crop?.crop}
+                              </div>
+                              <div style={{ color: "#2563eb" }}>
+                                Max Price : ₹
+                                {payload
+                                  .find((p) => p.dataKey === "max")
+                                  ?.value?.toLocaleString()}
+                              </div>
+                              <div style={{ color: muted }}>
+                                Min Price : ₹
+                                {payload
+                                  .find((p) => p.dataKey === "min")
+                                  ?.value?.toLocaleString()}
+                              </div>
+                              <div
+                                style={{ color: "#16a34a", fontWeight: 700 }}
+                              >
+                                Predicted : ₹
+                                {payload
+                                  .find((p) => p.dataKey === "price")
+                                  ?.value?.toLocaleString()}
+                              </div>
+                            </div>
+                          );
                         }}
                       />
                       <Legend />
@@ -887,12 +940,7 @@ export default function Compare() {
                       />
                       <Tooltip
                         formatter={(v) => `₹${v?.toLocaleString?.() ?? v}`}
-                        contentStyle={{
-                          background: card,
-                          border: `1px solid ${border}`,
-                          borderRadius: "10px",
-                          fontSize: "12px",
-                        }}
+                        contentStyle={tt}
                       />
                       <Legend />
                       {results.map((r) => (
@@ -949,14 +997,7 @@ export default function Compare() {
                         />
                       ))}
                       <Legend />
-                      <Tooltip
-                        contentStyle={{
-                          background: card,
-                          border: `1px solid ${border}`,
-                          borderRadius: "10px",
-                          fontSize: "12px",
-                        }}
-                      />
+                      <Tooltip contentStyle={tt} />
                     </RadarChart>
                   </ResponsiveContainer>
                 </div>
@@ -982,6 +1023,16 @@ export default function Compare() {
             >
               <span style={{ fontSize: "14px", fontWeight: 700, color: text }}>
                 📋 Detailed Comparison
+              </span>
+              <span
+                style={{
+                  fontSize: "11px",
+                  color: "#16a34a",
+                  marginLeft: "10px",
+                  fontWeight: 600,
+                }}
+              >
+                ✓ Live data from ML model
               </span>
             </div>
             <div style={{ overflowX: "auto" }}>
@@ -1128,7 +1179,6 @@ export default function Compare() {
                 display: "flex",
                 alignItems: "flex-start",
                 gap: "14px",
-                boxShadow: isDark ? "none" : "0 1px 4px rgba(22,163,74,0.1)",
               }}
             >
               <span style={{ fontSize: "24px" }}>💡</span>
