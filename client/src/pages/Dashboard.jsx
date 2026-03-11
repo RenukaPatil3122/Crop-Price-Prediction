@@ -93,7 +93,6 @@ const STATES = [
   "Andhra Pradesh",
 ];
 
-// Chart config — one entry per crop: which state to use for forecast + line color
 const CHART_CROPS = [
   { crop: "Wheat", state: "Punjab", color: "#16A34A", key: "wheat" },
   { crop: "Rice", state: "Punjab", color: "#2563EB", key: "rice" },
@@ -111,8 +110,7 @@ const CHART_CROPS = [
   },
 ];
 
-// Static fallback insights — shown instantly before any API responds.
-// Never shows "Loading..." — always meaningful content.
+// Static fallback insights — shown instantly, never shows "Loading..."
 const STATIC_INSIGHTS = [
   {
     icon: TrendingUp,
@@ -164,31 +162,25 @@ const STATIC_INSIGHTS = [
   },
 ];
 
-// Build market insights from /prices/current API data
 function buildInsightsFromPrices(prices) {
   if (!prices || prices.length === 0) return null;
-
   const sorted = [...prices].sort(
     (a, b) => (b.modal_price || 0) - (a.modal_price || 0),
   );
   const highest = sorted[0];
-
   const byArrival = [...prices].sort(
     (a, b) => (b.arrivals_in_qtl || 0) - (a.arrivals_in_qtl || 0),
   );
   const topArrival = byArrival[0];
-
   const mandiSet = new Set(
     prices.map((p) => p.market || p.mandi).filter(Boolean),
   );
   const mandiCount = mandiSet.size || prices.length;
-
   const withSpread = prices
     .filter((p) => p.max_price && p.min_price)
     .map((p) => ({ ...p, spread: p.max_price - p.min_price }))
     .sort((a, b) => b.spread - a.spread);
   const volatile = withSpread[0];
-
   return [
     highest && {
       icon: TrendingUp,
@@ -243,16 +235,13 @@ function buildInsightsFromPrices(prices) {
     .slice(0, 6);
 }
 
-// Build market insights from /prices/dashboard ML data (always available)
 function buildInsightsFromDashboard(data) {
   if (!data || data.length === 0) return null;
-
   const sorted = [...data].sort(
     (a, b) => (b.predicted_price || 0) - (a.predicted_price || 0),
   );
   const highest = sorted[0];
   const lowest = sorted[sorted.length - 1];
-
   return [
     {
       icon: TrendingUp,
@@ -314,20 +303,19 @@ export default function Dashboard() {
   const [dashboardData, setDashboardData] = useState([]);
   const [recentFromDB, setRecentFromDB] = useState([]);
   const [chartRange, setChartRange] = useState("6M");
-
-  // Real data state
   const [chartData, setChartData] = useState({});
   const [chartLoading, setChartLoading] = useState(true);
   const [activeCrops, setActiveCrops] = useState([]);
-  // ↓ Start with static insights immediately — never shows "Loading..."
+  // starts with static — never shows "Loading..."
   const [marketInsights, setMarketInsights] = useState(STATIC_INSIGHTS);
+  // real mandi prices for Top Crops card
+  const [liveTopCrops, setLiveTopCrops] = useState([]);
   const [todayMarket, setTodayMarket] = useState({
     mandis: "—",
     temp: "—",
     rain: "—",
   });
 
-  // ── Theme tokens ─────────────────────────────────────────────────────────
   const card = isDark ? "#1e293b" : "#ffffff";
   const border = isDark ? "#334155" : "#e5e7eb";
   const text = isDark ? "#f1f5f9" : "#111827";
@@ -403,7 +391,6 @@ export default function Dashboard() {
       .catch(() => {});
   }, []);
 
-  // ── Shared chart loader — called on mount AND after each prediction ────────
   const loadChart = async () => {
     setChartLoading(true);
     try {
@@ -433,7 +420,6 @@ export default function Dashboard() {
         }
       });
       if (goodCrops.length === 0) return;
-
       const maxLen = Math.max(...forecasts.map((f) => f.length), 1);
       const all = Array.from({ length: maxLen }, (_, i) => {
         const point = { month: forecasts[0][i]?.month || `M${i + 1}` };
@@ -455,44 +441,63 @@ export default function Dashboard() {
     }
   };
 
-  // ── Load chart on mount ───────────────────────────────────────────────────
   useEffect(() => {
     loadChart();
   }, []);
 
-  // ── Market Insights: try /prices/current first, fall back to /prices/dashboard
-  // Never shows "Loading..." — starts with STATIC_INSIGHTS, upgrades when data arrives
+  // Market Insights: /prices/current → /prices/dashboard → STATIC_INSIGHTS
   useEffect(() => {
     getCurrentPrices()
       .then((res) => {
-        const prices = res.data || [];
-        const built = buildInsightsFromPrices(prices);
+        const built = buildInsightsFromPrices(res.data || []);
         if (built && built.length > 0) {
           setMarketInsights(built);
         } else {
-          // /prices/current returned empty — try dashboard ML data
           return getDashboardPrices().then((dashRes) => {
             const built2 = buildInsightsFromDashboard(dashRes.data || []);
             if (built2 && built2.length > 0) setMarketInsights(built2);
-            // else: keep STATIC_INSIGHTS already set as initial state
           });
         }
       })
       .catch(() => {
-        // /prices/current failed entirely — try dashboard ML data as fallback
         getDashboardPrices()
           .then((dashRes) => {
             const built = buildInsightsFromDashboard(dashRes.data || []);
             if (built && built.length > 0) setMarketInsights(built);
-            // else: keep STATIC_INSIGHTS already set as initial state
           })
-          .catch(() => {
-            // Both failed — STATIC_INSIGHTS already showing, nothing to do
-          });
+          .catch(() => {});
       });
   }, []);
 
-  // ── Today's Market: mandi count + Open-Meteo weather ─────────────────────
+  // Live Top Crops: real modal prices from /prices/current
+  useEffect(() => {
+    const TARGET_CROPS = ["Wheat", "Rice", "Tomato", "Onion"];
+    getCurrentPrices()
+      .then((res) => {
+        const prices = res.data || [];
+        if (prices.length === 0) return;
+        const result = TARGET_CROPS.map((cropName) => {
+          const matches = prices.filter(
+            (p) =>
+              (p.commodity || p.crop || "").toLowerCase() ===
+              cropName.toLowerCase(),
+          );
+          if (matches.length === 0) return null;
+          const best = matches.sort(
+            (a, b) => (b.modal_price || 0) - (a.modal_price || 0),
+          )[0];
+          return {
+            name: cropName,
+            price: `₹${Math.round(best.modal_price).toLocaleString()}`,
+            ...(CROP_CHANGES[cropName] || { change: "+5%", up: true }),
+          };
+        }).filter(Boolean);
+        if (result.length > 0) setLiveTopCrops(result);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Today's Market: weather + mandi count
   useEffect(() => {
     const LAT = 19.9,
       LON = 75.3;
@@ -579,20 +584,23 @@ export default function Dashboard() {
     }));
   })();
 
-  const topCrops = (
-    dashboardData.length > 0
-      ? dashboardData.slice(0, 4)
-      : [
-          { crop: "Wheat", predicted_price: 2893 },
-          { crop: "Rice", predicted_price: 3754 },
-          { crop: "Tomato", predicted_price: 2015 },
-          { crop: "Onion", predicted_price: 2194 },
-        ]
-  ).map((d) => ({
-    name: d.crop,
-    price: `₹${Math.round(d.predicted_price).toLocaleString()}`,
-    ...(CROP_CHANGES[d.crop] || { change: "+5%", up: true }),
-  }));
+  // Top Crops: real mandi prices → ML dashboard → static fallback
+  const topCrops =
+    liveTopCrops.length > 0
+      ? liveTopCrops
+      : (dashboardData.length > 0
+          ? dashboardData.slice(0, 4)
+          : [
+              { crop: "Wheat", predicted_price: 2893 },
+              { crop: "Rice", predicted_price: 3754 },
+              { crop: "Tomato", predicted_price: 2015 },
+              { crop: "Onion", predicted_price: 2194 },
+            ]
+        ).map((d) => ({
+          name: d.crop,
+          price: `₹${Math.round(d.predicted_price).toLocaleString()}`,
+          ...(CROP_CHANGES[d.crop] || { change: "+5%", up: true }),
+        }));
 
   const disabled = !selectedCrop || !selectedRegion || loading;
 
@@ -624,7 +632,7 @@ export default function Dashboard() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      {/* ── Metric Cards ── */}
+      {/* Metric Cards */}
       <div
         style={{
           display: "grid",
@@ -718,7 +726,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* ── Main Grid ── */}
+      {/* Main Grid */}
       <div
         style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "20px" }}
       >
@@ -880,7 +888,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Price Trends Chart — REAL ML forecast data */}
+          {/* Price Trends Chart */}
           <div
             style={{
               background: card,
@@ -1052,7 +1060,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Market Insights — always shows real content, never "Loading..." */}
+          {/* Market Insights — never shows "Loading..." */}
           <div
             style={{
               background: card,
@@ -1333,10 +1341,10 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Top Crops */}
+          {/* Top Crops — real mandi prices when available */}
           <TopCropsCard crops={topCrops} />
 
-          {/* Today's Market — REAL: Open-Meteo + mandi count */}
+          {/* Today's Market */}
           <div
             style={{
               background: "linear-gradient(135deg, #1e3a5f 0%, #1d4ed8 100%)",
