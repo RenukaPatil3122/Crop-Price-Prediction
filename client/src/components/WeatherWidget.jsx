@@ -217,7 +217,7 @@ export default function WeatherWidget() {
           boxShadow: "0 4px 12px rgba(0,0,0,0.18)",
         }}
       >
-        {/* Gradient top section */}
+        {/* Gradient top */}
         <div style={{ background: wmo.gradient, padding: "14px 16px 10px" }}>
           <div
             style={{
@@ -227,6 +227,7 @@ export default function WeatherWidget() {
             }}
           >
             <div>
+              {/* City */}
               <div
                 style={{
                   display: "flex",
@@ -239,13 +240,13 @@ export default function WeatherWidget() {
                   style={{
                     width: "10px",
                     height: "10px",
-                    color: "rgba(255,255,255,0.7)",
+                    color: "rgba(255,255,255,0.85)",
                   }}
                 />
                 <span
                   style={{
                     fontSize: "10px",
-                    color: "rgba(255,255,255,0.7)",
+                    color: "#ffffff",
                     fontWeight: 700,
                     textTransform: "uppercase",
                     letterSpacing: "0.8px",
@@ -254,22 +255,24 @@ export default function WeatherWidget() {
                   {city}
                 </span>
               </div>
+              {/* Temp */}
               <div
                 style={{
                   fontSize: "28px",
                   fontWeight: 800,
-                  color: "white",
+                  color: "#ffffff",
                   lineHeight: 1.1,
                 }}
               >
                 {temp}°C
               </div>
+              {/* Description */}
               <div
                 style={{
                   fontSize: "11px",
-                  color: "rgba(255,255,255,0.8)",
+                  color: "#ffffff",
                   marginTop: "3px",
-                  fontWeight: 500,
+                  fontWeight: 600,
                 }}
               >
                 {wmo.label}
@@ -279,11 +282,12 @@ export default function WeatherWidget() {
               style={{
                 width: "36px",
                 height: "36px",
-                color: "rgba(255,255,255,0.9)",
+                color: "rgba(255,255,255,0.95)",
               }}
             />
           </div>
 
+          {/* Meta row — pure white, bold */}
           <div style={{ display: "flex", gap: "12px", marginTop: "10px" }}>
             {[
               { Icon: Droplets, val: `${humidity}%` },
@@ -298,14 +302,14 @@ export default function WeatherWidget() {
                   style={{
                     width: "11px",
                     height: "11px",
-                    color: "rgba(255,255,255,0.75)",
+                    color: "rgba(255,255,255,0.85)",
                   }}
                 />
                 <span
                   style={{
                     fontSize: "10px",
-                    color: "rgba(255,255,255,0.85)",
-                    fontWeight: 600,
+                    color: "#ffffff",
+                    fontWeight: 700,
                   }}
                 >
                   {val}
@@ -315,7 +319,7 @@ export default function WeatherWidget() {
           </div>
         </div>
 
-        {/* Agri tip — clean white strip */}
+        {/* Agri tip strip */}
         <div
           style={{
             background: "rgba(255,255,255,0.95)",
