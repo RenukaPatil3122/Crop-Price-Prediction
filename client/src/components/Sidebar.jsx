@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import WeatherWidget from "./WeatherWidget";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "My Dashboard" },
@@ -20,6 +21,17 @@ const navItems = [
 
 export default function Sidebar() {
   const { isDark } = useTheme();
+  const { user } = useAuth();
+
+  // Derive display values from logged-in user
+  const userName = user?.name || "User";
+  const userSub = user?.email || "—";
+  const initials = userName
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   const bg = isDark
     ? "linear-gradient(180deg,#0f172a 0%,#1e293b 60%,#0f172a 100%)"
@@ -156,7 +168,7 @@ export default function Sidebar() {
       <div style={{ flex: 1 }} />
       <WeatherWidget />
 
-      {/* User Profile */}
+      {/* User Profile — dynamic, no PRO badge */}
       <div
         style={{
           padding: "10px",
@@ -175,6 +187,7 @@ export default function Sidebar() {
             border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : borderCol}`,
           }}
         >
+          {/* Avatar */}
           <div
             style={{
               width: "30px",
@@ -191,8 +204,10 @@ export default function Sidebar() {
               boxShadow: "0 2px 6px rgba(22,163,74,0.3)",
             }}
           >
-            RP
+            {initials}
           </div>
+
+          {/* Name + sub */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <p
               style={{
@@ -205,25 +220,21 @@ export default function Sidebar() {
                 whiteSpace: "nowrap",
               }}
             >
-              Renuka Patil
+              {userName}
             </p>
-            <p style={{ fontSize: "10px", color: profileSub, margin: 0 }}>
-              Farmer Analytics
+            <p
+              style={{
+                fontSize: "10px",
+                color: profileSub,
+                margin: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {userSub}
             </p>
           </div>
-          <span
-            style={{
-              fontSize: "9px",
-              background: "#dcfce7",
-              color: "#16a34a",
-              padding: "2px 6px",
-              borderRadius: "20px",
-              fontWeight: 700,
-              flexShrink: 0,
-            }}
-          >
-            PRO
-          </span>
         </div>
       </div>
     </div>
