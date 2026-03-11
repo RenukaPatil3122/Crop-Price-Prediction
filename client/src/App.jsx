@@ -17,10 +17,6 @@ import HelpPage from "./pages/HelpPage";
 import { useState, useEffect } from "react";
 
 // ── Breakpoints ───────────────────────────────────────────────────────────────
-// mobile  : < 768px
-// tablet  : 768px – 1024px
-// desktop : > 1024px
-
 function useBreakpoint() {
   const [bp, setBp] = useState(() => {
     const w = window.innerWidth;
@@ -82,29 +78,16 @@ function PublicRoute({ children }) {
   return children;
 }
 
-// ── Global scrollbar + mobile reset styles ────────────────────────────────────
 const GLOBAL_CSS = `
   *, *::before, *::after { box-sizing: border-box; }
-
-  /* Sleek custom scrollbar — all scrollable areas */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb {
-    background: rgba(100,116,139,0.35);
-    border-radius: 99px;
-    transition: background 0.2s;
-  }
+  ::-webkit-scrollbar-thumb { background: rgba(100,116,139,0.35); border-radius: 99px; transition: background 0.2s; }
   ::-webkit-scrollbar-thumb:hover { background: rgba(100,116,139,0.65); }
   ::-webkit-scrollbar-corner { background: transparent; }
-  /* Firefox */
   * { scrollbar-width: thin; scrollbar-color: rgba(100,116,139,0.35) transparent; }
-
-  /* Mobile tap highlight */
   * { -webkit-tap-highlight-color: transparent; }
-
   body { margin: 0; padding: 0; overflow-x: hidden; }
-
-  /* Mobile nav overlay */
   .mobile-nav-overlay {
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.55);
@@ -122,14 +105,19 @@ function AppLayout() {
   const bp = useBreakpoint();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // desktop = always-visible sidebar, no hamburger
+  // tablet + mobile = drawer with hamburger
+  const isDesktop = bp === "desktop";
+  const showDrawer = bp === "mobile" || bp === "tablet";
   const isMobile = bp === "mobile";
   const isTablet = bp === "tablet";
+
   const bg = isDark ? "#0f172a" : "#f0fdf4";
 
-  // Close sidebar when navigating on mobile
+  // Close drawer on breakpoint change to desktop
   useEffect(() => {
-    setSidebarOpen(false);
-  }, []);
+    if (isDesktop) setSidebarOpen(false);
+  }, [isDesktop]);
 
   return (
     <div
@@ -142,23 +130,15 @@ function AppLayout() {
     >
       <style>{GLOBAL_CSS}</style>
 
-      {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-      {/* Desktop: always visible fixed sidebar */}
-      {!isMobile && !isTablet && (
+      {/* ── Desktop: fixed sidebar, always visible, no hamburger ── */}
+      {isDesktop && (
         <div style={{ width: "224px", flexShrink: 0 }}>
           <Sidebar />
         </div>
       )}
 
-      {/* Tablet: always visible, narrower (icon-only or slim) */}
-      {isTablet && (
-        <div style={{ width: "200px", flexShrink: 0 }}>
-          <Sidebar />
-        </div>
-      )}
-
-      {/* Mobile: overlay drawer */}
-      {isMobile && sidebarOpen && (
+      {/* ── Mobile + Tablet: overlay drawer ── */}
+      {showDrawer && sidebarOpen && (
         <>
           <div
             className="mobile-nav-overlay"
@@ -170,7 +150,7 @@ function AppLayout() {
               top: 0,
               left: 0,
               height: "100vh",
-              width: "224px",
+              width: isTablet ? "260px" : "224px",
               zIndex: 50,
               animation: "slideIn 0.25s ease",
             }}
@@ -180,7 +160,7 @@ function AppLayout() {
         </>
       )}
 
-      {/* ── Main content ────────────────────────────────────────────────── */}
+      {/* ── Main content ── */}
       <div
         style={{
           flex: 1,
@@ -193,6 +173,8 @@ function AppLayout() {
           onMenuClick={() => setSidebarOpen((o) => !o)}
           isMobile={isMobile}
           isTablet={isTablet}
+          isDesktop={isDesktop}
+          sidebarOpen={sidebarOpen}
         />
         <main
           style={{

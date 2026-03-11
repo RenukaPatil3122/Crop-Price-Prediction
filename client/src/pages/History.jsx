@@ -320,7 +320,14 @@ export default function History() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        overflow: "visible",
+        gap: "20px",
+      }}
+    >
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
 

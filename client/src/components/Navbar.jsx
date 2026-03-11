@@ -253,7 +253,7 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        paddingInline: isMobile ? "12px" : "28px",
+        paddingInline: isMobile ? "12px" : isTablet ? "7px" : "10px",
         background: bg,
         position: "sticky",
         top: 0,
@@ -265,7 +265,7 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: isMobile ? "10px" : "0",
+          gap: isMobile ? "10px" : isTablet ? "10px" : "0",
         }}
       >
         {/* Hamburger — only on mobile/tablet */}
