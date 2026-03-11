@@ -16,6 +16,9 @@ BASE_URL = f"https://api.data.gov.in/resource/{RESOURCE_ID}"
 SUPPORTED_CROPS = ["Wheat", "Rice", "Tomato", "Onion", "Cotton", "Maize", "Potato", "Mustard", "Soyabean"]
 SUPPORTED_STATES = ["Punjab", "Haryana", "Maharashtra", "Gujarat", "Rajasthan", "Uttar Pradesh", "Madhya Pradesh", "Karnataka", "Andhra Pradesh"]
 
+# Top crops we always want real prices for
+TOP_CROPS = ["Wheat", "Rice", "Tomato", "Onion"]
+
 
 async def fetch_mandi_prices(commodity: str = None, state: str = None, limit: int = 500) -> list[dict]:
     """Fetch live mandi prices using curl (httpx times out on this network)"""
@@ -35,33 +38,39 @@ async def fetch_mandi_prices(commodity: str = None, state: str = None, limit: in
             return []
         data = json.loads(result.stdout)
         records = data.get("records", [])
-        print(f"✅ Fetched {len(records)} records from data.gov.in")
+        print(f"✅ Fetched {len(records)} records from data.gov.in" + (f" [{commodity}]" if commodity else ""))
         return records
     except Exception as e:
         print(f"curl fetch failed: {type(e).__name__}: {e}")
         return []
 
 
-async def fetch_all_crops_prices() -> list[dict]:
-    """Fetch prices for all supported crops"""
+async def fetch_top_crops_prices() -> list[dict]:
+    """Fetch prices specifically for Wheat, Rice, Tomato, Onion using curl.
+    These are always guaranteed to be in the cache for Top Crops Today."""
     all_records = []
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        for crop in SUPPORTED_CROPS:
-            params = {
-                "api-key": API_KEY,
-                "format": "json",
-                "limit": 100,
-                "filters[commodity]": crop,
-            }
-            try:
-                response = await client.get(BASE_URL, params=params)
-                response.raise_for_status()
-                data = response.json()
-                records = data.get("records", [])
+    for crop in TOP_CROPS:
+        try:
+            records = await fetch_mandi_prices(commodity=crop, limit=50)
+            if records:
                 all_records.extend(records)
-                print(f"Fetched {len(records)} records for {crop}")
-            except Exception as e:
-                print(f"Failed to fetch {crop}: {e}")
+                print(f"✅ Got {len(records)} records for {crop}")
+            else:
+                print(f"⚠️  No records for {crop} from data.gov.in")
+        except Exception as e:
+            print(f"Failed to fetch {crop}: {e}")
+    return all_records
+
+
+async def fetch_all_crops_prices() -> list[dict]:
+    """Fetch prices for all supported crops using curl"""
+    all_records = []
+    for crop in SUPPORTED_CROPS:
+        try:
+            records = await fetch_mandi_prices(commodity=crop, limit=50)
+            all_records.extend(records)
+        except Exception as e:
+            print(f"Failed to fetch {crop}: {e}")
     return all_records
 
 

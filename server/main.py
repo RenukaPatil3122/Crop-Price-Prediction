@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 from data_fetcher import (
     get_current_prices, get_price_history,
-    fetch_all_crops_prices, parse_price_records,
+    fetch_all_crops_prices, fetch_top_crops_prices, parse_price_records,
     SUPPORTED_CROPS, SUPPORTED_STATES,
 )
 from model import predict_price, predict_forecast, train_model, CROPS, STATES
@@ -63,18 +63,35 @@ def _build_ml_fallback() -> list:
     return result
 
 async def _refresh_price_cache():
-    """Fetch from data.gov.in; fall back to ML if empty/slow."""
+    """Fetch top crops specifically from data.gov.in; fall back to ML if empty."""
     global _price_cache, _price_cache_time
     try:
-        prices = await asyncio.wait_for(get_current_prices(), timeout=90.0)
-        if prices:
-            _price_cache = prices
-            _price_cache_time = datetime.utcnow()
-            print(f"✅ Price cache refreshed — {len(prices)} records")
-            return
+        # ── Step 1: fetch Wheat, Rice, Tomato, Onion specifically ──
+        records = await asyncio.wait_for(fetch_top_crops_prices(), timeout=120.0)
+        if records:
+            df = parse_price_records(records)
+            if not df.empty:
+                prices = []
+                for _, row in df.iterrows():
+                    prices.append({
+                        "commodity":   row["commodity"],
+                        "state":       row["state"],
+                        "district":    row["district"],
+                        "market":      row["market"],
+                        "min_price":   row["min_price"],
+                        "max_price":   row["max_price"],
+                        "modal_price": row["modal_price"],
+                        "date":        row["arrival_date"].strftime("%Y-%m-%d") if hasattr(row["arrival_date"], "strftime") else str(row["arrival_date"]),
+                        "source":      "data.gov.in",
+                    })
+                _price_cache = prices
+                _price_cache_time = datetime.utcnow()
+                print(f"✅ Price cache refreshed — {len(prices)} records (top crops targeted)")
+                return
     except Exception as e:
         print(f"⚠️  data.gov.in fetch failed ({e}) — using ML fallback")
-    # Fallback: build from ML model so cache is never empty
+
+    # ── Step 2: ML fallback so cache is never empty ──
     _price_cache = _build_ml_fallback()
     _price_cache_time = datetime.utcnow()
     print(f"✅ Price cache built from ML fallback — {len(_price_cache)} records")
@@ -187,12 +204,11 @@ async def save_prediction(data: dict, source: str = "full", user_id: str = None)
             "actual_price":    None,
             "status":          "Pending",
             "created_at":      datetime.utcnow(),
-            "user_id":         user_id,   # ← store which user made this prediction
+            "user_id":         user_id,
         }
         await db.save_prediction(doc)
         await db.check_and_trigger_alerts(data["crop"], data["predicted_price"])
 
-        # Prediction Update notification
         price  = round(data["predicted_price"], 2)
         conf   = round(data.get("confidence", 0), 1)
         season = data.get("season", get_season(data["month"]))
@@ -251,7 +267,7 @@ async def weekly_scheduler():
                 last_sent_week = now.isocalendar()[1]
         except _asyncio.CancelledError:
             print("[Scheduler] Shutdown — weekly scheduler stopped cleanly.")
-            return   # ← exit gracefully on server shutdown
+            return
         except Exception as e:
             print(f"[Scheduler] Error: {e}")
         try:
@@ -275,21 +291,15 @@ async def health():
 
 @app.post("/auth/register")
 async def register(req: RegisterRequest):
-    """Register a new user."""
     if len(req.name.strip()) < 2:
         raise HTTPException(400, "Name must be at least 2 characters")
     if len(req.password) < 6:
         raise HTTPException(400, "Password must be at least 6 characters")
     if "@" not in req.email:
         raise HTTPException(400, "Invalid email address")
-
     email = req.email.lower().strip()
-
-    # Check duplicate
     if await db.email_exists(email):
         raise HTTPException(409, "Email already registered. Please login.")
-
-    # Create user doc
     now = datetime.utcnow()
     doc = {
         "name":       req.name.strip(),
@@ -302,47 +312,31 @@ async def register(req: RegisterRequest):
         "created_at": now,
         "updated_at": now,
     }
-
     user_id = await db.create_user(doc)
     if not user_id:
         raise HTTPException(500, "Failed to create account. Please try again.")
-
     token = create_access_token({"user_id": user_id, "email": email})
     return {
         "message": "Account created successfully!",
         "token":   token,
-        "user": {
-            "id":       user_id,
-            "name":     doc["name"],
-            "email":    email,
-            "location": doc["location"],
-        }
+        "user": {"id": user_id, "name": doc["name"], "email": email, "location": doc["location"]}
     }
 
 @app.post("/auth/login")
 async def login(req: LoginRequest):
-    """Login with email + password."""
     email = req.email.lower().strip()
     user  = await db.get_user_by_email(email)
-
     if not user or not verify_password(req.password, user["password"]):
         raise HTTPException(401, "Invalid email or password")
-
     token = create_access_token({"user_id": user["id"], "email": email})
-    return {
-        "message": "Login successful!",
-        "token":   token,
-        "user":    safe_user(user),
-    }
+    return {"message": "Login successful!", "token": token, "user": safe_user(user)}
 
 @app.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
-    """Get current logged-in user's profile."""
     return safe_user(current_user)
 
 @app.patch("/auth/profile")
 async def update_profile(req: UpdateProfileRequest, current_user: dict = Depends(get_current_user)):
-    """Update current user's profile fields."""
     fields = {k: v for k, v in req.dict().items() if v is not None}
     if not fields:
         raise HTTPException(400, "No fields to update")
@@ -354,7 +348,6 @@ async def update_profile(req: UpdateProfileRequest, current_user: dict = Depends
 
 @app.delete("/auth/delete-account")
 async def delete_account(current_user: dict = Depends(get_current_user)):
-    """Permanently delete the current user's account from MongoDB."""
     try:
         ok = await db.delete_user(current_user["id"])
         if not ok:
@@ -547,7 +540,6 @@ async def clear_notifications():
 
 @app.post("/notifications/weekly-summary")
 async def trigger_weekly_summary():
-    """Manually trigger a weekly summary notification (for testing / on-demand)."""
     try:
         await send_weekly_summary()
         return {"message": "Weekly summary notification sent!"}
@@ -559,7 +551,6 @@ async def trigger_weekly_summary():
 @app.get("/prices/current")
 async def current_prices(commodity: Optional[str] = Query(None), state: Optional[str] = Query(None)):
     try:
-        # Serve from cache instantly — never wait on data.gov.in per-request
         data = _price_cache if _price_cache else _build_ml_fallback()
         if commodity:
             data = [p for p in data if p.get("commodity","").lower() == commodity.lower()]
@@ -619,7 +610,6 @@ async def startup_event():
         train_model()
     else:
         print("✅ Model loaded from disk")
-    # Warm price cache immediately (non-blocking) + start 30-min refresh loop
     asyncio.create_task(_refresh_price_cache())
     asyncio.create_task(_price_cache_scheduler())
     asyncio.create_task(weekly_scheduler())
