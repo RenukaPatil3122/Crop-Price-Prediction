@@ -156,6 +156,20 @@ function calcChange(predicted, actual) {
   return { change: `${pct > 0 ? "+" : ""}${pct}%`, up: pct >= 0 };
 }
 
+// ── Deduplicate: keep only the latest record per crop+state+month+year ──
+function deduplicateRecords(data) {
+  const seen = new Map();
+  // Sort newest first so we keep the latest when deduplicating
+  const sorted = [...data].sort(
+    (a, b) => new Date(b.created_at) - new Date(a.created_at),
+  );
+  for (const row of sorted) {
+    const key = `${row.crop}|${row.state}|${row.month_name}|${row.year ?? new Date(row.created_at).getFullYear()}`;
+    if (!seen.has(key)) seen.set(key, row);
+  }
+  return Array.from(seen.values());
+}
+
 function exportToCSV(data, filename = "agrisense_predictions.csv") {
   const headers = [
     "ID",
@@ -215,7 +229,6 @@ export default function History() {
   const [page, setPage] = useState(1);
   const [exporting, setExporting] = useState(false);
 
-  // ── Theme tokens ─────────────────────────────────────────────────────────
   const card = isDark ? "#1e293b" : "#ffffff";
   const border = isDark ? "#334155" : "#e5e7eb";
   const text = isDark ? "#f1f5f9" : "#111827";
@@ -234,8 +247,16 @@ export default function History() {
         getPredictionStats(),
       ]);
       if (histRes.data && histRes.data.length > 0) {
-        setAllData(histRes.data);
-        setStats(statsRes);
+        // ── Deduplicate before storing in state ──
+        const deduped = deduplicateRecords(histRes.data);
+        setAllData(deduped);
+        // Recompute stats from deduped data so counts are accurate
+        setStats({
+          total: deduped.length,
+          verified: deduped.filter((d) => d.status === "Verified").length,
+          pending: deduped.filter((d) => d.status === "Pending").length,
+          avg_accuracy: statsRes.avg_accuracy ?? 0,
+        });
         setDbLive(true);
       } else {
         setAllData(STATIC_DATA);
@@ -324,7 +345,6 @@ export default function History() {
             >
               Prediction History
             </h1>
-            {/* ── Live from MongoDB badge — always clearly visible ── */}
             <span
               style={{
                 fontSize: "11px",
@@ -508,7 +528,6 @@ export default function History() {
           boxShadow: cardShadow,
         }}
       >
-        {/* Search — always visible */}
         <div
           style={{
             display: "flex",

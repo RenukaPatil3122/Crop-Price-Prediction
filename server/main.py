@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import asyncio
 from dotenv import load_dotenv
@@ -34,7 +34,6 @@ _price_cache: list = []
 _price_cache_time: datetime = None
 
 def _build_ml_fallback() -> list:
-    """Generate market insights from ML model when data.gov.in is unavailable."""
     now = datetime.now()
     result = []
     state_map = {
@@ -47,26 +46,24 @@ def _build_ml_fallback() -> list:
             state = state_map.get(crop, "Punjab")
             pred  = predict_price(crop, state, now.month, now.year)
             result.append({
-                "commodity":   crop,
-                "state":       state,
-                "district":    "",
-                "market":      f"{state} Mandi",
-                "min_price":   round(pred["min_price"], 2),
-                "max_price":   round(pred["max_price"], 2),
-                "modal_price": round(pred["predicted_price"], 2),
+                "commodity":      crop,
+                "state":          state,
+                "district":       "",
+                "market":         f"{state} Mandi",
+                "min_price":      round(pred["min_price"], 2),
+                "max_price":      round(pred["max_price"], 2),
+                "modal_price":    round(pred["predicted_price"], 2),
                 "arrivals_in_qtl": 1000,
-                "date":        now.strftime("%Y-%m-%d"),
-                "source":      "ml_fallback",
+                "date":           now.strftime("%Y-%m-%d"),
+                "source":         "ml_fallback",
             })
         except Exception:
             pass
     return result
 
 async def _refresh_price_cache():
-    """Fetch top crops specifically from data.gov.in; fall back to ML if empty."""
     global _price_cache, _price_cache_time
     try:
-        # ── Step 1: fetch Wheat, Rice, Tomato, Onion specifically ──
         records = await asyncio.wait_for(fetch_top_crops_prices(), timeout=120.0)
         if records:
             df = parse_price_records(records)
@@ -90,21 +87,18 @@ async def _refresh_price_cache():
                 return
     except Exception as e:
         print(f"⚠️  data.gov.in fetch failed ({e}) — using ML fallback")
-
-    # ── Step 2: ML fallback so cache is never empty ──
     _price_cache = _build_ml_fallback()
     _price_cache_time = datetime.utcnow()
     print(f"✅ Price cache built from ML fallback — {len(_price_cache)} records")
 
 async def _price_cache_scheduler():
-    """Refresh price cache every 30 minutes."""
     while True:
         try:
             await _refresh_price_cache()
         except Exception as e:
             print(f"[PriceCache] Scheduler error: {e}")
         try:
-            await asyncio.sleep(1800)  # 30 min
+            await asyncio.sleep(1800)
         except asyncio.CancelledError:
             return
 
@@ -135,10 +129,10 @@ class LoginRequest(BaseModel):
     password: str
 
 class UpdateProfileRequest(BaseModel):
-    name:     Optional[str] = None
-    location: Optional[str] = None
-    phone:    Optional[str] = None
-    farm_size:Optional[str] = None
+    name:       Optional[str] = None
+    location:   Optional[str] = None
+    phone:      Optional[str] = None
+    farm_size:  Optional[str] = None
     crop_focus: Optional[str] = None
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
@@ -155,7 +149,6 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     return user
 
 async def get_optional_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Returns user or None — for optional auth routes."""
     try:
         if not credentials:
             return None
@@ -167,7 +160,6 @@ async def get_optional_user(credentials: HTTPAuthorizationCredentials = Depends(
         return None
 
 def safe_user(user: dict) -> dict:
-    """Strip password before returning user to client."""
     return {k: v for k, v in user.items() if k != "password"}
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -189,11 +181,35 @@ def get_season(month: int) -> str:
 
 async def save_prediction(data: dict, source: str = "full", user_id: str = None):
     try:
+        # ── Dedup: skip if same crop+state+month+year saved in last 10 min ──
+        existing, _ = await db.get_predictions(
+            crop=data["crop"],
+            state=data["state"],
+            limit=5,
+            skip=0,
+            user_id=user_id,
+        )
+        cutoff = datetime.utcnow() - timedelta(minutes=10)
+        for p in existing:
+            p_created = p.get("created_at")
+            if isinstance(p_created, str):
+                try:
+                    p_created = datetime.fromisoformat(p_created.replace("Z", "+00:00")).replace(tzinfo=None)
+                except Exception:
+                    p_created = None
+            if (
+                p_created and p_created > cutoff
+                and p.get("month") == data["month"]
+                and p.get("year") == data.get("year", datetime.utcnow().year)
+            ):
+                print(f"[Dedup] Skipping duplicate: {data['crop']} {data['state']} {data['month']}/{data.get('year')}")
+                return
+
         doc = {
             "crop":            data["crop"],
             "state":           data["state"],
             "month":           data["month"],
-            "year":            data["year"],
+            "year":            data.get("year", datetime.utcnow().year),
             "month_name":      MONTH_NAMES[data["month"] - 1],
             "season":          data.get("season", get_season(data["month"])),
             "predicted_price": round(data["predicted_price"], 2),
@@ -214,7 +230,7 @@ async def save_prediction(data: dict, source: str = "full", user_id: str = None)
         season = data.get("season", get_season(data["month"]))
         await db.create_notification({
             "type":       "prediction_update",
-            "message":    f"\U0001f916 {data['crop']} ({data['state']}) predicted \u20b9{price:,.0f} for {MONTH_NAMES[data['month']-1]} {data['year']} | {conf}% confidence | {season} season",
+            "message":    f"\U0001f916 {data['crop']} ({data['state']}) predicted \u20b9{price:,.0f} for {MONTH_NAMES[data['month']-1]} {data.get('year', '')} | {conf}% confidence | {season} season",
             "crop":       data["crop"],
             "state":      data["state"],
             "price":      price,
@@ -227,9 +243,7 @@ async def save_prediction(data: dict, source: str = "full", user_id: str = None)
 
 
 async def send_weekly_summary():
-    """Runs every Monday at 08:00 UTC — summarises the week's predictions."""
     try:
-        from datetime import timedelta
         data, total = await db.get_predictions(limit=100, skip=0)
         if total == 0:
             print("[Weekly] No predictions to summarise")
@@ -256,7 +270,6 @@ async def send_weekly_summary():
 
 
 async def weekly_scheduler():
-    """Background loop: checks every hour, fires summary on Monday 08:00 UTC."""
     import asyncio as _asyncio
     last_sent_week = -1
     while True:
