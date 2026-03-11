@@ -66,6 +66,8 @@ export default function Analytics() {
   const fetchSummary = useCallback(async (months, force = false) => {
     const key = String(months);
 
+    setError(""); // ← ADD THIS LINE HERE (before cache check)
+
     // Serve from cache if fresh enough
     if (!force && cache.current[key]) {
       const age = Date.now() - cache.current[key].ts;
@@ -111,7 +113,7 @@ export default function Analytics() {
 
   useEffect(() => {
     fetchSummary(TIME_MONTHS[activeTime]);
-  }, []); // eslint-disable-line
+  }, [activeTime]); // ← was []
 
   const handleTimeChange = (tab) => {
     setActiveTime(tab);
