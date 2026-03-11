@@ -156,10 +156,8 @@ function calcChange(predicted, actual) {
   return { change: `${pct > 0 ? "+" : ""}${pct}%`, up: pct >= 0 };
 }
 
-// ── Deduplicate: keep only the latest record per crop+state+month+year ──
 function deduplicateRecords(data) {
   const seen = new Map();
-  // Sort newest first so we keep the latest when deduplicating
   const sorted = [...data].sort(
     (a, b) => new Date(b.created_at) - new Date(a.created_at),
   );
@@ -247,10 +245,8 @@ export default function History() {
         getPredictionStats(),
       ]);
       if (histRes.data && histRes.data.length > 0) {
-        // ── Deduplicate before storing in state ──
         const deduped = deduplicateRecords(histRes.data);
         setAllData(deduped);
-        // Recompute stats from deduped data so counts are accurate
         setStats({
           total: deduped.length,
           verified: deduped.filter((d) => d.status === "Verified").length,
@@ -325,8 +321,31 @@ export default function History() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      {/* Header */}
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Desktop defaults ── */
+        .hist-badge-short  { display: none; }
+        .hist-export-short { display: none; }
+
+        /* ── Mobile: ≤ 640px ── */
+        @media (max-width: 640px) {
+          .hist-header      { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+          .hist-title-row   { flex-wrap: wrap !important; gap: 6px !important; }
+          .hist-actions     { width: 100% !important; }
+          .hist-btn-refresh { flex: 1 !important; justify-content: center !important; }
+          .hist-btn-export  { flex: 2 !important; justify-content: center !important; }
+          .hist-badge-full  { display: none !important; }
+          .hist-badge-short { display: inline-flex !important; }
+          .hist-stats-grid  { grid-template-columns: 1fr 1fr !important; }
+          .hist-export-label{ display: none !important; }
+          .hist-export-short{ display: inline !important; }
+        }
+      `}</style>
+
+      {/* ── Header ── */}
       <div
+        className="hist-header"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -334,7 +353,10 @@ export default function History() {
         }}
       >
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div
+            className="hist-title-row"
+            style={{ display: "flex", alignItems: "center", gap: "10px" }}
+          >
             <h1
               style={{
                 fontSize: "22px",
@@ -345,11 +367,14 @@ export default function History() {
             >
               Prediction History
             </h1>
+
+            {/* Full badge — desktop */}
             <span
+              className="hist-badge-full"
               style={{
                 fontSize: "11px",
                 fontWeight: 700,
-                padding: "4px 12px",
+                padding: "4px 10px",
                 borderRadius: "20px",
                 background: dbLive
                   ? isDark
@@ -363,23 +388,56 @@ export default function History() {
                 display: "flex",
                 alignItems: "center",
                 gap: "5px",
+                whiteSpace: "nowrap",
               }}
             >
               <Database style={{ width: "11px", height: "11px" }} />
               {dbLive ? "Live from MongoDB" : "Using sample data"}
+            </span>
+
+            {/* Short badge — mobile */}
+            <span
+              className="hist-badge-short"
+              style={{
+                fontSize: "11px",
+                fontWeight: 700,
+                padding: "3px 8px",
+                borderRadius: "20px",
+                background: dbLive
+                  ? isDark
+                    ? "rgba(22,163,74,0.2)"
+                    : "#dcfce7"
+                  : isDark
+                    ? "rgba(245,158,11,0.2)"
+                    : "#fef3c7",
+                color: dbLive ? "#16a34a" : "#d97706",
+                border: `1px solid ${dbLive ? (isDark ? "rgba(22,163,74,0.4)" : "#86efac") : isDark ? "rgba(245,158,11,0.4)" : "#fde68a"}`,
+                alignItems: "center",
+                gap: "4px",
+              }}
+            >
+              <Database style={{ width: "10px", height: "10px" }} />
+              {dbLive ? "Live" : "Sample"}
             </span>
           </div>
           <p style={{ fontSize: "13px", color: muted, marginTop: "4px" }}>
             Track all past predictions and their accuracy
           </p>
         </div>
-        <div style={{ display: "flex", gap: "8px" }}>
+
+        {/* Buttons */}
+        <div
+          className="hist-actions"
+          style={{ display: "flex", gap: "8px", flexShrink: 0 }}
+        >
           <button
+            className="hist-btn-refresh"
             onClick={loadData}
             disabled={loadingData}
             style={{
               display: "flex",
               alignItems: "center",
+              justifyContent: "center",
               gap: "6px",
               padding: "9px 14px",
               borderRadius: "10px",
@@ -401,14 +459,17 @@ export default function History() {
             />
             Refresh
           </button>
+
           <button
+            className="hist-btn-export"
             onClick={handleExport}
             disabled={exporting || sorted.length === 0}
             style={{
               display: "flex",
               alignItems: "center",
+              justifyContent: "center",
               gap: "6px",
-              padding: "9px 18px",
+              padding: "9px 14px",
               borderRadius: "10px",
               background: exporting
                 ? "#f0fdf4"
@@ -420,6 +481,7 @@ export default function History() {
               cursor: sorted.length === 0 ? "not-allowed" : "pointer",
               boxShadow: exporting ? "none" : "0 2px 8px rgba(22,163,74,0.3)",
               opacity: sorted.length === 0 ? 0.5 : 1,
+              whiteSpace: "nowrap",
             }}
           >
             {exporting ? (
@@ -429,16 +491,20 @@ export default function History() {
               </>
             ) : (
               <>
-                <Download style={{ width: "14px", height: "14px" }} /> Export
-                CSV ({sorted.length})
+                <Download style={{ width: "14px", height: "14px" }} />
+                <span className="hist-export-label">
+                  Export CSV ({sorted.length})
+                </span>
+                <span className="hist-export-short">CSV ({sorted.length})</span>
               </>
             )}
           </button>
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* ── Summary Cards ── */}
       <div
+        className="hist-stats-grid"
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr 1fr 1fr",
@@ -514,7 +580,7 @@ export default function History() {
         ))}
       </div>
 
-      {/* Filters */}
+      {/* ── Filters ── */}
       <div
         style={{
           background: card,
@@ -538,7 +604,7 @@ export default function History() {
             borderRadius: "10px",
             padding: "0 12px",
             flex: 1,
-            minWidth: "180px",
+            minWidth: "160px",
           }}
         >
           <Search style={{ width: "14px", height: "14px", color: muted }} />
@@ -627,7 +693,7 @@ export default function History() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* ── Table ── */}
       <div
         style={{
           background: card,
@@ -658,290 +724,301 @@ export default function History() {
             Loading predictions…
           </div>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr
-                style={{
-                  background: isDark ? "#0f172a" : "#f8fafc",
-                  borderBottom: `1px solid ${border}`,
-                }}
-              >
-                {[
-                  { label: "Crop", key: "crop" },
-                  { label: "State", key: "state" },
-                  { label: "Season", key: "season" },
-                  { label: "Month", key: "month_name" },
-                  { label: "Predicted ₹", key: "predicted_price" },
-                  { label: "Actual ₹", key: "actual_price" },
-                  { label: "Change", key: null },
-                  { label: "Confidence", key: "confidence" },
-                  { label: "Status", key: "status" },
-                  { label: "Date", key: "created_at" },
-                ].map(({ label, key }) => (
-                  <th
-                    key={label}
-                    onClick={() => key && toggleSort(key)}
-                    style={{
-                      textAlign: "left",
-                      padding: "12px 16px",
-                      fontSize: "11px",
-                      color: muted,
-                      fontWeight: 700,
-                      cursor: key ? "pointer" : "default",
-                      userSelect: "none",
-                      whiteSpace: "nowrap",
-                      letterSpacing: "0.03em",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {label}
-                    {key ? sortIcon(key) : ""}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {paginated.map((row) => {
-                const chg = calcChange(row.predicted_price, row.actual_price) ||
-                  CROP_CHANGES[row.crop] || { change: "—", up: true };
-                return (
-                  <tr
-                    key={row.id}
-                    style={{
-                      borderBottom: `1px solid ${border}`,
-                      transition: "background 0.1s",
-                    }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.background = rowHover)
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.background = "transparent")
-                    }
-                  >
-                    <td style={{ padding: "11px 16px" }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: "30px",
-                            height: "30px",
-                            borderRadius: "8px",
-                            background: isDark ? "#134e2b" : "#dcfce7",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "14px",
-                          }}
-                        >
-                          {CROP_EMOJI[row.crop] || "🌱"}
-                        </div>
-                        <span
-                          style={{
-                            fontSize: "13px",
-                            fontWeight: 600,
-                            color: text,
-                          }}
-                        >
-                          {row.crop}
-                        </span>
-                      </div>
-                    </td>
-                    <td
+          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                minWidth: "700px",
+              }}
+            >
+              <thead>
+                <tr
+                  style={{
+                    background: isDark ? "#0f172a" : "#f8fafc",
+                    borderBottom: `1px solid ${border}`,
+                  }}
+                >
+                  {[
+                    { label: "Crop", key: "crop" },
+                    { label: "State", key: "state" },
+                    { label: "Season", key: "season" },
+                    { label: "Month", key: "month_name" },
+                    { label: "Predicted ₹", key: "predicted_price" },
+                    { label: "Actual ₹", key: "actual_price" },
+                    { label: "Change", key: null },
+                    { label: "Confidence", key: "confidence" },
+                    { label: "Status", key: "status" },
+                    { label: "Date", key: "created_at" },
+                  ].map(({ label, key }) => (
+                    <th
+                      key={label}
+                      onClick={() => key && toggleSort(key)}
                       style={{
-                        padding: "11px 16px",
-                        fontSize: "13px",
-                        color: text,
-                        fontWeight: 500,
-                      }}
-                    >
-                      {row.state}
-                    </td>
-                    <td style={{ padding: "11px 16px" }}>
-                      <span
-                        style={{
-                          fontSize: "11px",
-                          fontWeight: 600,
-                          color: muted,
-                          background: isDark ? "#0f172a" : "#f3f4f6",
-                          padding: "3px 9px",
-                          borderRadius: "6px",
-                        }}
-                      >
-                        {row.season}
-                      </span>
-                    </td>
-                    <td
-                      style={{
-                        padding: "11px 16px",
-                        fontSize: "13px",
-                        color: text,
-                        fontWeight: 500,
-                      }}
-                    >
-                      {row.month_name}
-                    </td>
-                    <td
-                      style={{
-                        padding: "11px 16px",
-                        fontSize: "13px",
+                        textAlign: "left",
+                        padding: "12px 16px",
+                        fontSize: "11px",
+                        color: muted,
                         fontWeight: 700,
-                        color: text,
+                        cursor: key ? "pointer" : "default",
+                        userSelect: "none",
+                        whiteSpace: "nowrap",
+                        letterSpacing: "0.03em",
+                        textTransform: "uppercase",
                       }}
                     >
-                      ₹{Number(row.predicted_price).toLocaleString()}
-                    </td>
-                    <td
+                      {label}
+                      {key ? sortIcon(key) : ""}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {paginated.map((row) => {
+                  const chg = calcChange(
+                    row.predicted_price,
+                    row.actual_price,
+                  ) ||
+                    CROP_CHANGES[row.crop] || { change: "—", up: true };
+                  return (
+                    <tr
+                      key={row.id}
                       style={{
-                        padding: "11px 16px",
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        color: row.actual_price
-                          ? text
-                          : isDark
-                            ? "#475569"
-                            : "#d1d5db",
+                        borderBottom: `1px solid ${border}`,
+                        transition: "background 0.1s",
                       }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background = rowHover)
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.background = "transparent")
+                      }
                     >
-                      {row.actual_price
-                        ? `₹${Number(row.actual_price).toLocaleString()}`
-                        : "—"}
-                    </td>
-                    <td style={{ padding: "11px 16px" }}>
-                      {chg.change !== "—" ? (
+                      <td style={{ padding: "11px 16px" }}>
                         <div
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "3px",
-                          }}
-                        >
-                          {chg.up ? (
-                            <TrendingUp
-                              style={{
-                                width: "12px",
-                                height: "12px",
-                                color: "#16a34a",
-                              }}
-                            />
-                          ) : (
-                            <TrendingDown
-                              style={{
-                                width: "12px",
-                                height: "12px",
-                                color: "#ef4444",
-                              }}
-                            />
-                          )}
-                          <span
-                            style={{
-                              fontSize: "12px",
-                              fontWeight: 600,
-                              color: chg.up ? "#16a34a" : "#ef4444",
-                            }}
-                          >
-                            {chg.change}
-                          </span>
-                        </div>
-                      ) : (
-                        <span style={{ fontSize: "12px", color: muted }}>
-                          —
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ padding: "11px 16px" }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            flex: 1,
-                            height: "4px",
-                            background: isDark ? "#334155" : "#e5e7eb",
-                            borderRadius: "2px",
-                            minWidth: "48px",
+                            gap: "8px",
                           }}
                         >
                           <div
                             style={{
-                              height: "100%",
-                              width: `${row.confidence}%`,
-                              background: accuracyColor(row.confidence),
-                              borderRadius: "2px",
+                              width: "30px",
+                              height: "30px",
+                              borderRadius: "8px",
+                              background: isDark ? "#134e2b" : "#dcfce7",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "14px",
                             }}
-                          />
+                          >
+                            {CROP_EMOJI[row.crop] || "🌱"}
+                          </div>
+                          <span
+                            style={{
+                              fontSize: "13px",
+                              fontWeight: 600,
+                              color: text,
+                            }}
+                          >
+                            {row.crop}
+                          </span>
                         </div>
+                      </td>
+                      <td
+                        style={{
+                          padding: "11px 16px",
+                          fontSize: "13px",
+                          color: text,
+                          fontWeight: 500,
+                        }}
+                      >
+                        {row.state}
+                      </td>
+                      <td style={{ padding: "11px 16px" }}>
                         <span
                           style={{
                             fontSize: "11px",
-                            fontWeight: 700,
-                            color: accuracyColor(row.confidence),
+                            fontWeight: 600,
+                            color: muted,
+                            background: isDark ? "#0f172a" : "#f3f4f6",
+                            padding: "3px 9px",
+                            borderRadius: "6px",
                           }}
                         >
-                          {row.confidence}%
+                          {row.season}
                         </span>
-                      </div>
-                    </td>
-                    <td style={{ padding: "11px 16px" }}>
-                      <span
+                      </td>
+                      <td
                         style={{
-                          fontSize: "11px",
-                          fontWeight: 600,
-                          padding: "3px 10px",
-                          borderRadius: "20px",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "4px",
-                          background:
-                            row.status === "Verified"
-                              ? isDark
-                                ? "rgba(22,163,74,0.15)"
-                                : "#dcfce7"
-                              : isDark
-                                ? "rgba(245,158,11,0.15)"
-                                : "#fef3c7",
-                          color:
-                            row.status === "Verified" ? "#16a34a" : "#d97706",
-                          border: `1px solid ${row.status === "Verified" ? (isDark ? "rgba(22,163,74,0.3)" : "#86efac") : isDark ? "rgba(245,158,11,0.3)" : "#fde68a"}`,
+                          padding: "11px 16px",
+                          fontSize: "13px",
+                          color: text,
+                          fontWeight: 500,
                         }}
                       >
-                        {row.status === "Verified" ? (
-                          <CheckCircle
-                            style={{ width: "10px", height: "10px" }}
-                          />
+                        {row.month_name}
+                      </td>
+                      <td
+                        style={{
+                          padding: "11px 16px",
+                          fontSize: "13px",
+                          fontWeight: 700,
+                          color: text,
+                        }}
+                      >
+                        ₹{Number(row.predicted_price).toLocaleString()}
+                      </td>
+                      <td
+                        style={{
+                          padding: "11px 16px",
+                          fontSize: "13px",
+                          fontWeight: 600,
+                          color: row.actual_price
+                            ? text
+                            : isDark
+                              ? "#475569"
+                              : "#d1d5db",
+                        }}
+                      >
+                        {row.actual_price
+                          ? `₹${Number(row.actual_price).toLocaleString()}`
+                          : "—"}
+                      </td>
+                      <td style={{ padding: "11px 16px" }}>
+                        {chg.change !== "—" ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "3px",
+                            }}
+                          >
+                            {chg.up ? (
+                              <TrendingUp
+                                style={{
+                                  width: "12px",
+                                  height: "12px",
+                                  color: "#16a34a",
+                                }}
+                              />
+                            ) : (
+                              <TrendingDown
+                                style={{
+                                  width: "12px",
+                                  height: "12px",
+                                  color: "#ef4444",
+                                }}
+                              />
+                            )}
+                            <span
+                              style={{
+                                fontSize: "12px",
+                                fontWeight: 600,
+                                color: chg.up ? "#16a34a" : "#ef4444",
+                              }}
+                            >
+                              {chg.change}
+                            </span>
+                          </div>
                         ) : (
-                          <Clock style={{ width: "10px", height: "10px" }} />
+                          <span style={{ fontSize: "12px", color: muted }}>
+                            —
+                          </span>
                         )}
-                        {row.status}
-                      </span>
-                    </td>
-                    <td
-                      style={{
-                        padding: "11px 16px",
-                        fontSize: "12px",
-                        color: muted,
-                        fontWeight: 500,
-                      }}
-                    >
-                      {new Date(row.created_at).toLocaleDateString("en-IN", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      </td>
+                      <td style={{ padding: "11px 16px" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              flex: 1,
+                              height: "4px",
+                              background: isDark ? "#334155" : "#e5e7eb",
+                              borderRadius: "2px",
+                              minWidth: "48px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                height: "100%",
+                                width: `${row.confidence}%`,
+                                background: accuracyColor(row.confidence),
+                                borderRadius: "2px",
+                              }}
+                            />
+                          </div>
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              color: accuracyColor(row.confidence),
+                            }}
+                          >
+                            {row.confidence}%
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ padding: "11px 16px" }}>
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            padding: "3px 10px",
+                            borderRadius: "20px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            background:
+                              row.status === "Verified"
+                                ? isDark
+                                  ? "rgba(22,163,74,0.15)"
+                                  : "#dcfce7"
+                                : isDark
+                                  ? "rgba(245,158,11,0.15)"
+                                  : "#fef3c7",
+                            color:
+                              row.status === "Verified" ? "#16a34a" : "#d97706",
+                            border: `1px solid ${row.status === "Verified" ? (isDark ? "rgba(22,163,74,0.3)" : "#86efac") : isDark ? "rgba(245,158,11,0.3)" : "#fde68a"}`,
+                          }}
+                        >
+                          {row.status === "Verified" ? (
+                            <CheckCircle
+                              style={{ width: "10px", height: "10px" }}
+                            />
+                          ) : (
+                            <Clock style={{ width: "10px", height: "10px" }} />
+                          )}
+                          {row.status}
+                        </span>
+                      </td>
+                      <td
+                        style={{
+                          padding: "11px 16px",
+                          fontSize: "12px",
+                          color: muted,
+                          fontWeight: 500,
+                        }}
+                      >
+                        {new Date(row.created_at).toLocaleDateString("en-IN", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {!loadingData && paginated.length === 0 && (
@@ -957,7 +1034,7 @@ export default function History() {
           </div>
         )}
 
-        {/* Pagination */}
+        {/* ── Pagination ── */}
         {!loadingData && sorted.length > 0 && (
           <div
             style={{
@@ -966,13 +1043,15 @@ export default function History() {
               alignItems: "center",
               padding: "14px 20px",
               borderTop: `1px solid ${border}`,
+              flexWrap: "wrap",
+              gap: "8px",
             }}
           >
             <span style={{ fontSize: "12px", color: muted }}>
               Showing {Math.min((page - 1) * PER_PAGE + 1, sorted.length)}–
               {Math.min(page * PER_PAGE, sorted.length)} of {sorted.length}
             </span>
-            <div style={{ display: "flex", gap: "4px" }}>
+            <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
