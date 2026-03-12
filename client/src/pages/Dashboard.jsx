@@ -1546,7 +1546,9 @@ export default function Dashboard() {
                       key={title}
                       className="insight-card"
                       style={{
-                        background: isDark ? "rgba(0,0,0,0.2)" : "#f8fafc",
+                        background: isDark
+                          ? "rgba(255,255,255,0.05)"
+                          : "#f8fafc",
                         border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
                         borderRadius: "14px",
                         padding: "14px",
