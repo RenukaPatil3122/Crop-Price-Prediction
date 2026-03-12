@@ -577,7 +577,7 @@ export default function Dashboard() {
   const [chartLoading, setChartLoading] = useState(true);
   const [marketInsights, setMarketInsights] = useState(STATIC_INSIGHTS);
   const [liveTopCrops] = useState([]);
-  // const [showAllPredictions, setShowAllPredictions] = useState(false);
+  const [showAllPredictions, setShowAllPredictions] = useState(false);
   const [todayMarket, setTodayMarket] = useState({
     mandis: "—",
     temp: "—",
