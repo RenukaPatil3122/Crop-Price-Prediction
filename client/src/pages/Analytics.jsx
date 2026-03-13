@@ -6,6 +6,10 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   RefreshCw,
+  BarChart3,
+  Activity,
+  Globe,
+  Zap,
 } from "lucide-react";
 import {
   LineChart,
@@ -30,23 +34,368 @@ import {
 // ── Config ────────────────────────────────────────────────────────────────────
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
-const CACHE_TTL = 5 * 60 * 1000; // 5 min — don't re-fetch if data is fresh
+const CACHE_TTL = 5 * 60 * 1000;
 
 const CROP_COLORS = {
-  Wheat: "#16a34a",
-  Rice: "#2563eb",
-  Tomato: "#ea580c",
-  Onion: "#9333ea",
-  Cotton: "#0891b2",
-  Maize: "#f59e0b",
-  Soyabean: "#ec4899",
+  Wheat: "#34d399",
+  Rice: "#60a5fa",
+  Tomato: "#fb923c",
+  Onion: "#e879f9",
+  Cotton: "#22d3ee",
+  Maize: "#fbbf24",
+  Soyabean: "#a78bfa",
 };
 
 const TIME_TABS = ["3M", "6M", "12M"];
 const TIME_MONTHS = { "3M": 3, "6M": 6, "12M": 12 };
 const fmt = (n) => `₹${Number(n).toLocaleString("en-IN")}`;
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+
+function useInView(threshold = 0.1) {
+  const ref = useRef();
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const obs = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) setInView(true);
+      },
+      { threshold },
+    );
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, []);
+  return [ref, inView];
+}
+
+function useCountUp(target, duration = 1400, enabled = true) {
+  const [val, setVal] = useState(0);
+  const rafRef = useRef();
+  useEffect(() => {
+    if (!enabled) return;
+    const num = parseFloat(String(target).replace(/[^0-9.]/g, "")) || 0;
+    if (!num) return;
+    let start = null;
+    const step = (ts) => {
+      if (!start) start = ts;
+      const p = Math.min((ts - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setVal(Math.round(eased * num));
+      if (p < 1) rafRef.current = requestAnimationFrame(step);
+      else setVal(num);
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [target, duration, enabled]);
+  return val;
+}
+
+// ── Glow Stat Card ────────────────────────────────────────────────────────────
+
+function GlowStatCard({
+  label,
+  value,
+  change,
+  up,
+  sub,
+  glowColor,
+  icon: Icon,
+  isDark,
+  delay = 0,
+}) {
+  const [ref, inView] = useInView();
+  const [hovered, setHovered] = useState(false);
+  const isRupee = String(value).startsWith("₹");
+  const num = isRupee
+    ? parseFloat(String(value).replace(/[^0-9.]/g, "")) || 0
+    : 0;
+  const counted = useCountUp(num, 1400, inView && isRupee);
+  const displayVal = isRupee ? `₹${counted.toLocaleString("en-IN")}` : value;
+
+  return (
+    <div
+      ref={ref}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: "relative",
+        overflow: "hidden",
+        background: isDark
+          ? "rgba(30,41,59,0.8)"
+          : "linear-gradient(145deg,#ffffff 0%,#f8fafc 100%)",
+        borderRadius: "20px",
+        padding: "20px 22px",
+        border: `1px solid ${hovered ? glowColor + "55" : isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
+        boxShadow: hovered
+          ? `0 0 0 1px ${glowColor}30, 0 8px 40px rgba(0,0,0,0.4), 0 0 60px ${glowColor}18`
+          : isDark
+            ? "0 2px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)"
+            : "0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)",
+        transform: hovered ? "translateY(-3px)" : "translateY(0)",
+        transition: "all 0.25s cubic-bezier(0.34,1.56,0.64,1)",
+        animation: `popIn 0.55s cubic-bezier(0.34,1.56,0.64,1) ${delay}ms both`,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: "-30px",
+          right: "-20px",
+          width: "100px",
+          height: "100px",
+          borderRadius: "50%",
+          background: `radial-gradient(circle,${glowColor}22 0%,transparent 70%)`,
+          pointerEvents: "none",
+          transform: hovered ? "scale(1.5)" : "scale(1)",
+          transition: "transform 0.4s ease",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: "15%",
+          right: "15%",
+          height: "1px",
+          background: `linear-gradient(90deg,transparent,${glowColor}60,transparent)`,
+          opacity: hovered ? 1 : 0.4,
+          transition: "opacity 0.3s",
+        }}
+      />
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          position: "relative",
+        }}
+      >
+        <div>
+          <p
+            style={{
+              fontSize: "11px",
+              color: isDark ? "#94a3b8" : "#4b5563",
+              fontWeight: 700,
+              margin: 0,
+              textTransform: "uppercase",
+              letterSpacing: "0.07em",
+            }}
+          >
+            {label}
+          </p>
+          <h3
+            style={{
+              fontSize: "24px",
+              fontWeight: 800,
+              color: isDark ? "#f0f4ff" : "#0f172a",
+              margin: "7px 0 3px",
+              letterSpacing: "-0.03em",
+              fontFamily: isRupee ? "'DM Mono',monospace" : "inherit",
+              textShadow:
+                hovered && isDark ? `0 0 20px ${glowColor}40` : "none",
+              transition: "text-shadow 0.3s",
+            }}
+          >
+            {displayVal}
+          </h3>
+          <p
+            style={{
+              fontSize: "11px",
+              color: isDark ? "#94a3b8" : "#4b5563",
+              margin: 0,
+              fontWeight: 500,
+            }}
+          >
+            {sub}
+          </p>
+        </div>
+        <div
+          style={{
+            background: hovered ? `${glowColor}25` : `${glowColor}15`,
+            border: `1px solid ${hovered ? glowColor + "50" : glowColor + "30"}`,
+            borderRadius: "14px",
+            padding: "10px",
+            boxShadow: hovered ? `0 0 20px ${glowColor}30` : "none",
+            transition: "all 0.25s ease",
+            flexShrink: 0,
+          }}
+        >
+          <Icon
+            style={{
+              width: "18px",
+              height: "18px",
+              color: glowColor,
+              filter: hovered ? `drop-shadow(0 0 6px ${glowColor})` : "none",
+              transition: "filter 0.25s",
+            }}
+          />
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+          marginTop: "14px",
+          paddingTop: "12px",
+          borderTop: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}`,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "4px",
+            background:
+              up === true
+                ? "rgba(52,211,153,0.1)"
+                : up === false
+                  ? "rgba(248,113,113,0.1)"
+                  : "rgba(251,191,36,0.1)",
+            border: `1px solid ${up === true ? "rgba(52,211,153,0.2)" : up === false ? "rgba(248,113,113,0.2)" : "rgba(251,191,36,0.2)"}`,
+            borderRadius: "20px",
+            padding: "3px 8px",
+          }}
+        >
+          {up === true && <ArrowUpRight size={12} color="#34d399" />}
+          {up === false && <ArrowDownRight size={12} color="#f87171" />}
+          <span
+            style={{
+              fontSize: "12px",
+              fontWeight: 700,
+              color:
+                up === true ? "#34d399" : up === false ? "#f87171" : "#fbbf24",
+            }}
+          >
+            {change}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Custom Tooltip ────────────────────────────────────────────────────────────
+
+const ChartTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div
+      style={{
+        background: "rgba(8,12,28,0.96)",
+        border: "1px solid rgba(52,211,153,0.25)",
+        borderRadius: "12px",
+        padding: "10px 14px",
+        boxShadow: "0 0 20px rgba(52,211,153,0.1), 0 8px 24px rgba(0,0,0,0.5)",
+        backdropFilter: "blur(16px)",
+      }}
+    >
+      <p
+        style={{
+          color: "#64748b",
+          fontSize: "11px",
+          margin: "0 0 6px",
+          fontWeight: 600,
+          letterSpacing: "0.04em",
+        }}
+      >
+        {label}
+      </p>
+      {payload.map((p) => (
+        <div
+          key={p.dataKey}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            marginBottom: "3px",
+          }}
+        >
+          <div
+            style={{
+              width: "7px",
+              height: "7px",
+              borderRadius: "50%",
+              background: p.color,
+              boxShadow: `0 0 6px ${p.color}80`,
+            }}
+          />
+          <span
+            style={{ color: "#94a3b8", fontSize: "11px", minWidth: "52px" }}
+          >
+            {p.name}
+          </span>
+          <span
+            style={{
+              color: "white",
+              fontWeight: 800,
+              fontSize: "13px",
+              fontFamily: "'DM Mono',monospace",
+            }}
+          >
+            {typeof p.value === "number" ? fmt(p.value) : p.value}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ── Card Shell ────────────────────────────────────────────────────────────────
+
+function Card({
+  children,
+  isDark,
+  cardBorder,
+  cardShadow,
+  style = {},
+  className = "",
+}) {
+  return (
+    <div
+      className={className}
+      style={{
+        background: isDark ? "rgba(30,41,59,0.8)" : "white",
+        borderRadius: "22px",
+        border: `1px solid ${cardBorder}`,
+        boxShadow: cardShadow,
+        position: "relative",
+        overflow: "hidden",
+        ...style,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: "15%",
+          right: "15%",
+          height: "1px",
+          background: `linear-gradient(90deg,transparent,${isDark ? "rgba(52,211,153,0.3)" : "rgba(22,163,74,0.2)"},transparent)`,
+          pointerEvents: "none",
+        }}
+      />
+      {isDark && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: "22px",
+            backgroundImage:
+              "radial-gradient(rgba(52,211,153,0.025) 1px,transparent 1px)",
+            backgroundSize: "28px 28px",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+      {children}
+    </div>
+  );
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function Analytics() {
   const { isDark } = useTheme();
@@ -57,18 +406,11 @@ export default function Analytics() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lastFetch, setLastFetch] = useState(null);
-
-  // Cache: { "6": { data, ts }, "3": {...}, "12": {...} }
   const cache = useRef({});
-
-  // ── Fetch ───────────────────────────────────────────────────────────────────
 
   const fetchSummary = useCallback(async (months, force = false) => {
     const key = String(months);
-
-    setError(""); // ← ADD THIS LINE HERE (before cache check)
-
-    // Serve from cache if fresh enough
+    setError("");
     if (!force && cache.current[key]) {
       const age = Date.now() - cache.current[key].ts;
       if (age < CACHE_TTL) {
@@ -78,10 +420,7 @@ export default function Analytics() {
         return;
       }
     }
-
     setLoading(true);
-    setError("");
-
     try {
       const ctrl = new AbortController();
       const tid = setTimeout(() => ctrl.abort(), 15000);
@@ -104,7 +443,7 @@ export default function Analytics() {
         setError("⏳ Model is training (~60s). Auto-retrying in 15s...");
         setTimeout(() => fetchSummary(months, true), 15000);
       } else {
-        setError(`Backend error: ${err.message}`);
+        setError(`Backend offline — ${err.message}`);
       }
     } finally {
       setLoading(false);
@@ -113,14 +452,7 @@ export default function Analytics() {
 
   useEffect(() => {
     fetchSummary(TIME_MONTHS[activeTime]);
-  }, [activeTime]); // ← was []
-
-  const handleTimeChange = (tab) => {
-    setActiveTime(tab);
-    fetchSummary(TIME_MONTHS[tab]); // uses cache if available
-  };
-
-  // ── Derived ─────────────────────────────────────────────────────────────────
+  }, [activeTime]);
 
   const dashboard = data?.dashboard || [];
   const allCrops = data?.crops || Object.keys(CROP_COLORS);
@@ -128,7 +460,6 @@ export default function Analytics() {
   const radarData = data?.radar || [];
   const regionData = data?.regional || [];
   const volatilityData = data?.history || [];
-
   const visibleCrops = activeCrop === "All" ? allCrops : [activeCrop];
 
   const avgPrice = dashboard.length
@@ -156,6 +487,8 @@ export default function Analytics() {
           change: "+8.3%",
           up: true,
           sub: "Across all crops",
+          glowColor: "#34d399",
+          icon: BarChart3,
         },
         {
           label: "Most Volatile",
@@ -163,13 +496,17 @@ export default function Analytics() {
           change: `±${Math.round(((mostVolatile?.max_price - mostVolatile?.min_price) / mostVolatile?.predicted_price) * 100)}%`,
           up: null,
           sub: "Price swing range",
+          glowColor: "#fbbf24",
+          icon: Activity,
         },
         {
           label: "Best Confidence",
           value: bestConf?.crop || "—",
           change: `${bestConf?.confidence || 0}%`,
           up: true,
-          sub: "Model confidence",
+          sub: "Model accuracy",
+          glowColor: "#60a5fa",
+          icon: Zap,
         },
         {
           label: "Lowest Price",
@@ -177,40 +514,34 @@ export default function Analytics() {
           change: fmt(lowestP?.predicted_price || 0),
           up: false,
           sub: "Current prediction",
+          glowColor: "#f87171",
+          icon: Globe,
         },
       ]
     : [];
 
-  // ── Theme ───────────────────────────────────────────────────────────────────
+  const cardBorder = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
+  const text = isDark ? "#e8edf8" : "#0f172a";
+  const muted = isDark ? "#94a3b8" : "#4b5563";
+  const cardShadow = isDark
+    ? "0 2px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)"
+    : "0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)";
+  const gridC = isDark ? "rgba(255,255,255,0.04)" : "#f0f0f0";
 
-  const card = isDark ? "#1e293b" : "white";
-  const border = isDark ? "#334155" : "#f3f4f6";
-  const text = isDark ? "#f1f5f9" : "#1f2937";
-  const muted = isDark ? "#94a3b8" : "#6b7280";
-  const faint = isDark ? "#64748b" : "#9ca3af";
-  const bg2 = isDark ? "#0f172a" : "#f9fafb";
-  const gridC = isDark ? "#334155" : "#F0F0F0";
-  const tt = {
-    borderRadius: "10px",
-    border: `1px solid ${border}`,
-    fontSize: "12px",
-    background: card,
-    color: text,
-  };
-
-  const TabBtn = ({ label, active, onClick, color = "#16a34a" }) => (
+  const TabBtn = ({ label, active, onClick, color = "#34d399" }) => (
     <button
       onClick={onClick}
       style={{
-        padding: "4px 10px",
-        borderRadius: "6px",
+        padding: "5px 11px",
+        borderRadius: "8px",
         fontSize: "11px",
-        fontWeight: 600,
+        fontWeight: 700,
         border: "none",
         cursor: "pointer",
         transition: "all 0.15s",
         background: active ? color : "transparent",
-        color: active ? "white" : muted,
+        color: active ? (isDark ? "#071a0e" : "white") : muted,
+        boxShadow: active ? `0 0 10px ${color}40` : "none",
       }}
     >
       {label}
@@ -222,9 +553,9 @@ export default function Analytics() {
       style={{
         height: h,
         width: w,
-        borderRadius: 8,
-        background: isDark ? "#334155" : "#e5e7eb",
-        animation: "skpulse 1.4s ease-in-out infinite",
+        borderRadius: 10,
+        background: isDark ? "rgba(255,255,255,0.06)" : "#e5e7eb",
+        animation: "skpulse 1.4s ease infinite",
       }}
     />
   );
@@ -239,7 +570,7 @@ export default function Analytics() {
           alignItems: "center",
           justifyContent: "center",
           height: "100%",
-          color: faint,
+          color: muted,
           fontSize: 13,
         }}
       >
@@ -249,14 +580,31 @@ export default function Analytics() {
       children
     );
 
-  // ── Render ──────────────────────────────────────────────────────────────────
-
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      <style>{`@keyframes skpulse{0%,100%{opacity:1}50%{opacity:.45}} @keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
+      <style>{`
+        @keyframes skpulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+        @keyframes fadeUp  { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes popIn   { 0%{opacity:0;transform:scale(0.92) translateY(10px)} 60%{transform:scale(1.02)} 100%{opacity:1;transform:scale(1)} }
+        @keyframes spin    { to{transform:rotate(360deg)} }
+        @keyframes pulse   { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
-      {/* Header */}
+        .an-fade-1 { animation: fadeUp 0.45s 0.00s ease both; }
+        .an-fade-2 { animation: fadeUp 0.45s 0.07s ease both; }
+        .an-fade-3 { animation: fadeUp 0.45s 0.14s ease both; }
+        .an-fade-4 { animation: fadeUp 0.45s 0.21s ease both; }
+        .an-fade-5 { animation: fadeUp 0.45s 0.28s ease both; }
+
+        .pulse-dot { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; }
+        .table-row { transition: background 0.15s; }
+        .table-row:hover { background: ${isDark ? "rgba(52,211,153,0.04)" : "#f0fdf4"} !important; }
+        .refresh-btn { transition: all 0.18s ease; }
+        .refresh-btn:hover:not(:disabled) { background: ${isDark ? "rgba(52,211,153,0.1)" : "#f0fdf4"} !important; border-color: rgba(52,211,153,0.3) !important; color: #34d399 !important; }
+      `}</style>
+
+      {/* HEADER */}
       <div
+        className="an-fade-1"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -267,39 +615,49 @@ export default function Analytics() {
           <h1
             style={{
               fontSize: "22px",
-              fontWeight: 700,
+              fontWeight: 800,
               color: text,
               margin: 0,
+              letterSpacing: "-0.02em",
             }}
           >
             Market Analytics
           </h1>
-          <p style={{ fontSize: "13px", color: faint, marginTop: "4px" }}>
+          <p
+            style={{
+              fontSize: "13px",
+              color: muted,
+              marginTop: "4px",
+              fontWeight: 400,
+            }}
+          >
             Price trends, regional insights &amp; crop performance overview
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {lastFetch && !loading && (
-            <span style={{ fontSize: "11px", color: faint }}>
+            <span style={{ fontSize: "11px", color: muted }}>
               Updated {lastFetch.toLocaleTimeString()}
             </span>
           )}
           <button
+            className="refresh-btn"
             onClick={() => fetchSummary(TIME_MONTHS[activeTime], true)}
             disabled={loading}
             style={{
               display: "flex",
               alignItems: "center",
               gap: 6,
-              padding: "7px 14px",
-              borderRadius: "10px",
-              border: `1px solid ${border}`,
-              background: card,
+              padding: "9px 16px",
+              borderRadius: "12px",
+              border: `1px solid ${cardBorder}`,
+              background: isDark ? "rgba(30,41,59,0.8)" : "white",
               color: text,
               fontSize: "13px",
-              fontWeight: 600,
+              fontWeight: 700,
               cursor: loading ? "not-allowed" : "pointer",
               opacity: loading ? 0.6 : 1,
+              boxShadow: cardShadow,
             }}
           >
             <RefreshCw
@@ -313,24 +671,26 @@ export default function Analytics() {
         </div>
       </div>
 
-      {/* Error */}
+      {/* ERROR */}
       {error && (
         <div
           style={{
-            background: isDark ? "rgba(239,68,68,0.1)" : "#fef2f2",
-            border: `1px solid ${isDark ? "rgba(239,68,68,0.3)" : "#fecaca"}`,
-            borderRadius: "10px",
+            background: isDark ? "rgba(248,113,113,0.08)" : "#fef2f2",
+            border: "1px solid rgba(248,113,113,0.25)",
+            borderRadius: "12px",
             padding: "12px 16px",
-            color: "#ef4444",
+            color: "#f87171",
             fontSize: "13px",
+            fontWeight: 500,
           }}
         >
           ⚠️ {error}
         </div>
       )}
 
-      {/* Stat Cards */}
+      {/* STAT CARDS */}
       <div
+        className="an-fade-2"
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr 1fr 1fr",
@@ -344,93 +704,39 @@ export default function Analytics() {
                 <div
                   key={i}
                   style={{
-                    background: card,
-                    borderRadius: "14px",
-                    border: `1px solid ${border}`,
-                    padding: "18px",
+                    background: isDark ? "rgba(30,41,59,0.8)" : "white",
+                    borderRadius: "20px",
+                    border: `1px solid ${cardBorder}`,
+                    padding: "20px",
                     display: "flex",
                     flexDirection: "column",
                     gap: 10,
                   }}
                 >
-                  <Skeleton h={12} w="60%" />
-                  <Skeleton h={24} w="80%" />
-                  <Skeleton h={10} w="50%" />
+                  <Skeleton h={11} w="55%" />
+                  <Skeleton h={24} w="75%" />
+                  <Skeleton h={10} w="45%" />
                 </div>
               ))
-          : statCards.map(({ label, value, change, up, sub }) => (
-              <div
-                key={label}
-                style={{
-                  background: card,
-                  borderRadius: "14px",
-                  border: `1px solid ${border}`,
-                  boxShadow: isDark ? "none" : "0 1px 3px rgba(0,0,0,0.07)",
-                  padding: "18px",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "12px",
-                    color: muted,
-                    fontWeight: 500,
-                    marginBottom: "6px",
-                  }}
-                >
-                  {label}
-                </div>
-                <div
-                  style={{
-                    fontSize: "20px",
-                    fontWeight: 700,
-                    color: text,
-                    marginBottom: "4px",
-                  }}
-                >
-                  {value}
-                </div>
-                <div
-                  style={{ display: "flex", alignItems: "center", gap: "4px" }}
-                >
-                  {up === true && <ArrowUpRight size={13} color="#16a34a" />}
-                  {up === false && <ArrowDownRight size={13} color="#ef4444" />}
-                  <span
-                    style={{
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      color:
-                        up === true
-                          ? "#16a34a"
-                          : up === false
-                            ? "#ef4444"
-                            : "#f59e0b",
-                    }}
-                  >
-                    {change}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      color: faint,
-                      marginLeft: "2px",
-                    }}
-                  >
-                    · {sub}
-                  </span>
-                </div>
-              </div>
+          : statCards.map((c, i) => (
+              <GlowStatCard
+                key={c.label}
+                {...c}
+                isDark={isDark}
+                delay={i * 80}
+              />
             ))}
       </div>
 
-      {/* Trend Chart */}
-      <div
+      {/* TREND CHART */}
+      <Card
+        isDark={isDark}
+        cardBorder={cardBorder}
+        cardShadow={cardShadow}
+        className="an-fade-3"
         style={{
-          background: card,
-          borderRadius: "16px",
-          border: `1px solid ${border}`,
-          boxShadow: isDark ? "none" : "0 1px 3px rgba(0,0,0,0.07)",
-          padding: "20px",
-          height: "340px",
+          padding: "22px 22px 12px",
+          height: "360px",
           display: "flex",
           flexDirection: "column",
         }}
@@ -439,27 +745,72 @@ export default function Analytics() {
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "14px",
+            alignItems: "flex-start",
+            marginBottom: "16px",
             flexShrink: 0,
+            position: "relative",
           }}
         >
           <div>
-            <div style={{ fontSize: "15px", fontWeight: 700, color: text }}>
-              Price Trend Analysis
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span
+                style={{
+                  fontSize: "15px",
+                  fontWeight: 800,
+                  color: text,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Price Trend Analysis
+              </span>
+              <span
+                style={{
+                  fontSize: "10px",
+                  background: isDark ? "rgba(52,211,153,0.1)" : "#dcfce7",
+                  color: "#34d399",
+                  padding: "3px 9px",
+                  borderRadius: "20px",
+                  fontWeight: 700,
+                  border: "1px solid rgba(52,211,153,0.25)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "5px",
+                }}
+              >
+                <span
+                  className="pulse-dot"
+                  style={{
+                    width: "5px",
+                    height: "5px",
+                    borderRadius: "50%",
+                    background: "#34d399",
+                    display: "inline-block",
+                  }}
+                />
+                ML Forecast
+              </span>
             </div>
-            <div style={{ fontSize: "11px", color: faint }}>
-              ₹ per quintal · ML forecast
+            <div style={{ fontSize: "11px", color: muted, marginTop: "2px" }}>
+              ₹ per quintal · forecast
             </div>
           </div>
-          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: "8px",
+              alignItems: "center",
+              flexWrap: "wrap",
+              justifyContent: "flex-end",
+            }}
+          >
             <div
               style={{
                 display: "flex",
-                background: bg2,
-                borderRadius: "8px",
+                background: isDark ? "rgba(0,0,0,0.3)" : "#f1f5f9",
+                borderRadius: "12px",
                 padding: "3px",
                 gap: "2px",
+                border: `1px solid ${cardBorder}`,
               }}
             >
               <TabBtn
@@ -473,17 +824,18 @@ export default function Analytics() {
                   label={c}
                   active={activeCrop === c}
                   onClick={() => setActiveCrop(c)}
-                  color={CROP_COLORS[c] || "#16a34a"}
+                  color={CROP_COLORS[c] || "#34d399"}
                 />
               ))}
             </div>
             <div
               style={{
                 display: "flex",
-                background: bg2,
-                borderRadius: "8px",
+                background: isDark ? "rgba(0,0,0,0.3)" : "#f1f5f9",
+                borderRadius: "12px",
                 padding: "3px",
                 gap: "2px",
+                border: `1px solid ${cardBorder}`,
               }}
             >
               {TIME_TABS.map((t) => (
@@ -491,36 +843,54 @@ export default function Analytics() {
                   key={t}
                   label={t}
                   active={activeTime === t}
-                  onClick={() => handleTimeChange(t)}
-                  color={isDark ? "#334155" : "#1f2937"}
+                  onClick={() => {
+                    setActiveTime(t);
+                    fetchSummary(TIME_MONTHS[t]);
+                  }}
+                  color="#34d399"
                 />
               ))}
             </div>
           </div>
         </div>
-        <div style={{ flex: 1, minHeight: 0 }}>
+        <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
           <ChartWrap empty={!trendData.length}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridC} />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: faint }} />
-                <YAxis tick={{ fontSize: 11, fill: faint }} />
-                <Tooltip
-                  contentStyle={tt}
-                  formatter={(v, n) => [
-                    `₹${Number(v).toLocaleString("en-IN")}`,
-                    n,
-                  ]}
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke={gridC}
+                  vertical={false}
                 />
-                <Legend wrapperStyle={{ fontSize: "12px", color: muted }} />
+                <XAxis
+                  dataKey="month"
+                  tick={{ fontSize: 11, fill: muted }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: muted }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={52}
+                />
+                <Tooltip content={<ChartTooltip />} />
+                <Legend
+                  wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
+                />
                 {visibleCrops.map((crop) => (
                   <Line
                     key={crop}
                     type="monotone"
                     dataKey={crop}
-                    stroke={CROP_COLORS[crop] || "#16a34a"}
+                    stroke={CROP_COLORS[crop] || "#34d399"}
                     strokeWidth={2.5}
-                    dot={{ r: 3 }}
+                    dot={{ r: 3, fill: CROP_COLORS[crop], strokeWidth: 0 }}
+                    activeDot={{
+                      r: 5,
+                      strokeWidth: 2,
+                      stroke: (CROP_COLORS[crop] || "#34d399") + "60",
+                    }}
                     name={crop}
                     connectNulls
                   />
@@ -529,10 +899,11 @@ export default function Analytics() {
             </ResponsiveContainer>
           </ChartWrap>
         </div>
-      </div>
+      </Card>
 
-      {/* Bottom 3 charts */}
+      {/* BOTTOM 3 CHARTS */}
       <div
+        className="an-fade-4"
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr 1fr",
@@ -540,73 +911,156 @@ export default function Analytics() {
         }}
       >
         {/* Regional Bar */}
-        <div
+        <Card
+          isDark={isDark}
+          cardBorder={cardBorder}
+          cardShadow={cardShadow}
           style={{
-            background: card,
-            borderRadius: "16px",
-            border: `1px solid ${border}`,
-            padding: "20px",
-            height: "300px",
+            padding: "22px",
+            height: "320px",
             display: "flex",
             flexDirection: "column",
           }}
         >
-          <div style={{ marginBottom: "12px", flexShrink: 0 }}>
-            <div style={{ fontSize: "14px", fontWeight: 700, color: text }}>
-              Avg Price by Region
+          <div
+            style={{
+              marginBottom: "14px",
+              flexShrink: 0,
+              position: "relative",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                marginBottom: "3px",
+              }}
+            >
+              <div
+                style={{
+                  background: isDark ? "rgba(52,211,153,0.1)" : "#f0fdf4",
+                  border: "1px solid rgba(52,211,153,0.2)",
+                  borderRadius: "8px",
+                  padding: "6px",
+                }}
+              >
+                <Globe
+                  style={{ width: "13px", height: "13px", color: "#34d399" }}
+                />
+              </div>
+              <span
+                style={{
+                  fontSize: "14px",
+                  fontWeight: 800,
+                  color: text,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Avg Price by Region
+              </span>
             </div>
-            <div style={{ fontSize: "11px", color: faint }}>
+            <div style={{ fontSize: "11px", color: muted }}>
               ₹ per quintal · live mandi data
             </div>
           </div>
           <div style={{ flex: 1, minHeight: 0 }}>
             <ChartWrap empty={!regionData.length}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={regionData} layout="vertical" barSize={14}>
+                <BarChart data={regionData} layout="vertical" barSize={12}>
+                  <defs>
+                    <linearGradient id="barRegion" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#34d399" stopOpacity={0.9} />
+                      <stop
+                        offset="100%"
+                        stopColor="#16a34a"
+                        stopOpacity={0.7}
+                      />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid
                     strokeDasharray="3 3"
                     stroke={gridC}
                     horizontal={false}
                   />
-                  <XAxis type="number" tick={{ fontSize: 10, fill: faint }} />
+                  <XAxis
+                    type="number"
+                    tick={{ fontSize: 10, fill: muted }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
                   <YAxis
                     dataKey="region"
                     type="category"
                     tick={{ fontSize: 11, fill: muted }}
-                    width={72}
+                    width={74}
+                    axisLine={false}
+                    tickLine={false}
                   />
-                  <Tooltip
-                    contentStyle={tt}
-                    formatter={(v) => [fmt(v), "Avg Price"]}
-                  />
+                  <Tooltip content={<ChartTooltip />} />
                   <Bar
                     dataKey="avgPrice"
-                    fill="#16a34a"
-                    radius={[0, 6, 6, 0]}
+                    fill="url(#barRegion)"
+                    radius={[0, 8, 8, 0]}
+                    name="Avg Price"
                   />
                 </BarChart>
               </ResponsiveContainer>
             </ChartWrap>
           </div>
-        </div>
+        </Card>
 
         {/* Volatility */}
-        <div
+        <Card
+          isDark={isDark}
+          cardBorder={cardBorder}
+          cardShadow={cardShadow}
           style={{
-            background: card,
-            borderRadius: "16px",
-            border: `1px solid ${border}`,
-            padding: "20px",
-            height: "300px",
+            padding: "22px",
+            height: "320px",
             display: "flex",
             flexDirection: "column",
           }}
         >
-          <div style={{ marginBottom: "12px", flexShrink: 0 }}>
-            <div style={{ fontSize: "14px", fontWeight: 700, color: text }}>
-              Wheat Price Volatility
+          <div
+            style={{
+              marginBottom: "14px",
+              flexShrink: 0,
+              position: "relative",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                marginBottom: "3px",
+              }}
+            >
+              <div
+                style={{
+                  background: isDark ? "rgba(251,191,36,0.1)" : "#fffbeb",
+                  border: "1px solid rgba(251,191,36,0.2)",
+                  borderRadius: "8px",
+                  padding: "6px",
+                }}
+              >
+                <Activity
+                  style={{ width: "13px", height: "13px", color: "#fbbf24" }}
+                />
+              </div>
+              <span
+                style={{
+                  fontSize: "14px",
+                  fontWeight: 800,
+                  color: text,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Wheat Price Volatility
+              </span>
             </div>
-            <div style={{ fontSize: "11px", color: faint }}>
+            <div style={{ fontSize: "11px", color: muted }}>
               High / Low / Average range
             </div>
           </div>
@@ -616,30 +1070,40 @@ export default function Analytics() {
                 <AreaChart data={volatilityData}>
                   <defs>
                     <linearGradient id="highGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop
-                        offset="5%"
-                        stopColor="#16a34a"
-                        stopOpacity={0.15}
-                      />
-                      <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#34d399" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke={gridC} />
-                  <XAxis dataKey="month" tick={{ fontSize: 10, fill: faint }} />
-                  <YAxis tick={{ fontSize: 10, fill: faint }} />
-                  <Tooltip contentStyle={tt} formatter={(v) => [fmt(v), ""]} />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke={gridC}
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fontSize: 10, fill: muted }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10, fill: muted }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={48}
+                  />
+                  <Tooltip content={<ChartTooltip />} />
                   <Area
                     type="monotone"
                     dataKey="high"
-                    stroke="#16a34a"
-                    strokeWidth={1.5}
+                    stroke="#34d399"
+                    strokeWidth={2}
                     fill="url(#highGrad)"
                     name="High"
                   />
                   <Area
                     type="monotone"
                     dataKey="avg"
-                    stroke="#f59e0b"
+                    stroke="#fbbf24"
                     strokeWidth={2}
                     fill="transparent"
                     strokeDasharray="4 3"
@@ -648,8 +1112,8 @@ export default function Analytics() {
                   <Area
                     type="monotone"
                     dataKey="low"
-                    stroke="#ef4444"
-                    strokeWidth={1.5}
+                    stroke="#f87171"
+                    strokeWidth={2}
                     fill="transparent"
                     name="Low"
                   />
@@ -657,25 +1121,59 @@ export default function Analytics() {
               </ResponsiveContainer>
             </ChartWrap>
           </div>
-        </div>
+        </Card>
 
         {/* Radar */}
-        <div
+        <Card
+          isDark={isDark}
+          cardBorder={cardBorder}
+          cardShadow={cardShadow}
           style={{
-            background: card,
-            borderRadius: "16px",
-            border: `1px solid ${border}`,
-            padding: "20px",
-            height: "300px",
+            padding: "22px",
+            height: "320px",
             display: "flex",
             flexDirection: "column",
           }}
         >
-          <div style={{ marginBottom: "12px", flexShrink: 0 }}>
-            <div style={{ fontSize: "14px", fontWeight: 700, color: text }}>
-              Crop Performance Score
+          <div
+            style={{
+              marginBottom: "14px",
+              flexShrink: 0,
+              position: "relative",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                marginBottom: "3px",
+              }}
+            >
+              <div
+                style={{
+                  background: isDark ? "rgba(96,165,250,0.1)" : "#eff6ff",
+                  border: "1px solid rgba(96,165,250,0.2)",
+                  borderRadius: "8px",
+                  padding: "6px",
+                }}
+              >
+                <BarChart3
+                  style={{ width: "13px", height: "13px", color: "#60a5fa" }}
+                />
+              </div>
+              <span
+                style={{
+                  fontSize: "14px",
+                  fontWeight: 800,
+                  color: text,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Crop Performance Score
+              </span>
             </div>
-            <div style={{ fontSize: "11px", color: faint }}>
+            <div style={{ fontSize: "11px", color: muted }}>
               This season vs last season
             </div>
           </div>
@@ -683,68 +1181,136 @@ export default function Analytics() {
             <ChartWrap empty={!radarData.length}>
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={radarData}>
-                  <PolarGrid stroke={isDark ? "#334155" : "#e5e7eb"} />
+                  <PolarGrid
+                    stroke={isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb"}
+                  />
                   <PolarAngleAxis
                     dataKey="subject"
                     tick={{ fontSize: 11, fill: muted }}
                   />
-                  <PolarRadiusAxis tick={{ fontSize: 9, fill: faint }} />
+                  <PolarRadiusAxis tick={{ fontSize: 9, fill: muted }} />
                   <Radar
                     name="This Season"
                     dataKey="A"
-                    stroke="#16a34a"
-                    fill="#16a34a"
-                    fillOpacity={0.25}
+                    stroke="#34d399"
+                    fill="#34d399"
+                    fillOpacity={0.2}
                     strokeWidth={2}
                   />
                   <Radar
                     name="Last Season"
                     dataKey="B"
-                    stroke="#2563eb"
-                    fill="#2563eb"
+                    stroke="#60a5fa"
+                    fill="#60a5fa"
                     fillOpacity={0.15}
                     strokeWidth={2}
                   />
-                  <Legend wrapperStyle={{ fontSize: "11px", color: muted }} />
-                  <Tooltip contentStyle={tt} />
+                  <Legend wrapperStyle={{ fontSize: "11px" }} />
+                  <Tooltip content={<ChartTooltip />} />
                 </RadarChart>
               </ResponsiveContainer>
             </ChartWrap>
           </div>
-        </div>
+        </Card>
       </div>
 
-      {/* Regional Table */}
-      <div
-        style={{
-          background: card,
-          borderRadius: "16px",
-          border: `1px solid ${border}`,
-          padding: "20px",
-        }}
+      {/* REGIONAL TABLE */}
+      <Card
+        isDark={isDark}
+        cardBorder={cardBorder}
+        cardShadow={cardShadow}
+        className="an-fade-5"
+        style={{ padding: "22px" }}
       >
         <div
           style={{
-            fontSize: "15px",
-            fontWeight: 700,
-            color: text,
-            marginBottom: "16px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "18px",
+            position: "relative",
           }}
         >
-          Regional Market Summary
+          <div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                marginBottom: "3px",
+              }}
+            >
+              <div
+                style={{
+                  background: isDark ? "rgba(52,211,153,0.1)" : "#f0fdf4",
+                  border: "1px solid rgba(52,211,153,0.2)",
+                  borderRadius: "8px",
+                  padding: "7px",
+                }}
+              >
+                <Globe
+                  style={{ width: "14px", height: "14px", color: "#34d399" }}
+                />
+              </div>
+              <span
+                style={{
+                  fontSize: "15px",
+                  fontWeight: 800,
+                  color: text,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Regional Market Summary
+              </span>
+            </div>
+            <div style={{ fontSize: "11px", color: muted }}>
+              Live data from Indian agricultural mandis
+            </div>
+          </div>
+          <span
+            style={{
+              fontSize: "10px",
+              background: isDark ? "rgba(52,211,153,0.1)" : "#dcfce7",
+              color: "#34d399",
+              padding: "4px 10px",
+              borderRadius: "20px",
+              fontWeight: 700,
+              border: "1px solid rgba(52,211,153,0.25)",
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+            }}
+          >
+            <span
+              className="pulse-dot"
+              style={{
+                width: "6px",
+                height: "6px",
+                borderRadius: "50%",
+                background: "#34d399",
+                display: "inline-block",
+              }}
+            />
+            Live
+          </span>
         </div>
+
         {loading ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {Array(6)
               .fill(0)
               .map((_, i) => (
-                <Skeleton key={i} h={40} />
+                <Skeleton key={i} h={44} />
               ))}
           </div>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ borderBottom: `2px solid ${border}` }}>
+              <tr
+                style={{
+                  borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
+                }}
+              >
                 {[
                   "Region",
                   "Avg Price (₹/qtl)",
@@ -756,10 +1322,12 @@ export default function Analytics() {
                     key={h}
                     style={{
                       textAlign: "left",
-                      padding: "8px 12px",
-                      fontSize: "12px",
-                      color: faint,
-                      fontWeight: 600,
+                      padding: "10px 14px",
+                      fontSize: "11px",
+                      color: muted,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
                     }}
                   >
                     {h}
@@ -771,13 +1339,16 @@ export default function Analytics() {
               {regionData.map(({ region, avgPrice, volume, growth }) => (
                 <tr
                   key={region}
-                  style={{ borderBottom: `1px solid ${border}` }}
+                  className="table-row"
+                  style={{
+                    borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "#f1f5f9"}`,
+                  }}
                 >
                   <td
                     style={{
-                      padding: "10px 12px",
+                      padding: "12px 14px",
                       fontSize: "13px",
-                      fontWeight: 600,
+                      fontWeight: 700,
                       color: text,
                     }}
                   >
@@ -785,41 +1356,44 @@ export default function Analytics() {
                   </td>
                   <td
                     style={{
-                      padding: "10px 12px",
+                      padding: "12px 14px",
                       fontSize: "13px",
-                      fontWeight: 700,
+                      fontWeight: 800,
                       color: text,
+                      fontFamily: "'DM Mono',monospace",
+                      letterSpacing: "-0.02em",
                     }}
                   >
                     {avgPrice ? (
                       fmt(avgPrice)
                     ) : (
-                      <span style={{ color: faint }}>—</span>
+                      <span style={{ color: muted }}>—</span>
                     )}
                   </td>
                   <td
                     style={{
-                      padding: "10px 12px",
+                      padding: "12px 14px",
                       fontSize: "13px",
                       color: muted,
                     }}
                   >
                     {Number(volume).toLocaleString()} qtl
                   </td>
-                  <td style={{ padding: "10px 12px" }}>
+                  <td style={{ padding: "12px 14px" }}>
                     <div
-                      style={{ display: "flex", alignItems: "center", gap: 4 }}
+                      style={{ display: "flex", alignItems: "center", gap: 5 }}
                     >
                       {growth >= 0 ? (
-                        <TrendingUp size={13} color="#16a34a" />
+                        <TrendingUp size={13} color="#34d399" />
                       ) : (
-                        <TrendingDown size={13} color="#ef4444" />
+                        <TrendingDown size={13} color="#f87171" />
                       )}
                       <span
                         style={{
                           fontSize: "13px",
-                          fontWeight: 600,
-                          color: growth >= 0 ? "#16a34a" : "#ef4444",
+                          fontWeight: 700,
+                          color: growth >= 0 ? "#34d399" : "#f87171",
+                          fontFamily: "'DM Mono',monospace",
                         }}
                       >
                         {growth >= 0 ? "+" : ""}
@@ -827,31 +1401,32 @@ export default function Analytics() {
                       </span>
                     </div>
                   </td>
-                  <td style={{ padding: "10px 12px" }}>
+                  <td style={{ padding: "12px 14px" }}>
                     <span
                       style={{
                         fontSize: "11px",
-                        fontWeight: 600,
-                        padding: "3px 10px",
+                        fontWeight: 700,
+                        padding: "4px 12px",
                         borderRadius: "20px",
                         background:
                           growth > 10
                             ? isDark
-                              ? "rgba(22,163,74,0.15)"
+                              ? "rgba(52,211,153,0.12)"
                               : "#f0fdf4"
                             : growth > 0
                               ? isDark
-                                ? "rgba(245,158,11,0.15)"
+                                ? "rgba(251,191,36,0.12)"
                                 : "#fffbeb"
                               : isDark
-                                ? "rgba(239,68,68,0.15)"
+                                ? "rgba(248,113,113,0.12)"
                                 : "#fef2f2",
                         color:
                           growth > 10
-                            ? "#16a34a"
+                            ? "#34d399"
                             : growth > 0
-                              ? "#d97706"
-                              : "#ef4444",
+                              ? "#fbbf24"
+                              : "#f87171",
+                        border: `1px solid ${growth > 10 ? "rgba(52,211,153,0.2)" : growth > 0 ? "rgba(251,191,36,0.2)" : "rgba(248,113,113,0.2)"}`,
                       }}
                     >
                       {growth > 10
@@ -866,7 +1441,7 @@ export default function Analytics() {
             </tbody>
           </table>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
