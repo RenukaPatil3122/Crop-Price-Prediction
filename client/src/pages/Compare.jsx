@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTheme } from "../context/ThemeContext";
 import {
   RadarChart,
@@ -51,7 +51,6 @@ const ALL_STATES = [
   "Karnataka",
   "Andhra Pradesh",
 ];
-
 const CROP_EMOJI = {
   Wheat: "🌾",
   Rice: "🍚",
@@ -63,9 +62,8 @@ const CROP_EMOJI = {
   Potato: "🥔",
   Mustard: "🌻",
 };
-const CROP_COLORS = ["#16a34a", "#2563eb", "#f59e0b", "#ef4444", "#8b5cf6"];
+const CROP_COLORS = ["#34d399", "#60a5fa", "#fbbf24", "#f87171", "#a78bfa"];
 
-// Fallback if API call fails — same as before
 const CROP_META_FALLBACK = {
   Wheat: {
     season: "Rabi",
@@ -154,6 +152,123 @@ const DEFAULT_SLOTS = [
   { crop: "Rice", state: "Maharashtra" },
 ];
 
+/* ── Card Shell ─────────────────────────────────────────────────────────────── */
+function Card({
+  children,
+  isDark,
+  cardBorder,
+  cardShadow,
+  style = {},
+  className = "",
+}) {
+  return (
+    <div
+      className={className}
+      style={{
+        background: isDark ? "rgba(30,41,59,0.8)" : "white",
+        borderRadius: "22px",
+        border: `1px solid ${cardBorder}`,
+        boxShadow: cardShadow,
+        position: "relative",
+        overflow: "hidden",
+        ...style,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: "15%",
+          right: "15%",
+          height: "1px",
+          background: `linear-gradient(90deg,transparent,${isDark ? "rgba(52,211,153,0.3)" : "rgba(22,163,74,0.2)"},transparent)`,
+          pointerEvents: "none",
+        }}
+      />
+      {isDark && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: "22px",
+            backgroundImage:
+              "radial-gradient(rgba(52,211,153,0.025) 1px,transparent 1px)",
+            backgroundSize: "28px 28px",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+      {children}
+    </div>
+  );
+}
+
+/* ── Custom Tooltip ──────────────────────────────────────────────────────────── */
+const ChartTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div
+      style={{
+        background: "rgba(8,12,28,0.96)",
+        border: "1px solid rgba(52,211,153,0.25)",
+        borderRadius: "12px",
+        padding: "10px 14px",
+        boxShadow: "0 0 20px rgba(52,211,153,0.1), 0 8px 24px rgba(0,0,0,0.5)",
+        backdropFilter: "blur(16px)",
+      }}
+    >
+      <p
+        style={{
+          color: "#64748b",
+          fontSize: "11px",
+          margin: "0 0 6px",
+          fontWeight: 600,
+          letterSpacing: "0.04em",
+        }}
+      >
+        {label}
+      </p>
+      {payload.map((p) => (
+        <div
+          key={p.dataKey}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            marginBottom: "3px",
+          }}
+        >
+          <div
+            style={{
+              width: "7px",
+              height: "7px",
+              borderRadius: "50%",
+              background: p.color,
+              boxShadow: `0 0 6px ${p.color}80`,
+            }}
+          />
+          <span
+            style={{ color: "#94a3b8", fontSize: "11px", minWidth: "60px" }}
+          >
+            {p.name}
+          </span>
+          <span
+            style={{
+              color: "white",
+              fontWeight: 800,
+              fontSize: "13px",
+              fontFamily: "'DM Mono',monospace",
+            }}
+          >
+            ₹{Number(p.value)?.toLocaleString?.() ?? p.value}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+/* ── Main ────────────────────────────────────────────────────────────────────── */
 export default function Compare() {
   const { isDark } = useTheme();
   const [slots, setSlots] = useState(DEFAULT_SLOTS);
@@ -161,39 +276,28 @@ export default function Compare() {
   const [loading, setLoading] = useState(false);
   const [chartTab, setChartTab] = useState("price");
   const [loaded, setLoaded] = useState(false);
-  // Live crop metadata from backend
   const [cropMeta, setCropMeta] = useState(CROP_META_FALLBACK);
 
-  const card = isDark ? "#1e293b" : "#ffffff";
-  const border = isDark ? "#334155" : "#e5e7eb";
-  const text = isDark ? "#f1f5f9" : "#111827";
-  const muted = isDark ? "#94a3b8" : "#6b7280";
-  const panelBg = isDark ? "#0f172a" : "#f8fafc";
+  /* ── Theme tokens ── */
+  const cardBorder = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
+  const text = isDark ? "#e8edf8" : "#0f172a";
+  const muted = isDark ? "#94a3b8" : "#4b5563";
   const cardShadow = isDark
-    ? "none"
-    : "0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)";
+    ? "0 2px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)"
+    : "0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)";
+  const gridC = isDark ? "rgba(255,255,255,0.04)" : "#f0f0f0";
 
-  // ── Fetch live crop metadata from backend on mount ──────────────────────
   useEffect(() => {
-    async function loadMeta() {
-      try {
-        const res = await fetch(`${API_BASE}/crops/meta`);
-        if (!res.ok) throw new Error("meta fetch failed");
-        const json = await res.json();
-        if (json.data) setCropMeta(json.data);
-      } catch (e) {
-        console.warn(
-          "[CompareCrops] /crops/meta failed, using fallback:",
-          e.message,
-        );
-        // silently keep CROP_META_FALLBACK
-      }
-    }
-    loadMeta();
+    fetch(`${API_BASE}/crops/meta`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (j?.data) setCropMeta(j.data);
+      })
+      .catch(() => {});
   }, []);
 
   const fetchAll = useCallback(async () => {
-    if (slots.length === 0) return;
+    if (!slots.length) return;
     setLoading(true);
     try {
       const fetched = await Promise.all(
@@ -213,7 +317,6 @@ export default function Compare() {
               season: pred.season,
               forecast: fcast.forecast || [],
               color: CROP_COLORS[idx % CROP_COLORS.length],
-              // Use live backend meta, fall back to static if crop missing
               meta:
                 cropMeta[crop] ||
                 CROP_META_FALLBACK[crop] ||
@@ -289,72 +392,135 @@ export default function Compare() {
     return obj;
   });
 
-  const bestPrice =
-    results.length > 0
-      ? results.reduce((a, b) => (a.price > b.price ? a : b))
-      : null;
-  const bestConfidence =
-    results.length > 0
-      ? results.reduce((a, b) => (a.confidence > b.confidence ? a : b))
-      : null;
+  const bestPrice = results.length
+    ? results.reduce((a, b) => (a.price > b.price ? a : b))
+    : null;
+  const bestConfidence = results.length
+    ? results.reduce((a, b) => (a.confidence > b.confidence ? a : b))
+    : null;
 
-  const tt = {
-    background: card,
-    border: `1px solid ${border}`,
+  /* ── Styled Select ── */
+  const selectStyle = {
+    width: "100%",
+    padding: "8px 10px",
     borderRadius: "10px",
-    fontSize: "12px",
+    border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"}`,
+    background: isDark ? "rgba(15,23,42,0.8)" : "white",
+    color: isDark ? "#f1f5f9" : "#111827",
+    fontSize: "13px",
+    fontWeight: 500,
+    outline: "none",
+    cursor: "pointer",
+    appearance: "none",
+    WebkitAppearance: "none",
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "right 10px center",
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
+      <style>{`
+        @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes popIn  { 0%{opacity:0;transform:scale(0.92) translateY(10px)} 60%{transform:scale(1.02)} 100%{opacity:1;transform:scale(1)} }
+        @keyframes spin   { to{transform:rotate(360deg)} }
+        @keyframes pulse  { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
-      {/* Header */}
+        .cmp-fade-1 { animation: fadeUp 0.45s 0.00s ease both; }
+        .cmp-fade-2 { animation: fadeUp 0.45s 0.07s ease both; }
+        .cmp-fade-3 { animation: fadeUp 0.45s 0.14s ease both; }
+        .cmp-fade-4 { animation: fadeUp 0.45s 0.21s ease both; }
+        .cmp-fade-5 { animation: fadeUp 0.45s 0.28s ease both; }
+
+        .pulse-dot { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; }
+        .cmp-spin  { animation: spin 1s linear infinite; }
+
+        .slot-card { transition: border-color 0.2s, box-shadow 0.2s; }
+        .slot-card:hover { box-shadow: 0 0 0 1px rgba(52,211,153,0.2), 0 4px 20px rgba(52,211,153,0.06); }
+
+        .add-crop-btn { transition: all 0.2s; }
+        .add-crop-btn:hover { border-color: #34d399 !important; color: #34d399 !important; background: rgba(52,211,153,0.04) !important; }
+
+        .chart-tab { transition: all 0.15s; }
+        .chart-tab:hover { color: #34d399 !important; }
+
+        .table-row { transition: background 0.15s; }
+        .table-row:hover { background: ${isDark ? "rgba(52,211,153,0.04)" : "#f0fdf4"} !important; }
+
+        .cmp-btn { transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1); }
+        .cmp-btn:not(:disabled):hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 32px rgba(22,163,74,0.4) !important; }
+        .cmp-btn:not(:disabled):active { transform: scale(0.97); }
+
+        ${isDark ? "select option { background: #1e293b; color: #f1f5f9; }" : ""}
+      `}</style>
+
+      {/* ── HEADER ── */}
       <div
+        className="cmp-fade-1"
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
+          alignItems: "flex-start",
         }}
       >
         <div>
           <h1
             style={{
               fontSize: "22px",
-              fontWeight: 700,
+              fontWeight: 800,
               color: text,
               margin: 0,
+              letterSpacing: "-0.02em",
               display: "flex",
               alignItems: "center",
               gap: "10px",
             }}
           >
-            <GitCompare
-              style={{ width: "22px", height: "22px", color: "#16a34a" }}
-            />{" "}
+            <div
+              style={{
+                background: "rgba(52,211,153,0.12)",
+                border: "1px solid rgba(52,211,153,0.2)",
+                borderRadius: "10px",
+                padding: "8px",
+                display: "flex",
+              }}
+            >
+              <GitCompare
+                style={{ width: "18px", height: "18px", color: "#34d399" }}
+              />
+            </div>
             Compare Crops
           </h1>
-          <p style={{ fontSize: "13px", color: muted, marginTop: "4px" }}>
-            Side-by-side price prediction & analysis for up to 5 crops
+          <p
+            style={{
+              fontSize: "13px",
+              color: muted,
+              marginTop: "4px",
+              fontWeight: 400,
+            }}
+          >
+            Side-by-side price prediction &amp; analysis for up to 5 crops
           </p>
         </div>
         <button
+          className="cmp-btn"
           onClick={fetchAll}
           disabled={loading}
           style={{
             display: "flex",
             alignItems: "center",
             gap: "6px",
-            padding: "9px 18px",
-            borderRadius: "10px",
-            background: "linear-gradient(135deg,#166534,#16a34a)",
+            padding: "10px 20px",
+            borderRadius: "14px",
+            background: "linear-gradient(135deg,#166534 0%,#16A34A 100%)",
             color: "white",
-            fontWeight: 600,
+            fontWeight: 800,
             fontSize: "13px",
             border: "none",
             cursor: loading ? "not-allowed" : "pointer",
             opacity: loading ? 0.7 : 1,
-            boxShadow: "0 2px 8px rgba(22,163,74,0.3)",
+            boxShadow: "0 4px 20px rgba(22,163,74,0.3)",
+            letterSpacing: "0.01em",
           }}
         >
           <RefreshCw
@@ -368,51 +534,74 @@ export default function Compare() {
         </button>
       </div>
 
-      {/* Crop Selector */}
-      <div
-        style={{
-          background: card,
-          borderRadius: "16px",
-          border: `1px solid ${border}`,
-          padding: "20px",
-          boxShadow: cardShadow,
-        }}
+      {/* ── CROP SELECTOR ── */}
+      <Card
+        isDark={isDark}
+        cardBorder={cardBorder}
+        cardShadow={cardShadow}
+        className="cmp-fade-2"
+        style={{ padding: "24px" }}
       >
         <div
           style={{
-            fontSize: "13px",
-            fontWeight: 700,
-            color: text,
-            marginBottom: "14px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            marginBottom: "18px",
           }}
         >
-          Select Crops to Compare
+          <div
+            style={{
+              background: isDark ? "rgba(52,211,153,0.1)" : "#f0fdf4",
+              border: "1px solid rgba(52,211,153,0.2)",
+              borderRadius: "8px",
+              padding: "7px",
+            }}
+          >
+            <GitCompare
+              style={{ width: "13px", height: "13px", color: "#34d399" }}
+            />
+          </div>
+          <span
+            style={{
+              fontSize: "14px",
+              fontWeight: 800,
+              color: text,
+              letterSpacing: "-0.01em",
+            }}
+          >
+            Select Crops to Compare
+          </span>
         </div>
         <div
           style={{
             display: "flex",
             gap: "12px",
             flexWrap: "wrap",
-            alignItems: "flex-end",
+            alignItems: "flex-start",
+            position: "relative",
           }}
         >
           {slots.map((slot, idx) => (
             <div
               key={idx}
+              className="slot-card"
               style={{
-                background: panelBg,
-                border: `2px solid ${CROP_COLORS[idx]}35`,
-                borderRadius: "14px",
-                padding: "14px",
+                background: isDark ? "rgba(15,23,42,0.7)" : "#f8fafc",
+                border: `1.5px solid ${CROP_COLORS[idx]}35`,
+                borderRadius: "16px",
+                padding: "16px",
                 minWidth: "190px",
                 position: "relative",
+                boxShadow: isDark ? "none" : "0 1px 4px rgba(0,0,0,0.05)",
               }}
             >
+              {/* Color dot + close */}
               <div
                 style={{
                   position: "absolute",
-                  top: "10px",
-                  right: "10px",
+                  top: "12px",
+                  right: "12px",
                   display: "flex",
                   gap: "6px",
                   alignItems: "center",
@@ -420,10 +609,11 @@ export default function Compare() {
               >
                 <div
                   style={{
-                    width: "10px",
-                    height: "10px",
+                    width: "9px",
+                    height: "9px",
                     borderRadius: "50%",
                     background: CROP_COLORS[idx],
+                    boxShadow: `0 0 8px ${CROP_COLORS[idx]}60`,
                   }}
                 />
                 {slots.length > 2 && (
@@ -444,10 +634,12 @@ export default function Compare() {
               </div>
               <div
                 style={{
-                  fontSize: "11px",
+                  fontSize: "10px",
                   color: muted,
-                  marginBottom: "6px",
-                  fontWeight: 600,
+                  marginBottom: "10px",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.07em",
                 }}
               >
                 Crop {idx + 1}
@@ -455,17 +647,7 @@ export default function Compare() {
               <select
                 value={slot.crop}
                 onChange={(e) => updateSlot(idx, "crop", e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "7px 10px",
-                  borderRadius: "8px",
-                  border: `1px solid ${isDark ? "#475569" : "#d1d5db"}`,
-                  background: card,
-                  color: text,
-                  fontSize: "13px",
-                  outline: "none",
-                  marginBottom: "8px",
-                }}
+                style={{ ...selectStyle, marginBottom: "8px" }}
               >
                 {ALL_CROPS.map((c) => (
                   <option key={c} value={c}>
@@ -476,16 +658,7 @@ export default function Compare() {
               <select
                 value={slot.state}
                 onChange={(e) => updateSlot(idx, "state", e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "7px 10px",
-                  borderRadius: "8px",
-                  border: `1px solid ${isDark ? "#475569" : "#d1d5db"}`,
-                  background: card,
-                  color: text,
-                  fontSize: "13px",
-                  outline: "none",
-                }}
+                style={selectStyle}
               >
                 {ALL_STATES.map((s) => (
                   <option key={s} value={s}>
@@ -497,12 +670,13 @@ export default function Compare() {
           ))}
           {slots.length < 5 && (
             <button
+              className="add-crop-btn"
               onClick={addSlot}
               style={{
                 minWidth: "140px",
-                height: "110px",
-                borderRadius: "14px",
-                border: `2px dashed ${isDark ? "#334155" : "#d1d5db"}`,
+                height: "130px",
+                borderRadius: "16px",
+                border: `2px dashed ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}`,
                 background: "transparent",
                 color: muted,
                 cursor: "pointer",
@@ -510,53 +684,64 @@ export default function Compare() {
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: "6px",
+                gap: "8px",
                 fontSize: "12px",
-                fontWeight: 600,
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "#16a34a";
-                e.currentTarget.style.color = "#16a34a";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = isDark
-                  ? "#334155"
-                  : "#d1d5db";
-                e.currentTarget.style.color = muted;
+                fontWeight: 700,
               }}
             >
-              <Plus style={{ width: "20px", height: "20px" }} />
+              <div
+                style={{
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "10px",
+                  background: isDark
+                    ? "rgba(52,211,153,0.08)"
+                    : "rgba(52,211,153,0.06)",
+                  border: "1px solid rgba(52,211,153,0.15)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Plus
+                  style={{ width: "16px", height: "16px", color: "#34d399" }}
+                />
+              </div>
               Add Crop
             </button>
           )}
         </div>
-      </div>
+      </Card>
 
-      {/* Results */}
+      {/* ── RESULTS ── */}
       {loaded && results.length > 0 && (
         <>
           {/* Summary Cards */}
           <div
+            className="cmp-fade-3"
             style={{
               display: "grid",
               gridTemplateColumns: `repeat(${results.length},1fr)`,
-              gap: "14px",
+              gap: "16px",
             }}
           >
             {results.map((r) => (
               <div
                 key={r.crop + r.state}
                 style={{
-                  background: card,
-                  borderRadius: "16px",
-                  border: `2px solid ${r.color}25`,
-                  padding: "18px",
+                  background: isDark
+                    ? "rgba(30,41,59,0.8)"
+                    : "linear-gradient(145deg,#ffffff 0%,#f8fafc 100%)",
+                  borderRadius: "20px",
+                  padding: "20px",
+                  border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
+                  boxShadow: cardShadow,
                   position: "relative",
                   overflow: "hidden",
-                  boxShadow: cardShadow,
+                  animation: "popIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both",
                 }}
               >
+                {/* Color top bar */}
                 <div
                   style={{
                     position: "absolute",
@@ -564,16 +749,32 @@ export default function Compare() {
                     left: 0,
                     right: 0,
                     height: "3px",
-                    background: r.color,
-                    borderRadius: "16px 16px 0 0",
+                    background: `linear-gradient(90deg,${r.color},${r.color}88)`,
+                    borderRadius: "20px 20px 0 0",
                   }}
                 />
+                {/* Ambient blob */}
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "-20px",
+                    right: "-15px",
+                    width: "80px",
+                    height: "80px",
+                    borderRadius: "50%",
+                    background: `radial-gradient(circle,${r.color}20 0%,transparent 70%)`,
+                    pointerEvents: "none",
+                  }}
+                />
+
+                {/* Badges */}
                 <div
                   style={{
                     display: "flex",
                     gap: "4px",
-                    marginBottom: "8px",
+                    marginBottom: "10px",
                     flexWrap: "wrap",
+                    position: "relative",
                   }}
                 >
                   {bestPrice?.crop === r.crop &&
@@ -582,13 +783,13 @@ export default function Compare() {
                         style={{
                           fontSize: "10px",
                           background: isDark
-                            ? "rgba(251,191,36,0.15)"
+                            ? "rgba(251,191,36,0.12)"
                             : "#fef3c7",
                           color: "#d97706",
                           padding: "2px 8px",
                           borderRadius: "20px",
                           fontWeight: 700,
-                          border: "1px solid #fde68a",
+                          border: "1px solid rgba(251,191,36,0.3)",
                         }}
                       >
                         👑 Highest Price
@@ -600,44 +801,54 @@ export default function Compare() {
                         style={{
                           fontSize: "10px",
                           background: isDark
-                            ? "rgba(22,163,74,0.15)"
+                            ? "rgba(52,211,153,0.12)"
                             : "#dcfce7",
-                          color: "#16a34a",
+                          color: "#34d399",
                           padding: "2px 8px",
                           borderRadius: "20px",
                           fontWeight: 700,
-                          border: "1px solid #86efac",
+                          border: "1px solid rgba(52,211,153,0.3)",
                         }}
                       >
                         🎯 Best Confidence
                       </span>
                     )}
                 </div>
+
+                {/* Crop header */}
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
                     gap: "10px",
-                    marginBottom: "12px",
+                    marginBottom: "14px",
+                    position: "relative",
                   }}
                 >
                   <div
                     style={{
-                      width: "36px",
-                      height: "36px",
-                      borderRadius: "10px",
+                      width: "38px",
+                      height: "38px",
+                      borderRadius: "12px",
                       background: `${r.color}18`,
+                      border: `1px solid ${r.color}30`,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       fontSize: "18px",
+                      boxShadow: `0 0 12px ${r.color}15`,
                     }}
                   >
                     {CROP_EMOJI[r.crop] || "🌱"}
                   </div>
                   <div>
                     <div
-                      style={{ fontSize: "14px", fontWeight: 700, color: text }}
+                      style={{
+                        fontSize: "15px",
+                        fontWeight: 800,
+                        color: text,
+                        letterSpacing: "-0.01em",
+                      }}
                     >
                       {r.crop}
                     </div>
@@ -646,12 +857,17 @@ export default function Compare() {
                     </div>
                   </div>
                 </div>
+
+                {/* Price */}
                 <div
                   style={{
-                    fontSize: "26px",
+                    fontSize: "30px",
                     fontWeight: 800,
                     color: r.color,
-                    marginBottom: "4px",
+                    marginBottom: "3px",
+                    fontFamily: "'DM Mono',monospace",
+                    letterSpacing: "-0.03em",
+                    textShadow: `0 0 20px ${r.color}30`,
                   }}
                 >
                   ₹
@@ -663,16 +879,19 @@ export default function Compare() {
                   style={{
                     fontSize: "11px",
                     color: muted,
-                    marginBottom: "12px",
+                    marginBottom: "14px",
                   }}
                 >
                   per quintal · {r.season}
                 </div>
+
+                {/* Mini stats grid */}
                 <div
                   style={{
                     display: "grid",
                     gridTemplateColumns: "1fr 1fr",
                     gap: "8px",
+                    marginBottom: "14px",
                   }}
                 >
                   {[
@@ -690,26 +909,32 @@ export default function Compare() {
                     <div
                       key={label}
                       style={{
-                        background: panelBg,
-                        borderRadius: "8px",
-                        padding: "8px 10px",
-                        border: `1px solid ${isDark ? "#334155" : "#e5e7eb"}`,
+                        background: isDark
+                          ? "rgba(255,255,255,0.04)"
+                          : "#f8fafc",
+                        borderRadius: "10px",
+                        padding: "9px 11px",
+                        border: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.06)"}`,
                       }}
                     >
                       <div
                         style={{
                           fontSize: "10px",
                           color: muted,
-                          fontWeight: 600,
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          marginBottom: "3px",
                         }}
                       >
                         {label}
                       </div>
                       <div
                         style={{
-                          fontSize: "12px",
-                          fontWeight: 700,
+                          fontSize: "13px",
+                          fontWeight: 800,
                           color: text,
+                          fontFamily: "'DM Mono',monospace",
                         }}
                       >
                         {value}
@@ -717,21 +942,31 @@ export default function Compare() {
                     </div>
                   ))}
                 </div>
-                <div style={{ marginTop: "12px" }}>
+
+                {/* Confidence bar */}
+                <div>
                   <div
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
-                      marginBottom: "4px",
+                      marginBottom: "5px",
                     }}
                   >
-                    <span style={{ fontSize: "10px", color: muted }}>
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        color: muted,
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                      }}
+                    >
                       Confidence
                     </span>
                     <span
                       style={{
                         fontSize: "10px",
-                        fontWeight: 700,
+                        fontWeight: 800,
                         color: r.color,
                       }}
                     >
@@ -741,7 +976,7 @@ export default function Compare() {
                   <div
                     style={{
                       height: "5px",
-                      background: isDark ? "#334155" : "#e5e7eb",
+                      background: isDark ? "rgba(255,255,255,0.06)" : "#e5e7eb",
                       borderRadius: "3px",
                     }}
                   >
@@ -749,9 +984,10 @@ export default function Compare() {
                       style={{
                         height: "100%",
                         width: `${r.confidence}%`,
-                        background: r.color,
+                        background: `linear-gradient(90deg,${r.color},${r.color}cc)`,
                         borderRadius: "3px",
-                        transition: "width 0.6s ease",
+                        transition: "width 0.8s cubic-bezier(0.34,1.56,0.64,1)",
+                        boxShadow: `0 0 8px ${r.color}40`,
                       }}
                     />
                   </div>
@@ -760,22 +996,22 @@ export default function Compare() {
             ))}
           </div>
 
-          {/* Charts */}
-          <div
-            style={{
-              background: card,
-              borderRadius: "16px",
-              border: `1px solid ${border}`,
-              overflow: "hidden",
-              boxShadow: cardShadow,
-            }}
+          {/* Charts Card */}
+          <Card
+            isDark={isDark}
+            cardBorder={cardBorder}
+            cardShadow={cardShadow}
+            className="cmp-fade-4"
+            style={{ overflow: "hidden" }}
           >
+            {/* Tab bar */}
             <div
               style={{
                 display: "flex",
-                gap: "2px",
-                padding: "14px 20px 0",
-                borderBottom: `1px solid ${border}`,
+                gap: "4px",
+                padding: "16px 22px 0",
+                borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
+                position: "relative",
               }}
             >
               {[
@@ -785,39 +1021,43 @@ export default function Compare() {
               ].map(({ key, label }) => (
                 <button
                   key={key}
+                  className="chart-tab"
                   onClick={() => setChartTab(key)}
                   style={{
-                    padding: "8px 16px",
+                    padding: "9px 16px",
                     fontSize: "12px",
-                    fontWeight: 600,
+                    fontWeight: 700,
                     border: "none",
-                    borderRadius: "8px 8px 0 0",
+                    borderRadius: "10px 10px 0 0",
                     cursor: "pointer",
                     background:
                       chartTab === key
                         ? isDark
-                          ? "#0f172a"
-                          : "white"
+                          ? "rgba(52,211,153,0.1)"
+                          : "#f0fdf4"
                         : "transparent",
-                    color: chartTab === key ? "#16a34a" : muted,
+                    color: chartTab === key ? "#34d399" : muted,
                     borderBottom:
                       chartTab === key
-                        ? "2px solid #16a34a"
+                        ? "2px solid #34d399"
                         : "2px solid transparent",
+                    transition: "all 0.15s",
                   }}
                 >
                   {label}
                 </button>
               ))}
             </div>
-            <div style={{ padding: "20px" }}>
+
+            <div style={{ padding: "22px", position: "relative" }}>
               {chartTab === "price" && (
-                <div>
+                <>
                   <div
                     style={{
-                      fontSize: "13px",
+                      fontSize: "12px",
                       color: muted,
                       marginBottom: "16px",
+                      fontWeight: 500,
                     }}
                   >
                     Predicted price with min/max range (₹ per quintal)
@@ -829,19 +1069,22 @@ export default function Compare() {
                     >
                       <CartesianGrid
                         strokeDasharray="3 3"
-                        stroke={isDark ? "#334155" : "#f3f4f6"}
+                        stroke={gridC}
+                        vertical={false}
                       />
                       <XAxis
                         dataKey="name"
                         tick={{ fill: muted, fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
                       />
                       <YAxis
                         tick={{ fill: muted, fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
                         tickFormatter={(v) => `₹${v.toLocaleString()}`}
                       />
                       <Tooltip
-                        formatter={(v) => `₹${v.toLocaleString()}`}
-                        contentStyle={tt}
                         content={({ active, payload }) => {
                           if (!active || !payload?.length) return null;
                           const crop = results.find(
@@ -850,33 +1093,50 @@ export default function Compare() {
                               payload[0]?.payload?.name,
                           );
                           return (
-                            <div style={{ ...tt, padding: "10px 14px" }}>
+                            <div
+                              style={{
+                                background: "rgba(8,12,28,0.96)",
+                                border: "1px solid rgba(52,211,153,0.25)",
+                                borderRadius: "12px",
+                                padding: "10px 14px",
+                                backdropFilter: "blur(16px)",
+                              }}
+                            >
                               <div
                                 style={{
-                                  fontWeight: 700,
+                                  fontWeight: 800,
                                   marginBottom: 6,
+                                  color: "white",
                                   display: "flex",
                                   alignItems: "center",
                                   gap: 6,
                                 }}
                               >
-                                <span>{CROP_EMOJI[crop?.crop]}</span>{" "}
+                                <span>{CROP_EMOJI[crop?.crop]}</span>
                                 {crop?.crop}
                               </div>
-                              <div style={{ color: "#2563eb" }}>
-                                Max Price : ₹
+                              <div
+                                style={{ color: "#60a5fa", fontSize: "12px" }}
+                              >
+                                Max : ₹
                                 {payload
                                   .find((p) => p.dataKey === "max")
                                   ?.value?.toLocaleString()}
                               </div>
-                              <div style={{ color: muted }}>
-                                Min Price : ₹
+                              <div
+                                style={{ color: "#94a3b8", fontSize: "12px" }}
+                              >
+                                Min : ₹
                                 {payload
                                   .find((p) => p.dataKey === "min")
                                   ?.value?.toLocaleString()}
                               </div>
                               <div
-                                style={{ color: "#16a34a", fontWeight: 700 }}
+                                style={{
+                                  color: "#34d399",
+                                  fontWeight: 800,
+                                  fontSize: "13px",
+                                }}
                               >
                                 Predicted : ₹
                                 {payload
@@ -887,36 +1147,37 @@ export default function Compare() {
                           );
                         }}
                       />
-                      <Legend />
+                      <Legend wrapperStyle={{ fontSize: "12px" }} />
                       <Bar
                         dataKey="min"
                         name="Min Price"
-                        fill="#94a3b8"
-                        radius={[4, 4, 0, 0]}
+                        fill={isDark ? "rgba(148,163,184,0.6)" : "#cbd5e1"}
+                        radius={[6, 6, 0, 0]}
                       />
                       <Bar
                         dataKey="price"
                         name="Predicted"
-                        fill="#16a34a"
-                        radius={[4, 4, 0, 0]}
+                        fill="#34d399"
+                        radius={[6, 6, 0, 0]}
                       />
                       <Bar
                         dataKey="max"
                         name="Max Price"
-                        fill="#2563eb"
-                        radius={[4, 4, 0, 0]}
+                        fill="#60a5fa"
+                        radius={[6, 6, 0, 0]}
                       />
                     </BarChart>
                   </ResponsiveContainer>
-                </div>
+                </>
               )}
               {chartTab === "forecast" && (
-                <div>
+                <>
                   <div
                     style={{
-                      fontSize: "13px",
+                      fontSize: "12px",
                       color: muted,
                       marginBottom: "16px",
+                      fontWeight: 500,
                     }}
                   >
                     6-month price forecast comparison (₹ per quintal)
@@ -928,21 +1189,23 @@ export default function Compare() {
                     >
                       <CartesianGrid
                         strokeDasharray="3 3"
-                        stroke={isDark ? "#334155" : "#f3f4f6"}
+                        stroke={gridC}
+                        vertical={false}
                       />
                       <XAxis
                         dataKey="month"
                         tick={{ fill: muted, fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
                       />
                       <YAxis
                         tick={{ fill: muted, fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
                         tickFormatter={(v) => `₹${v.toLocaleString()}`}
                       />
-                      <Tooltip
-                        formatter={(v) => `₹${v?.toLocaleString?.() ?? v}`}
-                        contentStyle={tt}
-                      />
-                      <Legend />
+                      <Tooltip content={<ChartTooltip />} />
+                      <Legend wrapperStyle={{ fontSize: "12px" }} />
                       {results.map((r) => (
                         <Line
                           key={r.crop}
@@ -950,21 +1213,26 @@ export default function Compare() {
                           dataKey={r.crop}
                           stroke={r.color}
                           strokeWidth={2.5}
-                          dot={{ r: 4, fill: r.color }}
-                          activeDot={{ r: 6 }}
+                          dot={{ r: 3, fill: r.color, strokeWidth: 0 }}
+                          activeDot={{
+                            r: 5,
+                            strokeWidth: 2,
+                            stroke: r.color + "60",
+                          }}
                         />
                       ))}
                     </LineChart>
                   </ResponsiveContainer>
-                </div>
+                </>
               )}
               {chartTab === "radar" && (
-                <div>
+                <>
                   <div
                     style={{
-                      fontSize: "13px",
+                      fontSize: "12px",
                       color: muted,
                       marginBottom: "16px",
+                      fontWeight: 500,
                     }}
                   >
                     Multi-dimensional crop profile — higher score = better
@@ -974,7 +1242,9 @@ export default function Compare() {
                       data={radarData}
                       margin={{ top: 10, right: 30, left: 30, bottom: 10 }}
                     >
-                      <PolarGrid stroke={isDark ? "#334155" : "#e2e8f0"} />
+                      <PolarGrid
+                        stroke={isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb"}
+                      />
                       <PolarAngleAxis
                         dataKey="dim"
                         tick={{ fill: muted, fontSize: 11 }}
@@ -992,63 +1262,77 @@ export default function Compare() {
                           dataKey={r.crop}
                           stroke={r.color}
                           fill={r.color}
-                          fillOpacity={0.15}
+                          fillOpacity={0.18}
                           strokeWidth={2}
                         />
                       ))}
-                      <Legend />
-                      <Tooltip contentStyle={tt} />
+                      <Legend wrapperStyle={{ fontSize: "12px" }} />
+                      <Tooltip content={<ChartTooltip />} />
                     </RadarChart>
                   </ResponsiveContainer>
-                </div>
+                </>
               )}
             </div>
-          </div>
+          </Card>
 
           {/* Detail Table */}
-          <div
-            style={{
-              background: card,
-              borderRadius: "16px",
-              border: `1px solid ${border}`,
-              overflow: "hidden",
-              boxShadow: cardShadow,
-            }}
+          <Card
+            isDark={isDark}
+            cardBorder={cardBorder}
+            cardShadow={cardShadow}
+            className="cmp-fade-4"
+            style={{ overflow: "hidden" }}
           >
             <div
               style={{
-                padding: "16px 20px",
-                borderBottom: `1px solid ${border}`,
+                padding: "18px 22px",
+                borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
               }}
             >
-              <span style={{ fontSize: "14px", fontWeight: 700, color: text }}>
+              <span
+                style={{
+                  fontSize: "15px",
+                  fontWeight: 800,
+                  color: text,
+                  letterSpacing: "-0.01em",
+                }}
+              >
                 📋 Detailed Comparison
               </span>
               <span
                 style={{
-                  fontSize: "11px",
-                  color: "#16a34a",
-                  marginLeft: "10px",
-                  fontWeight: 600,
+                  fontSize: "10px",
+                  color: "#34d399",
+                  background: isDark ? "rgba(52,211,153,0.1)" : "#dcfce7",
+                  padding: "2px 8px",
+                  borderRadius: "20px",
+                  fontWeight: 700,
+                  border: "1px solid rgba(52,211,153,0.25)",
                 }}
               >
-                ✓ Live data from ML model
+                ✓ Live ML data
               </span>
             </div>
-            <div style={{ overflowX: "auto" }}>
+            <div style={{ overflowX: "auto", position: "relative" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
-                  <tr style={{ background: isDark ? "#0f172a" : "#f8fafc" }}>
+                  <tr
+                    style={{
+                      borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
+                    }}
+                  >
                     <th
                       style={{
-                        padding: "11px 20px",
+                        padding: "11px 22px",
                         fontSize: "11px",
                         color: muted,
                         fontWeight: 700,
                         textAlign: "left",
-                        borderBottom: `1px solid ${border}`,
                         textTransform: "uppercase",
-                        letterSpacing: "0.03em",
+                        letterSpacing: "0.06em",
                       }}
                     >
                       Attribute
@@ -1057,13 +1341,12 @@ export default function Compare() {
                       <th
                         key={r.crop + r.state}
                         style={{
-                          padding: "11px 16px",
-                          fontSize: "12px",
-                          fontWeight: 700,
+                          padding: "11px 18px",
+                          fontSize: "13px",
+                          fontWeight: 800,
                           color: r.color,
                           textAlign: "center",
-                          borderBottom: `1px solid ${border}`,
-                          whiteSpace: "nowrap",
+                          letterSpacing: "-0.01em",
                         }}
                       >
                         {CROP_EMOJI[r.crop]} {r.crop}
@@ -1114,19 +1397,14 @@ export default function Compare() {
                     return (
                       <tr
                         key={label}
+                        className="table-row"
                         style={{
-                          borderBottom: `1px solid ${border}`,
-                          background:
-                            rowIdx % 2 === 0
-                              ? "transparent"
-                              : isDark
-                                ? "rgba(255,255,255,0.01)"
-                                : "rgba(0,0,0,0.01)",
+                          borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "#f1f5f9"}`,
                         }}
                       >
                         <td
                           style={{
-                            padding: "10px 20px",
+                            padding: "11px 22px",
                             fontSize: "12px",
                             color: muted,
                             fontWeight: 600,
@@ -1148,11 +1426,15 @@ export default function Compare() {
                             <td
                               key={i}
                               style={{
-                                padding: "10px 16px",
-                                fontSize: "12px",
-                                fontWeight: isBest ? 700 : 500,
+                                padding: "11px 18px",
+                                fontSize: "13px",
+                                fontWeight: isBest ? 800 : 500,
                                 color: isBest ? results[i].color : text,
                                 textAlign: "center",
+                                fontFamily: numericKeys.includes(key)
+                                  ? "'DM Mono',monospace"
+                                  : "inherit",
+                                letterSpacing: "-0.01em",
                               }}
                             >
                               {isBest && "★ "}
@@ -1166,78 +1448,171 @@ export default function Compare() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Card>
 
-          {/* Recommendation */}
+          {/* ── AgriSense Recommendation Banner ── */}
           {bestPrice && (
             <div
+              className="cmp-fade-5"
               style={{
-                background: isDark ? "rgba(22,163,74,0.08)" : "#f0fdf4",
-                border: `1px solid ${isDark ? "rgba(22,163,74,0.2)" : "#86efac"}`,
-                borderRadius: "16px",
-                padding: "18px 22px",
+                background: "linear-gradient(135deg,#166534 0%,#16A34A 100%)",
+                borderRadius: "22px",
+                padding: "18px 24px",
                 display: "flex",
-                alignItems: "flex-start",
-                gap: "14px",
+                justifyContent: "space-between",
+                alignItems: "center",
+                border: "1px solid rgba(52,211,153,0.2)",
+                boxShadow:
+                  "0 8px 40px rgba(22,163,74,0.2), 0 0 80px rgba(52,211,153,0.05)",
+                position: "relative",
+                overflow: "hidden",
               }}
             >
-              <span style={{ fontSize: "24px" }}>💡</span>
-              <div>
-                <div
+              {/* Shimmer */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: "1px",
+                  background:
+                    "linear-gradient(90deg,transparent,rgba(52,211,153,0.5),transparent)",
+                }}
+              />
+              {/* Blob */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: "-30px",
+                  right: "-20px",
+                  width: "160px",
+                  height: "160px",
+                  borderRadius: "50%",
+                  background:
+                    "radial-gradient(circle,rgba(52,211,153,0.12) 0%,transparent 70%)",
+                  pointerEvents: "none",
+                }}
+              />
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "14px",
+                  position: "relative",
+                }}
+              >
+                <span style={{ fontSize: "22px", flexShrink: 0 }}>💡</span>
+                <div>
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: 800,
+                      color: "white",
+                      marginBottom: "5px",
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
+                    AgriSense Recommendation
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "13px",
+                      color: "rgba(167,243,208,0.85)",
+                      lineHeight: 1.65,
+                    }}
+                  >
+                    Based on current predictions,{" "}
+                    <strong style={{ color: "white" }}>{bestPrice.crop}</strong>{" "}
+                    in{" "}
+                    <strong style={{ color: "white" }}>
+                      {bestPrice.state}
+                    </strong>{" "}
+                    offers the highest price at{" "}
+                    <strong style={{ color: "white" }}>
+                      ₹{Math.round(bestPrice.price).toLocaleString()}/quintal
+                    </strong>
+                    .{" "}
+                    {bestConfidence && bestConfidence.crop !== bestPrice.crop
+                      ? `For highest prediction accuracy, consider ${bestConfidence.crop} with ${bestConfidence.confidence}% confidence.`
+                      : `It also has the highest model confidence at ${bestConfidence?.confidence}%.`}
+                  </div>
+                </div>
+              </div>
+
+              {/* Badge */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  flexShrink: 0,
+                  background: "rgba(0,0,0,0.3)",
+                  borderRadius: "14px",
+                  border: "1px solid rgba(253,224,71,0.3)",
+                  boxShadow: "0 0 20px rgba(253,224,71,0.15)",
+                  padding: "10px 16px",
+                  backdropFilter: "blur(8px)",
+                }}
+              >
+                <TrendingUp
+                  style={{ width: "20px", height: "20px", color: "#fde047" }}
+                />
+                <span
                   style={{
-                    fontSize: "14px",
-                    fontWeight: 700,
-                    color: "#16a34a",
-                    marginBottom: "4px",
+                    color: "#fde047",
+                    fontWeight: 800,
+                    fontSize: "16px",
+                    fontFamily: "'DM Mono',monospace",
+                    letterSpacing: "-0.02em",
                   }}
                 >
-                  AgriSense Recommendation
-                </div>
-                <div style={{ fontSize: "13px", color: text, lineHeight: 1.6 }}>
-                  Based on current predictions,{" "}
-                  <strong>{bestPrice.crop}</strong> in{" "}
-                  <strong>{bestPrice.state}</strong> offers the highest price at{" "}
-                  <strong>
-                    ₹{Math.round(bestPrice.price).toLocaleString()}/quintal
-                  </strong>
-                  .{" "}
-                  {bestConfidence && bestConfidence.crop !== bestPrice.crop
-                    ? `For highest prediction accuracy, consider ${bestConfidence.crop} with ${bestConfidence.confidence}% confidence.`
-                    : `It also has the highest model confidence at ${bestConfidence?.confidence}%.`}
-                </div>
+                  +
+                  {(
+                    (bestPrice.price / (bestPrice.price * 0.91) - 1) *
+                    100
+                  ).toFixed(1)}
+                  %
+                </span>
               </div>
             </div>
           )}
         </>
       )}
 
-      {/* Empty state */}
+      {/* ── Empty state ── */}
       {!loaded && !loading && (
-        <div
-          style={{
-            background: card,
-            borderRadius: "16px",
-            border: `1px solid ${border}`,
-            padding: "64px",
-            textAlign: "center",
-            boxShadow: cardShadow,
-          }}
+        <Card
+          isDark={isDark}
+          cardBorder={cardBorder}
+          cardShadow={cardShadow}
+          style={{ padding: "64px", textAlign: "center" }}
         >
-          <GitCompare
+          <div
             style={{
-              width: "40px",
-              height: "40px",
-              color: muted,
+              width: "56px",
+              height: "56px",
+              borderRadius: "16px",
+              background: "rgba(52,211,153,0.08)",
+              border: "1px solid rgba(52,211,153,0.15)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               margin: "0 auto 16px",
-              display: "block",
             }}
-          />
+          >
+            <GitCompare
+              style={{ width: "24px", height: "24px", color: "#34d399" }}
+            />
+          </div>
           <div
             style={{
               fontSize: "16px",
-              fontWeight: 600,
+              fontWeight: 800,
               color: text,
               marginBottom: "8px",
+              letterSpacing: "-0.01em",
             }}
           >
             Select crops and click Compare
@@ -1246,7 +1621,7 @@ export default function Compare() {
             Compare up to 5 crops side-by-side with price predictions,
             forecasts, and profiles
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );
