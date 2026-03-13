@@ -1648,7 +1648,7 @@ export default function Dashboard() {
             <div
               className="fade-up-2"
               style={{
-                background: card,
+                background: isDark ? "rgba(30,41,59,0.8)" : "white",
                 borderRadius: "22px",
                 border: `1px solid ${cardBorder}`,
                 padding: "20px",
