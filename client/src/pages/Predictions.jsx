@@ -327,7 +327,7 @@ function StyledSelect({
                 ? "#f1f5f9"
                 : "#111827"
               : isDark
-                ? "#475569"
+                ? "#94a3b8"
                 : "#374151",
             background: isDark ? "#1e293b" : "white",
             border: `1px solid ${focused ? "rgba(52,211,153,0.5)" : isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)"}`,
@@ -735,7 +735,7 @@ export default function Predictions() {
                       : isDark
                         ? "rgba(255,255,255,0.04)"
                         : "#f1f5f9",
-                    color: allFilled ? "white" : muted,
+                    color: allFilled ? "white" : isDark ? "#94a3b8" : "#6b7280",
                     fontWeight: 800,
                     fontSize: "14px",
                     border: "none",
