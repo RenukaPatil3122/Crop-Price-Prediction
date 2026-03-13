@@ -387,7 +387,7 @@ export default function Predictions() {
   const card = isDark ? "rgba(30,41,59,0.8)" : "white";
   const cardBorder = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
   const text = isDark ? "#e8edf8" : "#0f172a";
-  const muted = isDark ? "#64748b" : "#6b7280";
+  const muted = isDark ? "#94a3b8" : "#4b5563";
   const cardShadow = isDark
     ? "0 2px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)"
     : "0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)";
