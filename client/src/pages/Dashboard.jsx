@@ -617,7 +617,7 @@ export default function Dashboard() {
   const card = isDark ? "rgba(13,20,40,0.9)" : "white";
   const cardBorder = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
   const text = isDark ? "#e8edf8" : "#0f172a";
-  const muted = isDark ? "#64748b" : "#6b7280";
+  const muted = isDark ? "#94a3b8" : "#4b5563";
   const subtleBg = isDark ? "rgba(255,255,255,0.03)" : "#f9fafb";
   const cardShadow = isDark
     ? "0 2px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)"
@@ -1546,9 +1546,7 @@ export default function Dashboard() {
                       key={title}
                       className="insight-card"
                       style={{
-                        background: isDark
-                          ? "rgba(255,255,255,0.05)"
-                          : "#f8fafc",
+                        background: isDark ? "rgba(30,41,59,0.8)" : "white",
                         border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
                         borderRadius: "14px",
                         padding: "14px",
