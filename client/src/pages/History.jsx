@@ -146,9 +146,10 @@ const CROPS = [
   "Soyabean",
 ];
 const STATUSES = ["All", "Verified", "Pending"];
+const PER_PAGE = 8;
 
 const accuracyColor = (c) =>
-  c >= 85 ? "#16a34a" : c >= 75 ? "#f59e0b" : "#ef4444";
+  c >= 85 ? "#34d399" : c >= 75 ? "#fbbf24" : "#f87171";
 
 function calcChange(predicted, actual) {
   if (!actual) return null;
@@ -205,7 +206,55 @@ function exportToCSV(data, filename = "agrisense_predictions.csv") {
   URL.revokeObjectURL(url);
 }
 
-const PER_PAGE = 8;
+function Card({
+  children,
+  isDark,
+  cardBorder,
+  cardShadow,
+  style = {},
+  className = "",
+}) {
+  return (
+    <div
+      className={className}
+      style={{
+        background: isDark ? "rgba(30,41,59,0.8)" : "white",
+        borderRadius: "22px",
+        border: `1px solid ${cardBorder}`,
+        boxShadow: cardShadow,
+        position: "relative",
+        overflow: "hidden",
+        ...style,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: "15%",
+          right: "15%",
+          height: "1px",
+          background: `linear-gradient(90deg,transparent,${isDark ? "rgba(52,211,153,0.3)" : "rgba(22,163,74,0.2)"},transparent)`,
+          pointerEvents: "none",
+        }}
+      />
+      {isDark && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: "22px",
+            backgroundImage:
+              "radial-gradient(rgba(52,211,153,0.025) 1px,transparent 1px)",
+            backgroundSize: "28px 28px",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+      {children}
+    </div>
+  );
+}
 
 export default function History() {
   const { isDark } = useTheme();
@@ -227,15 +276,13 @@ export default function History() {
   const [page, setPage] = useState(1);
   const [exporting, setExporting] = useState(false);
 
-  const card = isDark ? "#1e293b" : "#ffffff";
-  const border = isDark ? "#334155" : "#e5e7eb";
-  const text = isDark ? "#f1f5f9" : "#111827";
-  const muted = isDark ? "#94a3b8" : "#6b7280";
-  const rowHover = isDark ? "#243044" : "#f8fafc";
-  const inputBg = isDark ? "#0f172a" : "#f3f4f6";
+  const cardBorder = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
+  const text = isDark ? "#e8edf8" : "#0f172a";
+  const muted = isDark ? "#94a3b8" : "#4b5563";
   const cardShadow = isDark
-    ? "none"
-    : "0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)";
+    ? "0 2px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)"
+    : "0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)";
+  const inputBg = isDark ? "rgba(15,23,42,0.8)" : "#f8fafc";
 
   const loadData = useCallback(async () => {
     setLoadingData(true);
@@ -244,7 +291,7 @@ export default function History() {
         getPredictionHistory({ limit: 200 }),
         getPredictionStats(),
       ]);
-      if (histRes.data && histRes.data.length > 0) {
+      if (histRes.data?.length > 0) {
         const deduped = deduplicateRecords(histRes.data);
         setAllData(deduped);
         setStats({
@@ -313,71 +360,118 @@ export default function History() {
   const handleExport = () => {
     setExporting(true);
     const ts = new Date().toISOString().slice(0, 10);
-    const cl = cropFilter === "All Crops" ? "all" : cropFilter.toLowerCase();
-    const sl = statusFilter === "All" ? "all" : statusFilter.toLowerCase();
-    exportToCSV(sorted, `agrisense_${cl}_${sl}_${ts}.csv`);
+    exportToCSV(
+      sorted,
+      `agrisense_${cropFilter === "All Crops" ? "all" : cropFilter.toLowerCase()}_${ts}.csv`,
+    );
     setTimeout(() => setExporting(false), 1500);
   };
 
+  const statCards = [
+    {
+      label: "Total Predictions",
+      value: loadingData ? "…" : stats.total,
+      sub: "All time",
+      glowColor: "#60a5fa",
+      icon: "📊",
+    },
+    {
+      label: "Verified",
+      value: loadingData ? "…" : stats.verified,
+      sub: "Actual price confirmed",
+      glowColor: "#34d399",
+      icon: "✅",
+    },
+    {
+      label: "Pending",
+      value: loadingData ? "…" : stats.pending,
+      sub: "Awaiting actual price",
+      glowColor: "#fbbf24",
+      icon: "⏳",
+    },
+    {
+      label: "Avg Accuracy",
+      value: loadingData ? "…" : `${stats.avg_accuracy}%`,
+      sub: "On verified predictions",
+      glowColor: "#34d399",
+      icon: "🎯",
+    },
+  ];
+
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        overflow: "visible",
-        gap: "20px",
-      }}
-    >
+    <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes popIn  { 0%{opacity:0;transform:scale(0.92) translateY(10px)} 60%{transform:scale(1.02)} 100%{opacity:1;transform:scale(1)} }
+        @keyframes spin   { to{transform:rotate(360deg)} }
+        @keyframes pulse  { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
-        /* ── Desktop defaults ── */
-        .hist-badge-short  { display: none; }
-        .hist-export-short { display: none; }
+        .h-fade-1 { animation: fadeUp 0.45s 0.00s ease both; }
+        .h-fade-2 { animation: fadeUp 0.45s 0.07s ease both; }
+        .h-fade-3 { animation: fadeUp 0.45s 0.14s ease both; }
+        .h-fade-4 { animation: fadeUp 0.45s 0.21s ease both; }
 
-        /* ── Mobile: ≤ 640px ── */
+        .pulse-dot { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; }
+
+        .h-refresh-btn { transition: all 0.18s ease; }
+        .h-refresh-btn:hover:not(:disabled) { background: ${isDark ? "rgba(52,211,153,0.1)" : "#f0fdf4"} !important; border-color: rgba(52,211,153,0.3) !important; color: #34d399 !important; }
+
+        .h-export-btn { transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1); }
+        .h-export-btn:not(:disabled):hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 32px rgba(22,163,74,0.4) !important; }
+
+        .stat-card { transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1); cursor: default; }
+        .stat-card:hover { transform: translateY(-3px); }
+
+        .table-row { transition: background 0.12s; }
+        .table-row:hover { background: ${isDark ? "rgba(52,211,153,0.04)" : "#f0fdf4"} !important; }
+
+        .page-btn { transition: all 0.15s; }
+        .page-btn:hover:not(:disabled) { border-color: rgba(52,211,153,0.3) !important; color: #34d399 !important; }
+
+        .search-wrap { transition: border-color 0.2s, box-shadow 0.2s; }
+        .search-wrap:focus-within { border-color: rgba(52,211,153,0.5) !important; box-shadow: 0 0 0 3px rgba(52,211,153,0.1) !important; }
+
+        .filter-sel { transition: border-color 0.2s, box-shadow 0.2s; }
+        .filter-sel:focus { border-color: rgba(52,211,153,0.5) !important; box-shadow: 0 0 0 3px rgba(52,211,153,0.1); outline: none; }
+
+        ${isDark ? "select option { background: #1e293b; color: #f1f5f9; }" : ""}
+
         @media (max-width: 640px) {
-          .hist-header      { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
-          .hist-title-row   { flex-wrap: wrap !important; gap: 6px !important; }
-          .hist-actions     { width: 100% !important; }
-          .hist-btn-refresh { flex: 1 !important; justify-content: center !important; }
-          .hist-btn-export  { flex: 2 !important; justify-content: center !important; }
-          .hist-badge-full  { display: none !important; }
-          .hist-badge-short { display: inline-flex !important; }
-          .hist-stats-grid  { grid-template-columns: 1fr 1fr !important; }
-          .hist-export-label{ display: none !important; }
-          .hist-export-short{ display: inline !important; }
+          .h-header { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+          .h-stats-grid { grid-template-columns: 1fr 1fr !important; }
         }
       `}</style>
 
-      {/* ── Header ── */}
+      {/* HEADER */}
       <div
-        className="hist-header"
+        className="h-fade-1 h-header"
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
+          alignItems: "flex-start",
         }}
       >
         <div>
           <div
-            className="hist-title-row"
-            style={{ display: "flex", alignItems: "center", gap: "10px" }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginBottom: "4px",
+            }}
           >
             <h1
               style={{
                 fontSize: "22px",
-                fontWeight: 700,
+                fontWeight: 800,
                 color: text,
                 margin: 0,
+                letterSpacing: "-0.02em",
               }}
             >
               Prediction History
             </h1>
-
-            {/* Full badge — desktop */}
             <span
-              className="hist-badge-full"
               style={{
                 fontSize: "11px",
                 fontWeight: 700,
@@ -385,76 +479,63 @@ export default function History() {
                 borderRadius: "20px",
                 background: dbLive
                   ? isDark
-                    ? "rgba(22,163,74,0.2)"
+                    ? "rgba(52,211,153,0.12)"
                     : "#dcfce7"
                   : isDark
-                    ? "rgba(245,158,11,0.2)"
+                    ? "rgba(251,191,36,0.12)"
                     : "#fef3c7",
-                color: dbLive ? "#16a34a" : "#d97706",
-                border: `1px solid ${dbLive ? (isDark ? "rgba(22,163,74,0.4)" : "#86efac") : isDark ? "rgba(245,158,11,0.4)" : "#fde68a"}`,
+                color: dbLive ? "#34d399" : "#fbbf24",
+                border: `1px solid ${dbLive ? "rgba(52,211,153,0.25)" : "rgba(251,191,36,0.25)"}`,
                 display: "flex",
                 alignItems: "center",
                 gap: "5px",
-                whiteSpace: "nowrap",
               }}
             >
-              <Database style={{ width: "11px", height: "11px" }} />
-              {dbLive ? "Live from MongoDB" : "Using sample data"}
-            </span>
-
-            {/* Short badge — mobile */}
-            <span
-              className="hist-badge-short"
-              style={{
-                fontSize: "11px",
-                fontWeight: 700,
-                padding: "3px 8px",
-                borderRadius: "20px",
-                background: dbLive
-                  ? isDark
-                    ? "rgba(22,163,74,0.2)"
-                    : "#dcfce7"
-                  : isDark
-                    ? "rgba(245,158,11,0.2)"
-                    : "#fef3c7",
-                color: dbLive ? "#16a34a" : "#d97706",
-                border: `1px solid ${dbLive ? (isDark ? "rgba(22,163,74,0.4)" : "#86efac") : isDark ? "rgba(245,158,11,0.4)" : "#fde68a"}`,
-                alignItems: "center",
-                gap: "4px",
-              }}
-            >
+              <span
+                className="pulse-dot"
+                style={{
+                  width: "5px",
+                  height: "5px",
+                  borderRadius: "50%",
+                  background: dbLive ? "#34d399" : "#fbbf24",
+                  display: "inline-block",
+                }}
+              />
               <Database style={{ width: "10px", height: "10px" }} />
-              {dbLive ? "Live" : "Sample"}
+              {dbLive ? "Live from MongoDB" : "Sample data"}
             </span>
           </div>
-          <p style={{ fontSize: "13px", color: muted, marginTop: "4px" }}>
+          <p
+            style={{
+              fontSize: "13px",
+              color: muted,
+              fontWeight: 400,
+              margin: 0,
+            }}
+          >
             Track all past predictions and their accuracy
           </p>
         </div>
 
-        {/* Buttons */}
-        <div
-          className="hist-actions"
-          style={{ display: "flex", gap: "8px", flexShrink: 0 }}
-        >
+        <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
           <button
-            className="hist-btn-refresh"
+            className="h-refresh-btn"
             onClick={loadData}
             disabled={loadingData}
             style={{
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
               gap: "6px",
-              padding: "9px 14px",
-              borderRadius: "10px",
-              background: isDark ? "#334155" : "#f3f4f6",
+              padding: "9px 16px",
+              borderRadius: "12px",
+              border: `1px solid ${cardBorder}`,
+              background: isDark ? "rgba(30,41,59,0.8)" : "white",
               color: text,
-              fontWeight: 600,
               fontSize: "13px",
-              border: `1px solid ${border}`,
-              cursor: "pointer",
-              boxShadow: isDark ? "none" : "0 1px 3px rgba(0,0,0,0.07)",
+              fontWeight: 700,
+              cursor: loadingData ? "not-allowed" : "pointer",
+              opacity: loadingData ? 0.6 : 1,
+              boxShadow: cardShadow,
             }}
           >
             <RefreshCw
@@ -466,28 +547,28 @@ export default function History() {
             />
             Refresh
           </button>
-
           <button
-            className="hist-btn-export"
+            className="h-export-btn"
             onClick={handleExport}
             disabled={exporting || sorted.length === 0}
             style={{
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
               gap: "6px",
-              padding: "9px 14px",
-              borderRadius: "10px",
+              padding: "9px 16px",
+              borderRadius: "12px",
               background: exporting
-                ? "#f0fdf4"
-                : "linear-gradient(135deg,#166534,#16a34a)",
-              color: exporting ? "#16a34a" : "white",
-              fontWeight: 600,
+                ? isDark
+                  ? "rgba(52,211,153,0.12)"
+                  : "#f0fdf4"
+                : "linear-gradient(135deg,#166534 0%,#16A34A 100%)",
+              color: exporting ? "#34d399" : "white",
+              border: exporting ? "1px solid rgba(52,211,153,0.25)" : "none",
+              fontWeight: 800,
               fontSize: "13px",
-              border: exporting ? "1px solid #bbf7d0" : "none",
               cursor: sorted.length === 0 ? "not-allowed" : "pointer",
-              boxShadow: exporting ? "none" : "0 2px 8px rgba(22,163,74,0.3)",
               opacity: sorted.length === 0 ? 0.5 : 1,
+              boxShadow: exporting ? "none" : "0 4px 20px rgba(22,163,74,0.3)",
               whiteSpace: "nowrap",
             }}
           >
@@ -498,123 +579,149 @@ export default function History() {
               </>
             ) : (
               <>
-                <Download style={{ width: "14px", height: "14px" }} />
-                <span className="hist-export-label">
-                  Export CSV ({sorted.length})
-                </span>
-                <span className="hist-export-short">CSV ({sorted.length})</span>
+                <Download style={{ width: "14px", height: "14px" }} /> Export
+                CSV ({sorted.length})
               </>
             )}
           </button>
         </div>
       </div>
 
-      {/* ── Summary Cards ── */}
+      {/* STAT CARDS */}
       <div
-        className="hist-stats-grid"
+        className="h-fade-2 h-stats-grid"
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr 1fr 1fr",
           gap: "16px",
         }}
       >
-        {[
-          {
-            label: "Total Predictions",
-            value: loadingData ? "…" : stats.total,
-            sub: "All time",
-            color: "#2563eb",
-            bg: isDark ? "#1e3a5f" : "#eff6ff",
-            cb: isDark ? "#1e4080" : "#bfdbfe",
-          },
-          {
-            label: "Verified",
-            value: loadingData ? "…" : stats.verified,
-            sub: "Actual price confirmed",
-            color: "#16a34a",
-            bg: isDark ? "#134e2b" : "#f0fdf4",
-            cb: isDark ? "#1a6535" : "#bbf7d0",
-          },
-          {
-            label: "Pending",
-            value: loadingData ? "…" : stats.pending,
-            sub: "Awaiting actual price",
-            color: "#f59e0b",
-            bg: isDark ? "#3d2a00" : "#fffbeb",
-            cb: isDark ? "#7a5200" : "#fde68a",
-          },
-          {
-            label: "Avg Accuracy",
-            value: loadingData ? "…" : `${stats.avg_accuracy}%`,
-            sub: "On verified predictions",
-            color: "#16a34a",
-            bg: isDark ? "#134e2b" : "#f0fdf4",
-            cb: isDark ? "#1a6535" : "#bbf7d0",
-          },
-        ].map(({ label, value, sub, color, bg, cb }) => (
+        {statCards.map(({ label, value, sub, glowColor, icon }, i) => (
           <div
             key={label}
+            className="stat-card"
             style={{
-              background: bg,
-              border: `1px solid ${cb}`,
-              borderRadius: "14px",
-              padding: "18px",
-              boxShadow: isDark ? "none" : "0 1px 4px rgba(0,0,0,0.06)",
+              position: "relative",
+              overflow: "hidden",
+              background: isDark
+                ? "rgba(30,41,59,0.8)"
+                : "linear-gradient(145deg,#ffffff 0%,#f8fafc 100%)",
+              borderRadius: "20px",
+              padding: "20px 22px",
+              border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
+              boxShadow: cardShadow,
+              animation: `popIn 0.55s cubic-bezier(0.34,1.56,0.64,1) ${i * 80}ms both`,
             }}
           >
             <div
               style={{
-                fontSize: "12px",
-                color: muted,
-                fontWeight: 500,
-                marginBottom: "6px",
+                position: "absolute",
+                top: "-25px",
+                right: "-15px",
+                width: "80px",
+                height: "80px",
+                borderRadius: "50%",
+                background: `radial-gradient(circle,${glowColor}22 0%,transparent 70%)`,
+                pointerEvents: "none",
               }}
-            >
-              {label}
-            </div>
+            />
             <div
               style={{
-                fontSize: "24px",
-                fontWeight: 700,
-                color,
-                marginBottom: "4px",
+                position: "absolute",
+                top: 0,
+                left: "15%",
+                right: "15%",
+                height: "1px",
+                background: `linear-gradient(90deg,transparent,${glowColor}60,transparent)`,
+                opacity: 0.5,
               }}
-            >
-              {value}
+            />
+            <div style={{ position: "relative" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  marginBottom: "10px",
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: "11px",
+                    color: isDark ? "#94a3b8" : "#4b5563",
+                    fontWeight: 700,
+                    margin: 0,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.07em",
+                  }}
+                >
+                  {label}
+                </p>
+                <span style={{ fontSize: "18px" }}>{icon}</span>
+              </div>
+              <h3
+                style={{
+                  fontSize: "28px",
+                  fontWeight: 800,
+                  color: isDark ? "#f0f4ff" : "#0f172a",
+                  margin: "0 0 4px",
+                  letterSpacing: "-0.03em",
+                  fontFamily: "'DM Mono',monospace",
+                }}
+              >
+                {value}
+              </h3>
+              <p
+                style={{
+                  fontSize: "11px",
+                  color: isDark ? "#94a3b8" : "#4b5563",
+                  margin: 0,
+                  fontWeight: 500,
+                }}
+              >
+                {sub}
+              </p>
             </div>
-            <div style={{ fontSize: "11px", color: muted }}>{sub}</div>
           </div>
         ))}
       </div>
 
-      {/* ── Filters ── */}
-      <div
+      {/* FILTERS */}
+      <Card
+        isDark={isDark}
+        cardBorder={cardBorder}
+        cardShadow={cardShadow}
+        className="h-fade-3"
         style={{
-          background: card,
-          borderRadius: "14px",
-          border: `1px solid ${border}`,
-          padding: "14px 18px",
+          padding: "16px 20px",
           display: "flex",
           gap: "12px",
           alignItems: "center",
           flexWrap: "wrap",
-          boxShadow: cardShadow,
         }}
       >
         <div
+          className="search-wrap"
           style={{
             display: "flex",
             alignItems: "center",
             gap: "8px",
             background: inputBg,
-            border: `1.5px solid ${isDark ? "#475569" : "#d1d5db"}`,
-            borderRadius: "10px",
-            padding: "0 12px",
+            border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+            borderRadius: "12px",
+            padding: "0 14px",
             flex: 1,
-            minWidth: "160px",
+            minWidth: "180px",
           }}
         >
-          <Search style={{ width: "14px", height: "14px", color: muted }} />
+          <Search
+            style={{
+              width: "14px",
+              height: "14px",
+              color: muted,
+              flexShrink: 0,
+            }}
+          />
           <input
             value={search}
             onChange={(e) => {
@@ -628,26 +735,35 @@ export default function History() {
               outline: "none",
               fontSize: "13px",
               color: text,
-              padding: "9px 0",
+              padding: "10px 0",
               width: "100%",
             }}
           />
         </div>
+
         <select
+          className="filter-sel"
           value={cropFilter}
           onChange={(e) => {
             setCropFilter(e.target.value);
             setPage(1);
           }}
           style={{
-            height: "38px",
-            borderRadius: "10px",
-            padding: "0 10px",
+            height: "42px",
+            borderRadius: "12px",
+            padding: "0 30px 0 12px",
             fontSize: "13px",
-            color: text,
+            fontWeight: 500,
+            color: isDark ? "#f1f5f9" : "#111827",
             background: inputBg,
-            border: `1.5px solid ${isDark ? "#475569" : "#d1d5db"}`,
+            border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
             outline: "none",
+            cursor: "pointer",
+            appearance: "none",
+            WebkitAppearance: "none",
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "right 10px center",
           }}
         >
           {CROPS.map((c) => (
@@ -656,14 +772,15 @@ export default function History() {
             </option>
           ))}
         </select>
+
         <div
           style={{
             display: "flex",
-            background: inputBg,
-            border: `1.5px solid ${isDark ? "#475569" : "#d1d5db"}`,
-            borderRadius: "9px",
+            background: isDark ? "rgba(0,0,0,0.3)" : "#f1f5f9",
+            borderRadius: "12px",
             padding: "3px",
             gap: "2px",
+            border: `1px solid ${cardBorder}`,
           }}
         >
           {STATUSES.map((s) => (
@@ -674,41 +791,48 @@ export default function History() {
                 setPage(1);
               }}
               style={{
-                padding: "5px 12px",
-                borderRadius: "6px",
+                padding: "6px 14px",
+                borderRadius: "9px",
                 fontSize: "12px",
-                fontWeight: 600,
+                fontWeight: 700,
                 border: "none",
                 cursor: "pointer",
-                background: statusFilter === s ? "#16a34a" : "transparent",
-                color: statusFilter === s ? "white" : muted,
+                transition: "all 0.15s",
+                background: statusFilter === s ? "#34d399" : "transparent",
+                color: statusFilter === s ? "#071a0e" : muted,
+                boxShadow:
+                  statusFilter === s ? "0 0 10px rgba(52,211,153,0.3)" : "none",
               }}
             >
               {s}
             </button>
           ))}
         </div>
+
         <div
           style={{
             marginLeft: "auto",
             fontSize: "12px",
             color: muted,
-            fontWeight: 500,
+            fontWeight: 600,
+            background: isDark ? "rgba(52,211,153,0.06)" : "#f0fdf4",
+            padding: "5px 12px",
+            borderRadius: "20px",
+            border: "1px solid rgba(52,211,153,0.15)",
+            whiteSpace: "nowrap",
           }}
         >
           {filtered.length} result{filtered.length !== 1 ? "s" : ""}
         </div>
-      </div>
+      </Card>
 
-      {/* ── Table ── */}
-      <div
-        style={{
-          background: card,
-          borderRadius: "16px",
-          border: `1px solid ${border}`,
-          overflow: "hidden",
-          boxShadow: cardShadow,
-        }}
+      {/* TABLE */}
+      <Card
+        isDark={isDark}
+        cardBorder={cardBorder}
+        cardShadow={cardShadow}
+        className="h-fade-4"
+        style={{ overflow: "hidden" }}
       >
         {loadingData ? (
           <div
@@ -719,31 +843,38 @@ export default function History() {
               fontSize: "14px",
             }}
           >
-            <RefreshCw
+            <div
               style={{
-                width: "24px",
-                height: "24px",
+                width: "36px",
+                height: "36px",
+                borderRadius: "50%",
+                border: `3px solid ${isDark ? "rgba(52,211,153,0.1)" : "#dcfce7"}`,
+                borderTopColor: "#34d399",
+                animation: "spin 1s linear infinite",
                 margin: "0 auto 12px",
-                display: "block",
-                opacity: 0.5,
               }}
             />
             Loading predictions…
           </div>
         ) : (
-          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+          <div
+            style={{
+              overflowX: "auto",
+              WebkitOverflowScrolling: "touch",
+              position: "relative",
+            }}
+          >
             <table
               style={{
                 width: "100%",
                 borderCollapse: "collapse",
-                minWidth: "700px",
+                minWidth: "760px",
               }}
             >
               <thead>
                 <tr
                   style={{
-                    background: isDark ? "#0f172a" : "#f8fafc",
-                    borderBottom: `1px solid ${border}`,
+                    borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
                   }}
                 >
                   {[
@@ -770,7 +901,7 @@ export default function History() {
                         cursor: key ? "pointer" : "default",
                         userSelect: "none",
                         whiteSpace: "nowrap",
-                        letterSpacing: "0.03em",
+                        letterSpacing: "0.06em",
                         textTransform: "uppercase",
                       }}
                     >
@@ -790,35 +921,32 @@ export default function History() {
                   return (
                     <tr
                       key={row.id}
+                      className="table-row"
                       style={{
-                        borderBottom: `1px solid ${border}`,
-                        transition: "background 0.1s",
+                        borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "#f1f5f9"}`,
                       }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background = rowHover)
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }
                     >
                       <td style={{ padding: "11px 16px" }}>
                         <div
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "8px",
+                            gap: "9px",
                           }}
                         >
                           <div
                             style={{
-                              width: "30px",
-                              height: "30px",
-                              borderRadius: "8px",
-                              background: isDark ? "#134e2b" : "#dcfce7",
+                              width: "32px",
+                              height: "32px",
+                              borderRadius: "10px",
+                              background: isDark
+                                ? "rgba(52,211,153,0.08)"
+                                : "#f0fdf4",
+                              border: `1px solid ${isDark ? "rgba(52,211,153,0.15)" : "rgba(22,163,74,0.15)"}`,
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",
-                              fontSize: "14px",
+                              fontSize: "15px",
                             }}
                           >
                             {CROP_EMOJI[row.crop] || "🌱"}
@@ -826,8 +954,9 @@ export default function History() {
                           <span
                             style={{
                               fontSize: "13px",
-                              fontWeight: 600,
+                              fontWeight: 700,
                               color: text,
+                              letterSpacing: "-0.01em",
                             }}
                           >
                             {row.crop}
@@ -848,11 +977,14 @@ export default function History() {
                         <span
                           style={{
                             fontSize: "11px",
-                            fontWeight: 600,
+                            fontWeight: 700,
                             color: muted,
-                            background: isDark ? "#0f172a" : "#f3f4f6",
+                            background: isDark
+                              ? "rgba(255,255,255,0.06)"
+                              : "#f1f5f9",
                             padding: "3px 9px",
-                            borderRadius: "6px",
+                            borderRadius: "8px",
+                            border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
                           }}
                         >
                           {row.season}
@@ -872,8 +1004,10 @@ export default function History() {
                         style={{
                           padding: "11px 16px",
                           fontSize: "13px",
-                          fontWeight: 700,
+                          fontWeight: 800,
                           color: text,
+                          fontFamily: "'DM Mono',monospace",
+                          letterSpacing: "-0.02em",
                         }}
                       >
                         ₹{Number(row.predicted_price).toLocaleString()}
@@ -883,11 +1017,8 @@ export default function History() {
                           padding: "11px 16px",
                           fontSize: "13px",
                           fontWeight: 600,
-                          color: row.actual_price
-                            ? text
-                            : isDark
-                              ? "#475569"
-                              : "#d1d5db",
+                          color: row.actual_price ? text : muted,
+                          fontFamily: "'DM Mono',monospace",
                         }}
                       >
                         {row.actual_price
@@ -900,31 +1031,38 @@ export default function History() {
                             style={{
                               display: "flex",
                               alignItems: "center",
-                              gap: "3px",
+                              gap: "4px",
+                              background: chg.up
+                                ? "rgba(52,211,153,0.08)"
+                                : "rgba(248,113,113,0.08)",
+                              padding: "3px 8px",
+                              borderRadius: "8px",
+                              width: "fit-content",
                             }}
                           >
                             {chg.up ? (
                               <TrendingUp
                                 style={{
-                                  width: "12px",
-                                  height: "12px",
-                                  color: "#16a34a",
+                                  width: "11px",
+                                  height: "11px",
+                                  color: "#34d399",
                                 }}
                               />
                             ) : (
                               <TrendingDown
                                 style={{
-                                  width: "12px",
-                                  height: "12px",
-                                  color: "#ef4444",
+                                  width: "11px",
+                                  height: "11px",
+                                  color: "#f87171",
                                 }}
                               />
                             )}
                             <span
                               style={{
                                 fontSize: "12px",
-                                fontWeight: 600,
-                                color: chg.up ? "#16a34a" : "#ef4444",
+                                fontWeight: 700,
+                                color: chg.up ? "#34d399" : "#f87171",
+                                fontFamily: "'DM Mono',monospace",
                               }}
                             >
                               {chg.change}
@@ -941,15 +1079,17 @@ export default function History() {
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "6px",
+                            gap: "7px",
                           }}
                         >
                           <div
                             style={{
                               flex: 1,
-                              height: "4px",
-                              background: isDark ? "#334155" : "#e5e7eb",
-                              borderRadius: "2px",
+                              height: "5px",
+                              background: isDark
+                                ? "rgba(255,255,255,0.06)"
+                                : "#e5e7eb",
+                              borderRadius: "3px",
                               minWidth: "48px",
                             }}
                           >
@@ -958,15 +1098,17 @@ export default function History() {
                                 height: "100%",
                                 width: `${row.confidence}%`,
                                 background: accuracyColor(row.confidence),
-                                borderRadius: "2px",
+                                borderRadius: "3px",
+                                boxShadow: `0 0 6px ${accuracyColor(row.confidence)}50`,
                               }}
                             />
                           </div>
                           <span
                             style={{
                               fontSize: "11px",
-                              fontWeight: 700,
+                              fontWeight: 800,
                               color: accuracyColor(row.confidence),
+                              fontFamily: "'DM Mono',monospace",
                             }}
                           >
                             {row.confidence}%
@@ -977,8 +1119,8 @@ export default function History() {
                         <span
                           style={{
                             fontSize: "11px",
-                            fontWeight: 600,
-                            padding: "3px 10px",
+                            fontWeight: 700,
+                            padding: "4px 10px",
                             borderRadius: "20px",
                             display: "inline-flex",
                             alignItems: "center",
@@ -986,14 +1128,14 @@ export default function History() {
                             background:
                               row.status === "Verified"
                                 ? isDark
-                                  ? "rgba(22,163,74,0.15)"
+                                  ? "rgba(52,211,153,0.12)"
                                   : "#dcfce7"
                                 : isDark
-                                  ? "rgba(245,158,11,0.15)"
+                                  ? "rgba(251,191,36,0.12)"
                                   : "#fef3c7",
                             color:
-                              row.status === "Verified" ? "#16a34a" : "#d97706",
-                            border: `1px solid ${row.status === "Verified" ? (isDark ? "rgba(22,163,74,0.3)" : "#86efac") : isDark ? "rgba(245,158,11,0.3)" : "#fde68a"}`,
+                              row.status === "Verified" ? "#34d399" : "#fbbf24",
+                            border: `1px solid ${row.status === "Verified" ? "rgba(52,211,153,0.25)" : "rgba(251,191,36,0.25)"}`,
                           }}
                         >
                           {row.status === "Verified" ? (
@@ -1041,7 +1183,7 @@ export default function History() {
           </div>
         )}
 
-        {/* ── Pagination ── */}
+        {/* Pagination */}
         {!loadingData && sorted.length > 0 && (
           <div
             style={{
@@ -1049,25 +1191,28 @@ export default function History() {
               justifyContent: "space-between",
               alignItems: "center",
               padding: "14px 20px",
-              borderTop: `1px solid ${border}`,
+              borderTop: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
               flexWrap: "wrap",
               gap: "8px",
+              position: "relative",
             }}
           >
-            <span style={{ fontSize: "12px", color: muted }}>
+            <span style={{ fontSize: "12px", color: muted, fontWeight: 500 }}>
               Showing {Math.min((page - 1) * PER_PAGE + 1, sorted.length)}–
               {Math.min(page * PER_PAGE, sorted.length)} of {sorted.length}
             </span>
             <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
               <button
+                className="page-btn"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
                 style={{
                   padding: "5px 12px",
-                  borderRadius: "8px",
-                  border: `1px solid ${border}`,
-                  background: card,
+                  borderRadius: "9px",
+                  border: `1px solid ${cardBorder}`,
+                  background: isDark ? "rgba(30,41,59,0.8)" : "white",
                   fontSize: "12px",
+                  fontWeight: 600,
                   cursor: page === 1 ? "not-allowed" : "pointer",
                   color: page === 1 ? muted : text,
                 }}
@@ -1080,30 +1225,40 @@ export default function History() {
               ).map((p) => (
                 <button
                   key={p}
+                  className="page-btn"
                   onClick={() => setPage(p)}
                   style={{
-                    padding: "5px 10px",
-                    borderRadius: "8px",
-                    border: `1px solid ${border}`,
+                    padding: "5px 11px",
+                    borderRadius: "9px",
+                    border: `1px solid ${p === page ? "rgba(52,211,153,0.4)" : cardBorder}`,
                     fontSize: "12px",
+                    fontWeight: p === page ? 800 : 500,
                     cursor: "pointer",
-                    background: page === p ? "#16a34a" : card,
-                    color: page === p ? "white" : text,
-                    fontWeight: page === p ? 700 : 400,
+                    background:
+                      p === page
+                        ? "#34d399"
+                        : isDark
+                          ? "rgba(30,41,59,0.8)"
+                          : "white",
+                    color: p === page ? "#071a0e" : text,
+                    boxShadow:
+                      p === page ? "0 0 10px rgba(52,211,153,0.3)" : "none",
                   }}
                 >
                   {p}
                 </button>
               ))}
               <button
+                className="page-btn"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
                 style={{
                   padding: "5px 12px",
-                  borderRadius: "8px",
-                  border: `1px solid ${border}`,
-                  background: card,
+                  borderRadius: "9px",
+                  border: `1px solid ${cardBorder}`,
+                  background: isDark ? "rgba(30,41,59,0.8)" : "white",
                   fontSize: "12px",
+                  fontWeight: 600,
                   cursor: page === totalPages ? "not-allowed" : "pointer",
                   color: page === totalPages ? muted : text,
                 }}
@@ -1113,7 +1268,7 @@ export default function History() {
             </div>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
