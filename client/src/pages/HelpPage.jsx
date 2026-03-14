@@ -61,7 +61,7 @@ const QUICK_LINKS = [
     icon: FileText,
     title: "Crop Price Data",
     sub: "Live mandi prices — data.gov.in",
-    color: "#16a34a",
+    color: "#34d399",
     action: () =>
       window.open(
         "https://data.gov.in/resource/current-daily-price-various-commodities-various-markets-mandi",
@@ -72,28 +72,28 @@ const QUICK_LINKS = [
     icon: Globe,
     title: "IMD Weather",
     sub: "India Meteorological Department",
-    color: "#0ea5e9",
+    color: "#22d3ee",
     action: () => window.open("https://mausam.imd.gov.in", "_blank"),
   },
   {
     icon: Star,
     title: "Agmarknet",
     sub: "Agri market price portal",
-    color: "#f59e0b",
+    color: "#fbbf24",
     action: () => window.open("https://agmarknet.gov.in", "_blank"),
   },
   {
     icon: MessageCircle,
     title: "Kisan Call Centre",
     sub: "1800-180-1551 (free helpline)",
-    color: "#ec4899",
+    color: "#f87171",
     action: () => window.open("tel:18001801551"),
   },
   {
     icon: Mail,
     title: "Email Support",
     sub: "support@agrisense.in",
-    color: "#6366f1",
+    color: "#a78bfa",
     action: () => window.open("mailto:support@agrisense.in"),
   },
 ];
@@ -102,42 +102,141 @@ export default function HelpPage() {
   const { isDark } = useTheme();
   const [open, setOpen] = useState(null);
 
-  const card = isDark ? "#1e293b" : "white";
-  const border = isDark ? "#334155" : "#e5e7eb";
-  const text = isDark ? "#f1f5f9" : "#1f2937";
-  const muted = isDark ? "#94a3b8" : "#6b7280";
+  /* ── tokens ── */
+  const cardBorder = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
+  const text = isDark ? "#e8edf8" : "#0f172a";
+  const muted = isDark ? "#94a3b8" : "#4b5563";
+  const cardShadow = isDark
+    ? "0 2px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)"
+    : "0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)";
+
+  const Card = ({ children, style = {}, className = "" }) => (
+    <div
+      className={className}
+      style={{
+        background: isDark ? "rgba(30,41,59,0.8)" : "white",
+        borderRadius: "22px",
+        border: `1px solid ${cardBorder}`,
+        boxShadow: cardShadow,
+        position: "relative",
+        overflow: "hidden",
+        ...style,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: "15%",
+          right: "15%",
+          height: "1px",
+          background: `linear-gradient(90deg,transparent,${isDark ? "rgba(52,211,153,0.3)" : "rgba(22,163,74,0.2)"},transparent)`,
+          pointerEvents: "none",
+        }}
+      />
+      {isDark && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: "22px",
+            backgroundImage:
+              "radial-gradient(rgba(52,211,153,0.025) 1px,transparent 1px)",
+            backgroundSize: "28px 28px",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+      {children}
+    </div>
+  );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      <div>
+    <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
+      <style>{`
+        @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+        .hp-fade-1 { animation: fadeUp 0.45s 0.00s ease both; }
+        .hp-fade-2 { animation: fadeUp 0.45s 0.07s ease both; }
+        .hp-fade-3 { animation: fadeUp 0.45s 0.14s ease both; }
+        .faq-btn { transition: background 0.15s; }
+        .faq-btn:hover { background: ${isDark ? "rgba(52,211,153,0.04)" : "#f0fdf4"} !important; }
+        .link-btn { transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1); }
+        .link-btn:hover { transform: translateX(3px); }
+      `}</style>
+
+      <div className="hp-fade-1">
         <h1
-          style={{ fontSize: "22px", fontWeight: 700, color: text, margin: 0 }}
+          style={{
+            fontSize: "22px",
+            fontWeight: 800,
+            color: text,
+            margin: 0,
+            letterSpacing: "-0.02em",
+          }}
         >
           Help & Support
         </h1>
-        <p style={{ fontSize: "13px", color: muted, marginTop: "4px" }}>
+        <p
+          style={{
+            fontSize: "13px",
+            color: muted,
+            marginTop: "4px",
+            fontWeight: 400,
+          }}
+        >
           Everything you need to know about AgriSense
         </p>
       </div>
 
       {/* Hero */}
       <div
+        className="hp-fade-2"
         style={{
-          background: "linear-gradient(135deg,#15803d,#16a34a)",
-          borderRadius: "16px",
-          padding: "28px",
+          background: "linear-gradient(135deg,#166534 0%,#16A34A 100%)",
+          borderRadius: "22px",
+          padding: "26px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          position: "relative",
+          overflow: "hidden",
+          border: "1px solid rgba(52,211,153,0.2)",
+          boxShadow: "0 8px 40px rgba(22,163,74,0.2)",
         }}
       >
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "1px",
+            background:
+              "linear-gradient(90deg,transparent,rgba(52,211,153,0.5),transparent)",
+            pointerEvents: "none",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: "-20px",
+            right: "-20px",
+            width: "120px",
+            height: "120px",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle,rgba(52,211,153,0.15) 0%,transparent 70%)",
+            pointerEvents: "none",
+          }}
+        />
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           <div
             style={{
               width: "56px",
               height: "56px",
-              background: "rgba(255,255,255,0.2)",
-              borderRadius: "14px",
+              background: "rgba(255,255,255,0.15)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              borderRadius: "16px",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -149,13 +248,20 @@ export default function HelpPage() {
             />
           </div>
           <div>
-            <div style={{ fontSize: "18px", fontWeight: 800, color: "white" }}>
+            <div
+              style={{
+                fontSize: "18px",
+                fontWeight: 800,
+                color: "white",
+                letterSpacing: "-0.02em",
+              }}
+            >
               How can we help?
             </div>
             <div
               style={{
                 fontSize: "13px",
-                color: "rgba(255,255,255,0.8)",
+                color: "rgba(255,255,255,0.75)",
                 marginTop: "4px",
               }}
             >
@@ -163,7 +269,14 @@ export default function HelpPage() {
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: "24px", flexShrink: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            gap: "28px",
+            flexShrink: 0,
+            position: "relative",
+          }}
+        >
           {[
             ["10", "FAQs"],
             ["9", "Crops"],
@@ -171,11 +284,22 @@ export default function HelpPage() {
           ].map(([val, label]) => (
             <div key={label} style={{ textAlign: "center" }}>
               <div
-                style={{ fontSize: "20px", fontWeight: 800, color: "white" }}
+                style={{
+                  fontSize: "22px",
+                  fontWeight: 800,
+                  color: "white",
+                  fontFamily: "'DM Mono',monospace",
+                }}
               >
                 {val}
               </div>
-              <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)" }}>
+              <div
+                style={{
+                  fontSize: "11px",
+                  color: "rgba(255,255,255,0.65)",
+                  fontWeight: 600,
+                }}
+              >
                 {label}
               </div>
             </div>
@@ -184,6 +308,7 @@ export default function HelpPage() {
       </div>
 
       <div
+        className="hp-fade-3"
         style={{
           display: "grid",
           gridTemplateColumns: "1.4fr 1fr",
@@ -191,36 +316,31 @@ export default function HelpPage() {
           alignItems: "start",
         }}
       >
-        {/* FAQ accordion */}
-        <div
-          style={{
-            background: card,
-            borderRadius: "16px",
-            border: `1px solid ${border}`,
-            overflow: "hidden",
-          }}
-        >
+        {/* FAQ */}
+        <Card style={{ overflow: "hidden" }}>
           <div
             style={{
-              padding: "16px 20px",
-              borderBottom: `1px solid ${border}`,
-              fontSize: "13px",
-              fontWeight: 700,
+              padding: "16px 22px",
+              borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
+              fontSize: "14px",
+              fontWeight: 800,
               color: text,
               display: "flex",
               alignItems: "center",
-              gap: "8px",
+              gap: "10px",
+              position: "relative",
             }}
           >
             📋 Frequently Asked Questions
             <span
               style={{
-                background: isDark ? "#334155" : "#f3f4f6",
-                color: muted,
+                background: isDark ? "rgba(52,211,153,0.1)" : "#dcfce7",
+                color: "#34d399",
                 fontSize: "11px",
-                fontWeight: 600,
+                fontWeight: 700,
                 padding: "2px 8px",
                 borderRadius: "20px",
+                border: "1px solid rgba(52,211,153,0.25)",
               }}
             >
               {FAQS.length}
@@ -231,18 +351,21 @@ export default function HelpPage() {
               key={i}
               style={{
                 borderBottom:
-                  i < FAQS.length - 1 ? `1px solid ${border}` : "none",
+                  i < FAQS.length - 1
+                    ? `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "#f1f5f9"}`
+                    : "none",
               }}
             >
               <button
+                className="faq-btn"
                 onClick={() => setOpen(open === i ? null : i)}
                 style={{
                   width: "100%",
-                  padding: "14px 20px",
+                  padding: "14px 22px",
                   background:
                     open === i
                       ? isDark
-                        ? "rgba(22,163,74,0.05)"
+                        ? "rgba(52,211,153,0.05)"
                         : "#f0fdf4"
                       : "none",
                   border: "none",
@@ -257,8 +380,8 @@ export default function HelpPage() {
                 <span
                   style={{
                     fontSize: "13px",
-                    fontWeight: 600,
-                    color: open === i ? "#16a34a" : text,
+                    fontWeight: open === i ? 700 : 600,
+                    color: open === i ? "#34d399" : text,
                     lineHeight: "1.4",
                   }}
                 >
@@ -269,7 +392,7 @@ export default function HelpPage() {
                     style={{
                       width: "15px",
                       height: "15px",
-                      color: "#16a34a",
+                      color: "#34d399",
                       flexShrink: 0,
                     }}
                   />
@@ -287,11 +410,11 @@ export default function HelpPage() {
               {open === i && (
                 <div
                   style={{
-                    padding: "0 20px 16px",
+                    padding: "0 22px 16px",
                     fontSize: "13px",
                     color: muted,
                     lineHeight: "1.7",
-                    background: isDark ? "rgba(22,163,74,0.04)" : "#f0fdf4",
+                    background: isDark ? "rgba(52,211,153,0.03)" : "#f8fafc",
                   }}
                 >
                   {faq.a}
@@ -299,16 +422,24 @@ export default function HelpPage() {
               )}
             </div>
           ))}
-        </div>
+        </Card>
 
         {/* Quick links */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+            position: "relative",
+          }}
+        >
           <div
             style={{
               fontSize: "13px",
-              fontWeight: 700,
+              fontWeight: 800,
               color: text,
               marginBottom: "4px",
+              letterSpacing: "-0.01em",
             }}
           >
             🔗 Useful Resources
@@ -316,11 +447,12 @@ export default function HelpPage() {
           {QUICK_LINKS.map(({ icon: Icon, title, sub, color, action }) => (
             <button
               key={title}
+              className="link-btn"
               onClick={action}
               style={{
-                background: card,
-                border: `1px solid ${border}`,
-                borderRadius: "12px",
+                background: isDark ? "rgba(30,41,59,0.8)" : "white",
+                border: `1px solid ${cardBorder}`,
+                borderRadius: "16px",
                 padding: "14px 16px",
                 cursor: "pointer",
                 display: "flex",
@@ -328,25 +460,24 @@ export default function HelpPage() {
                 gap: "12px",
                 textAlign: "left",
                 width: "100%",
-                transition: "all 0.15s",
+                boxShadow: cardShadow,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = color;
-                e.currentTarget.style.background = isDark
-                  ? `${color}12`
-                  : `${color}08`;
+                e.currentTarget.style.borderColor = color + "50";
+                e.currentTarget.style.boxShadow = `0 0 20px ${color}12`;
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = border;
-                e.currentTarget.style.background = card;
+                e.currentTarget.style.borderColor = cardBorder;
+                e.currentTarget.style.boxShadow = cardShadow;
               }}
             >
               <div
                 style={{
-                  width: "36px",
-                  height: "36px",
-                  borderRadius: "9px",
-                  background: `${color}18`,
+                  width: "38px",
+                  height: "38px",
+                  borderRadius: "11px",
+                  background: `${color}15`,
+                  border: `1px solid ${color}25`,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -356,7 +487,7 @@ export default function HelpPage() {
                 <Icon style={{ width: "16px", height: "16px", color }} />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: "13px", fontWeight: 600, color: text }}>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: text }}>
                   {title}
                 </div>
                 <div
