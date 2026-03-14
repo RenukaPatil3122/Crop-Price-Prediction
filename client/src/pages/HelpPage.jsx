@@ -6,7 +6,6 @@ import {
   ChevronUp,
   ExternalLink,
   Mail,
-  Phone,
   MessageCircle,
   FileText,
   Globe,
@@ -102,7 +101,6 @@ export default function HelpPage() {
   const { isDark } = useTheme();
   const [open, setOpen] = useState(null);
 
-  /* ── tokens ── */
   const cardBorder = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
   const text = isDark ? "#e8edf8" : "#0f172a";
   const muted = isDark ? "#94a3b8" : "#4b5563";
@@ -110,9 +108,8 @@ export default function HelpPage() {
     ? "0 2px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)"
     : "0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)";
 
-  const Card = ({ children, style = {}, className = "" }) => (
+  const Card = ({ children, style = {} }) => (
     <div
-      className={className}
       style={{
         background: isDark ? "rgba(30,41,59,0.8)" : "white",
         borderRadius: "22px",
@@ -316,7 +313,7 @@ export default function HelpPage() {
           alignItems: "start",
         }}
       >
-        {/* FAQ */}
+        {/* FAQ accordion */}
         <Card style={{ overflow: "hidden" }}>
           <div
             style={{
@@ -425,14 +422,7 @@ export default function HelpPage() {
         </Card>
 
         {/* Quick links */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "10px",
-            position: "relative",
-          }}
-        >
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           <div
             style={{
               fontSize: "13px",
