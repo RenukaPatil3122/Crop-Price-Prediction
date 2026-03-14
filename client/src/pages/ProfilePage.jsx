@@ -30,24 +30,25 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
-
-  // Password change
   const [pwdForm, setPwdForm] = useState({ old: "", new: "", confirm: "" });
   const [showOld, setShowOld] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [pwdSaving, setPwdSaving] = useState(false);
   const [pwdMsg, setPwdMsg] = useState("");
 
-  const card = isDark ? "#1e293b" : "white";
-  const border = isDark ? "#334155" : "#f3f4f6";
-  const text = isDark ? "#f1f5f9" : "#1f2937";
-  const muted = isDark ? "#94a3b8" : "#9ca3af";
-  const inputBg = isDark ? "#0f172a" : "#f9fafb";
+  /* ── tokens ── */
+  const cardBorder = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
+  const text = isDark ? "#e8edf8" : "#0f172a";
+  const muted = isDark ? "#94a3b8" : "#4b5563";
+  const cardShadow = isDark
+    ? "0 2px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)"
+    : "0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)";
+  const inputBg = isDark ? "rgba(15,23,42,0.8)" : "#f8fafc";
+  const inputBorder = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
 
   const set = (f) => (e) => setForm((p) => ({ ...p, [f]: e.target.value }));
   const setPwd = (f) => (e) =>
     setPwdForm((p) => ({ ...p, [f]: e.target.value }));
-
   const initials = user?.name
     ? user.name
         .split(" ")
@@ -124,14 +125,56 @@ export default function ProfilePage() {
   const inputStyle = {
     width: "100%",
     padding: "10px 12px 10px 36px",
-    borderRadius: "10px",
-    border: `1.5px solid ${border}`,
+    borderRadius: "12px",
+    border: `1px solid ${inputBorder}`,
     background: inputBg,
-    color: text,
-    fontSize: "14px",
+    color: isDark ? "#f1f5f9" : "#111827",
+    fontSize: "13px",
     outline: "none",
     boxSizing: "border-box",
+    transition: "border-color 0.2s, box-shadow 0.2s",
+    fontWeight: 500,
   };
+
+  const Card = ({ children, style = {} }) => (
+    <div
+      style={{
+        background: isDark ? "rgba(30,41,59,0.8)" : "white",
+        borderRadius: "22px",
+        border: `1px solid ${cardBorder}`,
+        boxShadow: cardShadow,
+        position: "relative",
+        overflow: "hidden",
+        ...style,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: "15%",
+          right: "15%",
+          height: "1px",
+          background: `linear-gradient(90deg,transparent,${isDark ? "rgba(52,211,153,0.3)" : "rgba(22,163,74,0.2)"},transparent)`,
+          pointerEvents: "none",
+        }}
+      />
+      {isDark && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: "22px",
+            backgroundImage:
+              "radial-gradient(rgba(52,211,153,0.025) 1px,transparent 1px)",
+            backgroundSize: "28px 28px",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+      {children}
+    </div>
+  );
 
   const FieldRow = ({
     icon: Icon,
@@ -143,11 +186,13 @@ export default function ProfilePage() {
     <div>
       <label
         style={{
-          fontSize: "12px",
-          fontWeight: 600,
+          fontSize: "11px",
+          fontWeight: 700,
           color: muted,
           display: "block",
-          marginBottom: "5px",
+          marginBottom: "6px",
+          textTransform: "uppercase",
+          letterSpacing: "0.07em",
         }}
       >
         {label}
@@ -161,7 +206,7 @@ export default function ProfilePage() {
             transform: "translateY(-50%)",
             width: "14px",
             height: "14px",
-            color: "#16a34a",
+            color: "#34d399",
           }}
         />
         <input
@@ -170,48 +215,76 @@ export default function ProfilePage() {
           onChange={set(field)}
           placeholder={placeholder}
           style={inputStyle}
-          onFocus={(e) => (e.target.style.borderColor = "#16a34a")}
-          onBlur={(e) => (e.target.style.borderColor = border)}
+          onFocus={(e) => {
+            e.target.style.borderColor = "rgba(52,211,153,0.5)";
+            e.target.style.boxShadow = "0 0 0 3px rgba(52,211,153,0.1)";
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = inputBorder;
+            e.target.style.boxShadow = "none";
+          }}
         />
       </div>
     </div>
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      <div>
+    <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
+      <style>{`
+        @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes popIn  { 0%{opacity:0;transform:scale(0.92) translateY(10px)} 60%{transform:scale(1.02)} 100%{opacity:1;transform:scale(1)} }
+        .pf-fade-1 { animation: fadeUp 0.45s 0.00s ease both; }
+        .pf-fade-2 { animation: fadeUp 0.45s 0.07s ease both; }
+        .pf-save-btn { transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1); }
+        .pf-save-btn:not(:disabled):hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 24px rgba(22,163,74,0.4) !important; }
+        ${isDark ? "select option { background:#1e293b; color:#f1f5f9; }" : ""}
+      `}</style>
+
+      {/* Header */}
+      <div className="pf-fade-1">
         <h1
-          style={{ fontSize: "22px", fontWeight: 700, color: text, margin: 0 }}
+          style={{
+            fontSize: "22px",
+            fontWeight: 800,
+            color: text,
+            margin: 0,
+            letterSpacing: "-0.02em",
+          }}
         >
           My Profile
         </h1>
-        <p style={{ fontSize: "13px", color: muted, marginTop: "4px" }}>
+        <p
+          style={{
+            fontSize: "13px",
+            color: muted,
+            marginTop: "4px",
+            fontWeight: 400,
+          }}
+        >
           Manage your account information
         </p>
       </div>
 
       <div
+        className="pf-fade-2"
         style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "20px" }}
       >
         {/* Avatar card */}
-        <div
+        <Card
           style={{
-            background: card,
-            borderRadius: "16px",
-            border: `1px solid ${border}`,
             padding: "28px",
             textAlign: "center",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: "12px",
+            gap: "14px",
           }}
         >
           <div
             style={{
               width: "80px",
               height: "80px",
-              borderRadius: "20px",
+              borderRadius: "22px",
               background: "linear-gradient(135deg,#15803d,#16a34a)",
               display: "flex",
               alignItems: "center",
@@ -219,17 +292,38 @@ export default function ProfilePage() {
               fontSize: "28px",
               fontWeight: 800,
               color: "white",
-              boxShadow: "0 8px 24px rgba(22,163,74,0.35)",
+              boxShadow: "0 8px 28px rgba(22,163,74,0.4)",
+              position: "relative",
             }}
           >
             {initials}
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                borderRadius: "22px",
+                border: "1px solid rgba(52,211,153,0.3)",
+              }}
+            />
           </div>
           <div>
-            <div style={{ fontSize: "16px", fontWeight: 700, color: text }}>
+            <div
+              style={{
+                fontSize: "17px",
+                fontWeight: 800,
+                color: text,
+                letterSpacing: "-0.02em",
+              }}
+            >
               {user?.name || "User"}
             </div>
             <div
-              style={{ fontSize: "12px", color: "#16a34a", marginTop: "2px" }}
+              style={{
+                fontSize: "12px",
+                color: "#34d399",
+                marginTop: "3px",
+                fontWeight: 600,
+              }}
             >
               {user?.email}
             </div>
@@ -250,20 +344,34 @@ export default function ProfilePage() {
           )}
           <div
             style={{
-              background: isDark ? "#0f172a" : "#f0fdf4",
-              border: `1px solid ${isDark ? "#334155" : "#bbf7d0"}`,
-              borderRadius: "10px",
-              padding: "10px 14px",
+              background: isDark ? "rgba(52,211,153,0.06)" : "#f0fdf4",
+              border: `1px solid ${isDark ? "rgba(52,211,153,0.15)" : "#bbf7d0"}`,
+              borderRadius: "14px",
+              padding: "12px 16px",
               width: "100%",
               boxSizing: "border-box",
             }}
           >
             <div
-              style={{ fontSize: "10px", color: muted, marginBottom: "2px" }}
+              style={{
+                fontSize: "10px",
+                color: muted,
+                marginBottom: "3px",
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.07em",
+              }}
             >
               Member since
             </div>
-            <div style={{ fontSize: "12px", fontWeight: 700, color: text }}>
+            <div
+              style={{
+                fontSize: "13px",
+                fontWeight: 800,
+                color: text,
+                fontFamily: "'DM Mono',monospace",
+              }}
+            >
               {user?.created_at
                 ? new Date(user.created_at).toLocaleDateString("en-IN", {
                     day: "2-digit",
@@ -273,27 +381,42 @@ export default function ProfilePage() {
                 : "—"}
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Edit form */}
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <div
-            style={{
-              background: card,
-              borderRadius: "16px",
-              border: `1px solid ${border}`,
-              padding: "24px",
-            }}
-          >
+          <Card style={{ padding: "26px" }}>
             <div
               style={{
-                fontSize: "14px",
-                fontWeight: 700,
-                color: text,
-                marginBottom: "18px",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                marginBottom: "20px",
+                position: "relative",
               }}
             >
-              Personal Information
+              <div
+                style={{
+                  background: isDark ? "rgba(52,211,153,0.1)" : "#f0fdf4",
+                  border: "1px solid rgba(52,211,153,0.2)",
+                  borderRadius: "10px",
+                  padding: "8px",
+                }}
+              >
+                <User
+                  style={{ width: "15px", height: "15px", color: "#34d399" }}
+                />
+              </div>
+              <span
+                style={{
+                  fontSize: "15px",
+                  fontWeight: 800,
+                  color: text,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Personal Information
+              </span>
             </div>
             <div
               style={{
@@ -330,11 +453,13 @@ export default function ProfilePage() {
             <div style={{ marginTop: "14px" }}>
               <label
                 style={{
-                  fontSize: "12px",
-                  fontWeight: 600,
+                  fontSize: "11px",
+                  fontWeight: 700,
                   color: muted,
                   display: "block",
-                  marginBottom: "5px",
+                  marginBottom: "6px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.07em",
                 }}
               >
                 Primary Crop Focus
@@ -348,13 +473,29 @@ export default function ProfilePage() {
                     transform: "translateY(-50%)",
                     width: "14px",
                     height: "14px",
-                    color: "#16a34a",
+                    color: "#34d399",
                   }}
                 />
                 <select
                   value={form.crop_focus}
                   onChange={set("crop_focus")}
-                  style={{ ...inputStyle, appearance: "none" }}
+                  style={{
+                    ...inputStyle,
+                    appearance: "none",
+                    WebkitAppearance: "none",
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                    backgroundRepeat: "no-repeat",
+                    backgroundPosition: "right 12px center",
+                    paddingRight: "32px",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "rgba(52,211,153,0.5)";
+                    e.target.style.boxShadow = "0 0 0 3px rgba(52,211,153,0.1)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = inputBorder;
+                    e.target.style.boxShadow = "none";
+                  }}
                 >
                   <option value="">Select primary crop...</option>
                   {[
@@ -379,13 +520,14 @@ export default function ProfilePage() {
             {error && (
               <div
                 style={{
-                  background: "rgba(239,68,68,0.1)",
-                  border: "1px solid rgba(239,68,68,0.3)",
-                  borderRadius: "8px",
+                  background: isDark ? "rgba(248,113,113,0.08)" : "#fef2f2",
+                  border: "1px solid rgba(248,113,113,0.25)",
+                  borderRadius: "10px",
                   padding: "10px 14px",
                   marginTop: "14px",
                   fontSize: "13px",
-                  color: "#ef4444",
+                  color: "#f87171",
+                  fontWeight: 500,
                 }}
               >
                 ⚠️ {error}
@@ -393,6 +535,7 @@ export default function ProfilePage() {
             )}
 
             <button
+              className="pf-save-btn"
               onClick={handleSave}
               disabled={saving}
               style={{
@@ -401,16 +544,16 @@ export default function ProfilePage() {
                 alignItems: "center",
                 gap: "8px",
                 padding: "11px 24px",
-                borderRadius: "10px",
+                borderRadius: "12px",
                 background: saved
-                  ? "#16a34a"
-                  : "linear-gradient(135deg,#15803d,#16a34a)",
+                  ? "#34d399"
+                  : "linear-gradient(135deg,#166534 0%,#16A34A 100%)",
                 color: "white",
-                fontWeight: 700,
-                fontSize: "14px",
+                fontWeight: 800,
+                fontSize: "13px",
                 border: "none",
                 cursor: saving ? "not-allowed" : "pointer",
-                boxShadow: "0 4px 12px rgba(22,163,74,0.3)",
+                boxShadow: "0 4px 16px rgba(22,163,74,0.3)",
                 opacity: saving ? 0.7 : 1,
               }}
             >
@@ -426,26 +569,41 @@ export default function ProfilePage() {
                 </>
               )}
             </button>
-          </div>
+          </Card>
 
           {/* Change password */}
-          <div
-            style={{
-              background: card,
-              borderRadius: "16px",
-              border: `1px solid ${border}`,
-              padding: "24px",
-            }}
-          >
+          <Card style={{ padding: "26px" }}>
             <div
               style={{
-                fontSize: "14px",
-                fontWeight: 700,
-                color: text,
-                marginBottom: "18px",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                marginBottom: "20px",
+                position: "relative",
               }}
             >
-              🔒 Change Password
+              <div
+                style={{
+                  background: isDark ? "rgba(96,165,250,0.1)" : "#eff6ff",
+                  border: "1px solid rgba(96,165,250,0.2)",
+                  borderRadius: "10px",
+                  padding: "8px",
+                }}
+              >
+                <Lock
+                  style={{ width: "15px", height: "15px", color: "#60a5fa" }}
+                />
+              </div>
+              <span
+                style={{
+                  fontSize: "15px",
+                  fontWeight: 800,
+                  color: text,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Change Password
+              </span>
             </div>
             <div style={{ display: "grid", gap: "12px" }}>
               {[
@@ -462,7 +620,7 @@ export default function ProfilePage() {
                   toggle: () => setShowNew(!showNew),
                 },
                 {
-                  label: "Confirm New Password",
+                  label: "Confirm New",
                   key: "confirm",
                   show: showNew,
                   toggle: null,
@@ -471,11 +629,13 @@ export default function ProfilePage() {
                 <div key={key}>
                   <label
                     style={{
-                      fontSize: "12px",
-                      fontWeight: 600,
+                      fontSize: "11px",
+                      fontWeight: 700,
                       color: muted,
                       display: "block",
-                      marginBottom: "5px",
+                      marginBottom: "6px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.07em",
                     }}
                   >
                     {label}
@@ -489,7 +649,7 @@ export default function ProfilePage() {
                         transform: "translateY(-50%)",
                         width: "14px",
                         height: "14px",
-                        color: "#16a34a",
+                        color: "#34d399",
                       }}
                     />
                     <input
@@ -501,8 +661,15 @@ export default function ProfilePage() {
                         ...inputStyle,
                         paddingRight: toggle ? "40px" : "12px",
                       }}
-                      onFocus={(e) => (e.target.style.borderColor = "#16a34a")}
-                      onBlur={(e) => (e.target.style.borderColor = border)}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = "rgba(52,211,153,0.5)";
+                        e.target.style.boxShadow =
+                          "0 0 0 3px rgba(52,211,153,0.1)";
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = inputBorder;
+                        e.target.style.boxShadow = "none";
+                      }}
                     />
                     {toggle && (
                       <button
@@ -536,30 +703,33 @@ export default function ProfilePage() {
                 style={{
                   fontSize: "13px",
                   marginTop: "10px",
-                  color: pwdMsg.startsWith("✅") ? "#16a34a" : "#ef4444",
+                  color: pwdMsg.startsWith("✅") ? "#34d399" : "#f87171",
+                  fontWeight: 600,
                 }}
               >
                 {pwdMsg}
               </div>
             )}
             <button
+              className="pf-save-btn"
               onClick={handlePasswordChange}
               disabled={pwdSaving}
               style={{
                 marginTop: "14px",
                 padding: "10px 20px",
-                borderRadius: "10px",
-                background: isDark ? "#334155" : "#f3f4f6",
+                borderRadius: "12px",
+                background: isDark ? "rgba(30,41,59,0.8)" : "#f8fafc",
                 color: text,
-                fontWeight: 600,
+                fontWeight: 700,
                 fontSize: "13px",
-                border: `1px solid ${border}`,
+                border: `1px solid ${cardBorder}`,
                 cursor: pwdSaving ? "not-allowed" : "pointer",
+                boxShadow: cardShadow,
               }}
             >
               {pwdSaving ? "Changing…" : "Change Password"}
             </button>
-          </div>
+          </Card>
         </div>
       </div>
     </div>
