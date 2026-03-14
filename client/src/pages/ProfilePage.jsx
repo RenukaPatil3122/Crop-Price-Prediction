@@ -3,7 +3,6 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import {
   User,
-  Mail,
   MapPin,
   Phone,
   Leaf,
@@ -12,9 +11,22 @@ import {
   Eye,
   EyeOff,
   CheckCircle,
+  Calendar,
+  Shield,
 } from "lucide-react";
 
 const BASE = "http://localhost:8000";
+const CROPS = [
+  "Wheat",
+  "Rice",
+  "Tomato",
+  "Onion",
+  "Cotton",
+  "Maize",
+  "Potato",
+  "Mustard",
+  "Soyabean",
+];
 
 export default function ProfilePage() {
   const { user, token, updateUser } = useAuth();
@@ -36,7 +48,6 @@ export default function ProfilePage() {
   const [pwdSaving, setPwdSaving] = useState(false);
   const [pwdMsg, setPwdMsg] = useState("");
 
-  /* ── tokens ── */
   const cardBorder = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
   const text = isDark ? "#e8edf8" : "#0f172a";
   const muted = isDark ? "#94a3b8" : "#4b5563";
@@ -76,8 +87,8 @@ export default function ProfilePage() {
       updateUser(data.user);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch (err) {
-      setError(err.message);
+    } catch (e) {
+      setError(e.message);
     } finally {
       setSaving(false);
     }
@@ -112,10 +123,10 @@ export default function ProfilePage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Failed");
-      setPwdMsg("✅ Password changed successfully!");
+      setPwdMsg("✅ Password changed!");
       setPwdForm({ old: "", new: "", confirm: "" });
-    } catch (err) {
-      setPwdMsg(`❌ ${err.message}`);
+    } catch (e) {
+      setPwdMsg(`❌ ${e.message}`);
     } finally {
       setPwdSaving(false);
       setTimeout(() => setPwdMsg(""), 4000);
@@ -228,6 +239,25 @@ export default function ProfilePage() {
     </div>
   );
 
+  const infoRows = [
+    { icon: User, label: "Username", value: user?.name || "—" },
+    { icon: MapPin, label: "Location", value: user?.location || "Not set" },
+    { icon: Phone, label: "Phone", value: user?.phone || "Not set" },
+    { icon: Leaf, label: "Crop Focus", value: user?.crop_focus || "Not set" },
+    { icon: Shield, label: "Account type", value: "Farmer" },
+    {
+      icon: Calendar,
+      label: "Member since",
+      value: user?.created_at
+        ? new Date(user.created_at).toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          })
+        : "—",
+    },
+  ];
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
       <style>{`
@@ -237,6 +267,8 @@ export default function ProfilePage() {
         .pf-fade-2 { animation: fadeUp 0.45s 0.07s ease both; }
         .pf-save-btn { transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1); }
         .pf-save-btn:not(:disabled):hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 24px rgba(22,163,74,0.4) !important; }
+        .pf-info-row { transition: background 0.15s; border-radius: 10px; }
+        .pf-info-row:hover { background: ${isDark ? "rgba(52,211,153,0.04)" : "#f0fdf4"} !important; }
         ${isDark ? "select option { background:#1e293b; color:#f1f5f9; }" : ""}
       `}</style>
 
@@ -269,49 +301,70 @@ export default function ProfilePage() {
         className="pf-fade-2"
         style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "20px" }}
       >
-        {/* Avatar card */}
-        <Card
-          style={{
-            padding: "28px",
-            textAlign: "center",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: "14px",
-          }}
-        >
+        {/* ── LEFT — Avatar + Info card ── */}
+        <Card style={{ padding: "0", overflow: "hidden" }}>
+          {/* Green gradient header section */}
           <div
             style={{
-              width: "80px",
-              height: "80px",
-              borderRadius: "22px",
-              background: "linear-gradient(135deg,#15803d,#16a34a)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "28px",
-              fontWeight: 800,
-              color: "white",
-              boxShadow: "0 8px 28px rgba(22,163,74,0.4)",
+              background: "linear-gradient(135deg,#166534 0%,#16a34a 100%)",
+              padding: "28px 24px 20px",
+              textAlign: "center",
               position: "relative",
+              overflow: "hidden",
             }}
           >
-            {initials}
             <div
               style={{
                 position: "absolute",
-                inset: 0,
-                borderRadius: "22px",
-                border: "1px solid rgba(52,211,153,0.3)",
+                top: 0,
+                left: 0,
+                right: 0,
+                height: "1px",
+                background:
+                  "linear-gradient(90deg,transparent,rgba(52,211,153,0.5),transparent)",
+                pointerEvents: "none",
               }}
             />
-          </div>
-          <div>
             <div
               style={{
-                fontSize: "17px",
+                position: "absolute",
+                top: "-30px",
+                right: "-20px",
+                width: "120px",
+                height: "120px",
+                borderRadius: "50%",
+                background:
+                  "radial-gradient(circle,rgba(52,211,153,0.15) 0%,transparent 70%)",
+                pointerEvents: "none",
+              }}
+            />
+
+            {/* Avatar */}
+            <div
+              style={{
+                width: "76px",
+                height: "76px",
+                borderRadius: "22px",
+                background: "rgba(255,255,255,0.15)",
+                border: "2px solid rgba(255,255,255,0.3)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "28px",
                 fontWeight: 800,
-                color: text,
+                color: "white",
+                margin: "0 auto 14px",
+                boxShadow: "0 8px 28px rgba(0,0,0,0.25)",
+              }}
+            >
+              {initials}
+            </div>
+
+            <div
+              style={{
+                fontSize: "18px",
+                fontWeight: 800,
+                color: "white",
                 letterSpacing: "-0.02em",
               }}
             >
@@ -320,70 +373,106 @@ export default function ProfilePage() {
             <div
               style={{
                 fontSize: "12px",
-                color: "#34d399",
-                marginTop: "3px",
-                fontWeight: 600,
+                color: "rgba(167,243,208,0.9)",
+                marginTop: "4px",
+                fontWeight: 500,
               }}
             >
               {user?.email}
             </div>
-          </div>
-          {user?.location && (
+
+            {/* Live badge */}
             <div
               style={{
-                display: "flex",
+                display: "inline-flex",
                 alignItems: "center",
                 gap: "5px",
-                fontSize: "12px",
-                color: muted,
+                marginTop: "10px",
+                background: "rgba(0,0,0,0.2)",
+                border: "1px solid rgba(52,211,153,0.3)",
+                borderRadius: "20px",
+                padding: "4px 10px",
               }}
             >
-              <MapPin style={{ width: "12px", height: "12px" }} />{" "}
-              {user.location}
+              <div
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "50%",
+                  background: "#34d399",
+                  boxShadow: "0 0 6px rgba(52,211,153,0.6)",
+                }}
+              />
+              <span
+                style={{ fontSize: "11px", color: "#a7f3d0", fontWeight: 700 }}
+              >
+                Active Account
+              </span>
             </div>
-          )}
-          <div
-            style={{
-              background: isDark ? "rgba(52,211,153,0.06)" : "#f0fdf4",
-              border: `1px solid ${isDark ? "rgba(52,211,153,0.15)" : "#bbf7d0"}`,
-              borderRadius: "14px",
-              padding: "12px 16px",
-              width: "100%",
-              boxSizing: "border-box",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "10px",
-                color: muted,
-                marginBottom: "3px",
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.07em",
-              }}
-            >
-              Member since
-            </div>
-            <div
-              style={{
-                fontSize: "13px",
-                fontWeight: 800,
-                color: text,
-                fontFamily: "'DM Mono',monospace",
-              }}
-            >
-              {user?.created_at
-                ? new Date(user.created_at).toLocaleDateString("en-IN", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })
-                : "—"}
-            </div>
+          </div>
+
+          {/* Info rows */}
+          <div style={{ padding: "12px" }}>
+            {infoRows.map(({ icon: Icon, label, value }) => (
+              <div
+                key={label}
+                className="pf-info-row"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  padding: "10px 12px",
+                }}
+              >
+                <div
+                  style={{
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "9px",
+                    background: isDark ? "rgba(52,211,153,0.08)" : "#f0fdf4",
+                    border: `1px solid ${isDark ? "rgba(52,211,153,0.15)" : "rgba(22,163,74,0.15)"}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon
+                    style={{ width: "13px", height: "13px", color: "#34d399" }}
+                  />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: "10px",
+                      color: muted,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.07em",
+                    }}
+                  >
+                    {label}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      color: text,
+                      marginTop: "1px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {value}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
 
-        {/* Edit form */}
+        {/* ── RIGHT — Edit form ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <Card style={{ padding: "26px" }}>
             <div
@@ -401,6 +490,7 @@ export default function ProfilePage() {
                   border: "1px solid rgba(52,211,153,0.2)",
                   borderRadius: "10px",
                   padding: "8px",
+                  display: "flex",
                 }}
               >
                 <User
@@ -418,6 +508,7 @@ export default function ProfilePage() {
                 Personal Information
               </span>
             </div>
+
             <div
               style={{
                 display: "grid",
@@ -450,6 +541,7 @@ export default function ProfilePage() {
                 placeholder="e.g. 5 acres"
               />
             </div>
+
             <div style={{ marginTop: "14px" }}>
               <label
                 style={{
@@ -498,17 +590,7 @@ export default function ProfilePage() {
                   }}
                 >
                   <option value="">Select primary crop...</option>
-                  {[
-                    "Wheat",
-                    "Rice",
-                    "Tomato",
-                    "Onion",
-                    "Cotton",
-                    "Maize",
-                    "Potato",
-                    "Mustard",
-                    "Soyabean",
-                  ].map((c) => (
+                  {CROPS.map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
@@ -588,6 +670,7 @@ export default function ProfilePage() {
                   border: "1px solid rgba(96,165,250,0.2)",
                   borderRadius: "10px",
                   padding: "8px",
+                  display: "flex",
                 }}
               >
                 <Lock
@@ -605,6 +688,7 @@ export default function ProfilePage() {
                 Change Password
               </span>
             </div>
+
             <div style={{ display: "grid", gap: "12px" }}>
               {[
                 {
@@ -698,6 +782,7 @@ export default function ProfilePage() {
                 </div>
               ))}
             </div>
+
             {pwdMsg && (
               <div
                 style={{
@@ -710,6 +795,7 @@ export default function ProfilePage() {
                 {pwdMsg}
               </div>
             )}
+
             <button
               className="pf-save-btn"
               onClick={handlePasswordChange}
