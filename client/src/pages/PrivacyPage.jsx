@@ -26,7 +26,6 @@ function DeleteConfirm({
 }) {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
-
   const handleDelete = async () => {
     setDeleting(true);
     setError("");
@@ -39,20 +38,18 @@ function DeleteConfirm({
       if (!res.ok) throw new Error(data.detail || "Failed to delete account");
       logout();
       navigate("/register");
-    } catch (err) {
-      setError(err.message);
+    } catch (e) {
+      setError(e.message);
       setDeleting(false);
     }
   };
-
   return (
     <div
       style={{
-        background: isDark ? "rgba(30,41,59,0.8)" : "white",
+        background: isDark ? "rgba(248,113,113,0.05)" : "#fff5f5",
         borderRadius: "14px",
         padding: "18px",
-        border: `1px solid ${isDark ? "rgba(248,113,113,0.2)" : "rgba(239,68,68,0.15)"}`,
-        boxShadow: cardShadow,
+        border: "1px solid rgba(248,113,113,0.25)",
       }}
     >
       <p
@@ -93,15 +90,18 @@ function DeleteConfirm({
           onClick={handleDelete}
           disabled={deleting}
           style={{
-            padding: "10px 20px",
+            padding: "10px 22px",
             borderRadius: "10px",
-            background: deleting ? "#475569" : "#ef4444",
+            background: deleting
+              ? "#475569"
+              : "linear-gradient(135deg,#b91c1c,#ef4444)",
             color: "white",
             fontWeight: 800,
             fontSize: "13px",
             border: "none",
             cursor: deleting ? "not-allowed" : "pointer",
-            boxShadow: deleting ? "none" : "0 4px 12px rgba(239,68,68,0.3)",
+            boxShadow: deleting ? "none" : "0 4px 16px rgba(239,68,68,0.35)",
+            transition: "all 0.18s",
           }}
         >
           {deleting ? "Deleting…" : "Yes, delete my account"}
@@ -109,10 +109,10 @@ function DeleteConfirm({
         <button
           onClick={onCancel}
           style={{
-            padding: "10px 20px",
+            padding: "10px 22px",
             borderRadius: "10px",
-            background: isDark ? "rgba(30,41,59,0.8)" : "#f8fafc",
-            color: text,
+            background: "transparent",
+            color: isDark ? "#94a3b8" : "#4b5563",
             fontWeight: 700,
             fontSize: "13px",
             border: `1px solid ${cardBorder}`,
@@ -132,7 +132,6 @@ export default function PrivacyPage() {
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  /* ── tokens ── */
   const cardBorder = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
   const text = isDark ? "#e8edf8" : "#0f172a";
   const muted = isDark ? "#94a3b8" : "#4b5563";
@@ -187,14 +186,14 @@ export default function PrivacyPage() {
           display: "flex",
           alignItems: "center",
           gap: "10px",
-          marginBottom: "16px",
+          marginBottom: "18px",
           position: "relative",
         }}
       >
         <div
           style={{
             background: `${color}15`,
-            border: `1px solid ${color}25`,
+            border: `1px solid ${color}28`,
             borderRadius: "10px",
             padding: "8px",
             display: "flex",
@@ -232,7 +231,7 @@ export default function PrivacyPage() {
           </span>
           <span
             style={{
-              fontSize: "12px",
+              fontSize: "13px",
               fontWeight: 700,
               color: text,
               textAlign: "right",
@@ -255,7 +254,7 @@ export default function PrivacyPage() {
         .pv-fade-3 { animation: fadeUp 0.45s 0.14s ease both; }
         .pv-fade-4 { animation: fadeUp 0.45s 0.21s ease both; }
         .del-btn { transition: all 0.18s ease; }
-        .del-btn:hover { background: rgba(239,68,68,0.1) !important; transform: translateY(-1px); }
+        .del-btn:hover { background: rgba(248,113,113,0.12) !important; transform: translateY(-1px); }
       `}</style>
 
       <div className="pv-fade-1">
@@ -282,7 +281,7 @@ export default function PrivacyPage() {
         </p>
       </div>
 
-      {/* Hero */}
+      {/* Hero banner */}
       <div
         className="pv-fade-2"
         style={{
@@ -366,6 +365,7 @@ export default function PrivacyPage() {
         </div>
       </div>
 
+      {/* Info cards grid */}
       <div
         className="pv-fade-3"
         style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}
@@ -424,14 +424,18 @@ export default function PrivacyPage() {
       <div
         className="pv-fade-4"
         style={{
-          background: isDark ? "rgba(248,113,113,0.06)" : "#fff5f5",
+          background: isDark ? "rgba(20,8,8,0.9)" : "#fff5f5",
           borderRadius: "22px",
-          border: "1px solid rgba(248,113,113,0.2)",
-          padding: "24px",
+          border: "1px solid rgba(248,113,113,0.3)",
+          padding: "28px",
           position: "relative",
           overflow: "hidden",
+          boxShadow: isDark
+            ? "0 4px 32px rgba(239,68,68,0.08)"
+            : "0 4px 16px rgba(239,68,68,0.06)",
         }}
       >
+        {/* Red shimmer */}
         <div
           style={{
             position: "absolute",
@@ -440,64 +444,95 @@ export default function PrivacyPage() {
             right: "15%",
             height: "1px",
             background:
-              "linear-gradient(90deg,transparent,rgba(248,113,113,0.3),transparent)",
+              "linear-gradient(90deg,transparent,rgba(248,113,113,0.5),transparent)",
             pointerEvents: "none",
           }}
         />
+        {/* Red blob */}
+        <div
+          style={{
+            position: "absolute",
+            top: "-30px",
+            right: "-20px",
+            width: "130px",
+            height: "130px",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle,rgba(248,113,113,0.1) 0%,transparent 70%)",
+            pointerEvents: "none",
+          }}
+        />
+
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "10px",
-            marginBottom: "12px",
+            gap: "12px",
+            marginBottom: "14px",
           }}
         >
           <div
             style={{
-              background: "rgba(248,113,113,0.1)",
-              border: "1px solid rgba(248,113,113,0.2)",
-              borderRadius: "10px",
-              padding: "8px",
+              background: "rgba(248,113,113,0.12)",
+              border: "1px solid rgba(248,113,113,0.25)",
+              borderRadius: "12px",
+              padding: "10px",
               display: "flex",
+              boxShadow: "0 0 16px rgba(248,113,113,0.12)",
             }}
           >
             <AlertTriangle
-              style={{ width: "15px", height: "15px", color: "#f87171" }}
+              style={{ width: "18px", height: "18px", color: "#f87171" }}
             />
           </div>
-          <span
-            style={{
-              fontSize: "15px",
-              fontWeight: 800,
-              color: "#f87171",
-              letterSpacing: "-0.01em",
-            }}
-          >
-            Danger Zone
-          </span>
+          <div>
+            <div
+              style={{
+                fontSize: "16px",
+                fontWeight: 800,
+                color: "#f87171",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              Danger Zone
+            </div>
+            <div
+              style={{
+                fontSize: "11px",
+                color: isDark ? "rgba(248,113,113,0.6)" : "rgba(185,28,28,0.6)",
+                fontWeight: 600,
+                marginTop: "1px",
+              }}
+            >
+              Irreversible actions — proceed with caution
+            </div>
+          </div>
         </div>
+
         <p
           style={{
             fontSize: "13px",
             color: muted,
-            marginBottom: "16px",
+            marginBottom: "20px",
             lineHeight: "1.65",
+            position: "relative",
           }}
         >
           Deleting your account will sign you out immediately. Your prediction
           history and alerts in MongoDB will not be automatically removed.
         </p>
+
         {!showDeleteConfirm ? (
           <button
             className="del-btn"
             onClick={() => setShowDeleteConfirm(true)}
             style={{
-              padding: "10px 20px",
+              padding: "11px 22px",
               borderRadius: "12px",
               background: "transparent",
               border: "1.5px solid rgba(248,113,113,0.4)",
               color: "#f87171",
-              fontWeight: 700,
+              fontWeight: 800,
               fontSize: "13px",
               cursor: "pointer",
               display: "flex",
