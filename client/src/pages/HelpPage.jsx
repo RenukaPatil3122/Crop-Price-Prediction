@@ -191,7 +191,7 @@ export default function HelpPage() {
         style={{
           background: "linear-gradient(135deg,#166534 0%,#16A34A 100%)",
           borderRadius: "22px",
-          padding: "26px",
+          padding: "16px 24px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
