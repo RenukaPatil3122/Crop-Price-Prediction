@@ -15,10 +15,10 @@ import {
 const BASE = "http://localhost:8000";
 
 function DeleteConfirm({
-  card,
-  border,
-  text,
   isDark,
+  cardBorder,
+  cardShadow,
+  text,
   token,
   logout,
   navigate,
@@ -48,10 +48,11 @@ function DeleteConfirm({
   return (
     <div
       style={{
-        background: card,
-        borderRadius: "12px",
+        background: isDark ? "rgba(30,41,59,0.8)" : "white",
+        borderRadius: "14px",
         padding: "18px",
-        border: `1px solid ${border}`,
+        border: `1px solid ${isDark ? "rgba(248,113,113,0.2)" : "rgba(239,68,68,0.15)"}`,
+        boxShadow: cardShadow,
       }}
     >
       <p
@@ -59,17 +60,31 @@ function DeleteConfirm({
           fontSize: "13px",
           color: text,
           marginBottom: "6px",
-          fontWeight: 600,
+          fontWeight: 700,
         }}
       >
         ⚠️ Are you absolutely sure?
       </p>
-      <p style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "14px" }}>
+      <p
+        style={{
+          fontSize: "12px",
+          color: isDark ? "#94a3b8" : "#4b5563",
+          marginBottom: "14px",
+          lineHeight: 1.6,
+        }}
+      >
         This removes your account from the database. Prediction history stays in
         MongoDB unless cleared manually.
       </p>
       {error && (
-        <p style={{ fontSize: "12px", color: "#ef4444", marginBottom: "10px" }}>
+        <p
+          style={{
+            fontSize: "12px",
+            color: "#f87171",
+            marginBottom: "10px",
+            fontWeight: 600,
+          }}
+        >
           ❌ {error}
         </p>
       )}
@@ -79,13 +94,14 @@ function DeleteConfirm({
           disabled={deleting}
           style={{
             padding: "10px 20px",
-            borderRadius: "9px",
-            background: deleting ? "#94a3b8" : "#ef4444",
+            borderRadius: "10px",
+            background: deleting ? "#475569" : "#ef4444",
             color: "white",
-            fontWeight: 700,
+            fontWeight: 800,
             fontSize: "13px",
             border: "none",
             cursor: deleting ? "not-allowed" : "pointer",
+            boxShadow: deleting ? "none" : "0 4px 12px rgba(239,68,68,0.3)",
           }}
         >
           {deleting ? "Deleting…" : "Yes, delete my account"}
@@ -94,12 +110,12 @@ function DeleteConfirm({
           onClick={onCancel}
           style={{
             padding: "10px 20px",
-            borderRadius: "9px",
-            background: isDark ? "#334155" : "#f3f4f6",
+            borderRadius: "10px",
+            background: isDark ? "rgba(30,41,59,0.8)" : "#f8fafc",
             color: text,
-            fontWeight: 600,
+            fontWeight: 700,
             fontSize: "13px",
-            border: "none",
+            border: `1px solid ${cardBorder}`,
             cursor: "pointer",
           }}
         >
@@ -116,45 +132,86 @@ export default function PrivacyPage() {
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const card = isDark ? "#1e293b" : "white";
-  const border = isDark ? "#334155" : "#e5e7eb";
-  const text = isDark ? "#f1f5f9" : "#1f2937";
-  const muted = isDark ? "#94a3b8" : "#6b7280";
-  const bg2 = isDark ? "#0f172a" : "#f8fafc";
+  /* ── tokens ── */
+  const cardBorder = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
+  const text = isDark ? "#e8edf8" : "#0f172a";
+  const muted = isDark ? "#94a3b8" : "#4b5563";
+  const cardShadow = isDark
+    ? "0 2px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)"
+    : "0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)";
 
-  const InfoCard = ({ icon: Icon, title, color, rows }) => (
+  const Card = ({ children, style = {} }) => (
     <div
       style={{
-        background: card,
-        borderRadius: "16px",
-        border: `1px solid ${border}`,
-        padding: "24px",
+        background: isDark ? "rgba(30,41,59,0.8)" : "white",
+        borderRadius: "22px",
+        border: `1px solid ${cardBorder}`,
+        boxShadow: cardShadow,
+        position: "relative",
+        overflow: "hidden",
+        ...style,
       }}
     >
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: "15%",
+          right: "15%",
+          height: "1px",
+          background: `linear-gradient(90deg,transparent,${isDark ? "rgba(52,211,153,0.3)" : "rgba(22,163,74,0.2)"},transparent)`,
+          pointerEvents: "none",
+        }}
+      />
+      {isDark && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: "22px",
+            backgroundImage:
+              "radial-gradient(rgba(52,211,153,0.025) 1px,transparent 1px)",
+            backgroundSize: "28px 28px",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+      {children}
+    </div>
+  );
+
+  const InfoCard = ({ icon: Icon, title, color, rows }) => (
+    <Card style={{ padding: "24px" }}>
       <div
         style={{
           display: "flex",
           alignItems: "center",
           gap: "10px",
           marginBottom: "16px",
+          position: "relative",
         }}
       >
         <div
           style={{
-            width: "34px",
-            height: "34px",
-            borderRadius: "9px",
-            background: `${color}18`,
+            background: `${color}15`,
+            border: `1px solid ${color}25`,
+            borderRadius: "10px",
+            padding: "8px",
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
           }}
         >
-          <Icon style={{ width: "16px", height: "16px", color }} />
+          <Icon style={{ width: "15px", height: "15px", color }} />
         </div>
-        <div style={{ fontSize: "14px", fontWeight: 700, color: text }}>
+        <span
+          style={{
+            fontSize: "15px",
+            fontWeight: 800,
+            color: text,
+            letterSpacing: "-0.02em",
+          }}
+        >
           {title}
-        </div>
+        </span>
       </div>
       {rows.map(([label, val], i) => (
         <div
@@ -164,14 +221,19 @@ export default function PrivacyPage() {
             justifyContent: "space-between",
             alignItems: "center",
             padding: "10px 0",
-            borderBottom: i < rows.length - 1 ? `1px solid ${border}` : "none",
+            borderBottom:
+              i < rows.length - 1
+                ? `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}`
+                : "none",
           }}
         >
-          <span style={{ fontSize: "13px", color: muted }}>{label}</span>
+          <span style={{ fontSize: "13px", color: muted, fontWeight: 500 }}>
+            {label}
+          </span>
           <span
             style={{
               fontSize: "12px",
-              fontWeight: 600,
+              fontWeight: 700,
               color: text,
               textAlign: "right",
               maxWidth: "55%",
@@ -181,50 +243,112 @@ export default function PrivacyPage() {
           </span>
         </div>
       ))}
-    </div>
+    </Card>
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      <div>
+    <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
+      <style>{`
+        @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+        .pv-fade-1 { animation: fadeUp 0.45s 0.00s ease both; }
+        .pv-fade-2 { animation: fadeUp 0.45s 0.07s ease both; }
+        .pv-fade-3 { animation: fadeUp 0.45s 0.14s ease both; }
+        .pv-fade-4 { animation: fadeUp 0.45s 0.21s ease both; }
+        .del-btn { transition: all 0.18s ease; }
+        .del-btn:hover { background: rgba(239,68,68,0.1) !important; transform: translateY(-1px); }
+      `}</style>
+
+      <div className="pv-fade-1">
         <h1
-          style={{ fontSize: "22px", fontWeight: 700, color: text, margin: 0 }}
+          style={{
+            fontSize: "22px",
+            fontWeight: 800,
+            color: text,
+            margin: 0,
+            letterSpacing: "-0.02em",
+          }}
         >
           Privacy & Security
         </h1>
-        <p style={{ fontSize: "13px", color: muted, marginTop: "4px" }}>
+        <p
+          style={{
+            fontSize: "13px",
+            color: muted,
+            marginTop: "4px",
+            fontWeight: 400,
+          }}
+        >
           How AgriSense handles your data
         </p>
       </div>
 
-      {/* Hero banner */}
+      {/* Hero */}
       <div
+        className="pv-fade-2"
         style={{
-          background: "linear-gradient(135deg,#1e3a5f,#1e293b)",
-          borderRadius: "16px",
-          border: "1px solid #334155",
+          background:
+            "linear-gradient(135deg,#0a1628 0%,#0f1f3d 50%,#1e3a5f 100%)",
+          borderRadius: "22px",
+          border: "1px solid rgba(96,165,250,0.15)",
           padding: "24px",
           display: "flex",
           alignItems: "center",
           gap: "20px",
+          position: "relative",
+          overflow: "hidden",
+          boxShadow: "0 8px 40px rgba(0,0,0,0.3)",
         }}
       >
         <div
           style={{
+            position: "absolute",
+            top: 0,
+            left: "15%",
+            right: "15%",
+            height: "1px",
+            background:
+              "linear-gradient(90deg,transparent,rgba(96,165,250,0.3),transparent)",
+            pointerEvents: "none",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: "-20px",
+            right: "-20px",
+            width: "120px",
+            height: "120px",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle,rgba(52,211,153,0.1) 0%,transparent 70%)",
+            pointerEvents: "none",
+          }}
+        />
+        <div
+          style={{
             width: "56px",
             height: "56px",
-            background: "rgba(22,163,74,0.15)",
-            borderRadius: "14px",
+            background: "rgba(52,211,153,0.12)",
+            border: "1px solid rgba(52,211,153,0.2)",
+            borderRadius: "16px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             flexShrink: 0,
+            boxShadow: "0 0 20px rgba(52,211,153,0.15)",
           }}
         >
-          <Shield style={{ width: "26px", height: "26px", color: "#16a34a" }} />
+          <Shield style={{ width: "26px", height: "26px", color: "#34d399" }} />
         </div>
         <div>
-          <div style={{ fontSize: "16px", fontWeight: 700, color: "#f1f5f9" }}>
+          <div
+            style={{
+              fontSize: "16px",
+              fontWeight: 800,
+              color: "#e8edf8",
+              letterSpacing: "-0.02em",
+            }}
+          >
             Your privacy matters
           </div>
           <div
@@ -232,7 +356,7 @@ export default function PrivacyPage() {
               fontSize: "13px",
               color: "#94a3b8",
               marginTop: "4px",
-              lineHeight: "1.6",
+              lineHeight: "1.65",
             }}
           >
             AgriSense stores only what's essential. No ads, no tracking, no data
@@ -243,12 +367,13 @@ export default function PrivacyPage() {
       </div>
 
       <div
+        className="pv-fade-3"
         style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}
       >
         <InfoCard
           icon={Database}
           title="Your Data"
-          color="#16a34a"
+          color="#34d399"
           rows={[
             ["Account email", user?.email || "—"],
             ["Predictions", "Saved to MongoDB Atlas"],
@@ -257,11 +382,10 @@ export default function PrivacyPage() {
             ["Analytics", "None — zero tracking"],
           ]}
         />
-
         <InfoCard
           icon={Eye}
           title="What We Collect"
-          color="#6366f1"
+          color="#a78bfa"
           rows={[
             ["Name & email", "Required for account"],
             ["Location", "Optional, for context"],
@@ -270,11 +394,10 @@ export default function PrivacyPage() {
             ["Ads / tracking", "❌ Never"],
           ]}
         />
-
         <InfoCard
           icon={Lock}
           title="Security Measures"
-          color="#0891b2"
+          color="#22d3ee"
           rows={[
             ["Password hashing", "bcrypt (industry standard)"],
             ["Auth tokens", "HS256 JWT signed server-side"],
@@ -283,11 +406,10 @@ export default function PrivacyPage() {
             ["Token expiry", "Auto-logout after 7 days"],
           ]}
         />
-
         <InfoCard
           icon={Server}
           title="Infrastructure"
-          color="#f59e0b"
+          color="#fbbf24"
           rows={[
             ["Backend", "FastAPI + Python 3.12"],
             ["Database", "MongoDB Atlas (cloud)"],
@@ -300,13 +422,28 @@ export default function PrivacyPage() {
 
       {/* Danger zone */}
       <div
+        className="pv-fade-4"
         style={{
-          background: isDark ? "rgba(239,68,68,0.06)" : "#fff5f5",
-          borderRadius: "16px",
-          border: "1px solid rgba(239,68,68,0.25)",
+          background: isDark ? "rgba(248,113,113,0.06)" : "#fff5f5",
+          borderRadius: "22px",
+          border: "1px solid rgba(248,113,113,0.2)",
           padding: "24px",
+          position: "relative",
+          overflow: "hidden",
         }}
       >
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: "15%",
+            right: "15%",
+            height: "1px",
+            background:
+              "linear-gradient(90deg,transparent,rgba(248,113,113,0.3),transparent)",
+            pointerEvents: "none",
+          }}
+        />
         <div
           style={{
             display: "flex",
@@ -315,35 +452,52 @@ export default function PrivacyPage() {
             marginBottom: "12px",
           }}
         >
-          <AlertTriangle
-            style={{ width: "18px", height: "18px", color: "#ef4444" }}
-          />
-          <div style={{ fontSize: "14px", fontWeight: 700, color: "#ef4444" }}>
-            Danger Zone
+          <div
+            style={{
+              background: "rgba(248,113,113,0.1)",
+              border: "1px solid rgba(248,113,113,0.2)",
+              borderRadius: "10px",
+              padding: "8px",
+              display: "flex",
+            }}
+          >
+            <AlertTriangle
+              style={{ width: "15px", height: "15px", color: "#f87171" }}
+            />
           </div>
+          <span
+            style={{
+              fontSize: "15px",
+              fontWeight: 800,
+              color: "#f87171",
+              letterSpacing: "-0.01em",
+            }}
+          >
+            Danger Zone
+          </span>
         </div>
         <p
           style={{
             fontSize: "13px",
             color: muted,
             marginBottom: "16px",
-            lineHeight: "1.6",
+            lineHeight: "1.65",
           }}
         >
           Deleting your account will sign you out immediately. Your prediction
-          history and alerts in MongoDB will not be automatically removed (you'd
-          need to clear those manually from Atlas).
+          history and alerts in MongoDB will not be automatically removed.
         </p>
         {!showDeleteConfirm ? (
           <button
+            className="del-btn"
             onClick={() => setShowDeleteConfirm(true)}
             style={{
               padding: "10px 20px",
-              borderRadius: "10px",
+              borderRadius: "12px",
               background: "transparent",
-              border: "1.5px solid #ef4444",
-              color: "#ef4444",
-              fontWeight: 600,
+              border: "1.5px solid rgba(248,113,113,0.4)",
+              color: "#f87171",
+              fontWeight: 700,
               fontSize: "13px",
               cursor: "pointer",
               display: "flex",
@@ -356,10 +510,10 @@ export default function PrivacyPage() {
           </button>
         ) : (
           <DeleteConfirm
-            card={card}
-            border={border}
-            text={text}
             isDark={isDark}
+            cardBorder={cardBorder}
+            cardShadow={cardShadow}
+            text={text}
             token={token}
             logout={logout}
             navigate={navigate}
