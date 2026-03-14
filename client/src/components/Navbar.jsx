@@ -43,7 +43,6 @@ const formatDate = () =>
     month: "long",
     year: "numeric",
   });
-
 const CROPS = [
   "Wheat",
   "Rice",
@@ -93,8 +92,8 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
   const notifRef = useRef(null);
   const profileRef = useRef(null);
 
-  /* ── Theme tokens ── */
-  const bg = isDark
+  /* ── tokens ── */
+  const navBg = isDark
     ? "linear-gradient(90deg,#0a1628 0%,#0f1f3d 100%)"
     : "linear-gradient(90deg,#E8F5E9 0%,#F1F8F1 100%)";
   const borderCol = isDark ? "rgba(255,255,255,0.06)" : "#d1fae5";
@@ -102,9 +101,13 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
   const muted = isDark ? "#94a3b8" : "#4b5563";
   const inputBg = isDark ? "rgba(15,23,42,0.8)" : "rgba(255,255,255,0.8)";
   const iconBg = isDark ? "rgba(30,41,59,0.8)" : "rgba(255,255,255,0.7)";
-  const menuBg = isDark ? "#0f172a" : "white";
+
+  /* ── dropdown: lighter ── */
+  const menuBg = isDark ? "rgba(22,36,60,0.98)" : "white";
+  const panelBg = isDark ? "rgba(18,30,52,0.98)" : "#f8fafc";
+  const menuBorder = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
+  const rowBorder = isDark ? "rgba(255,255,255,0.04)" : "#f1f5f9";
   const menuMuted = isDark ? "#64748b" : "#9ca3af";
-  const panelBg = isDark ? "rgba(15,23,42,0.9)" : "#f8fafc";
   const dropW = isMobile ? "min(95vw,360px)" : "360px";
 
   const userName = user?.name || "User";
@@ -117,7 +120,6 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
     .toUpperCase();
   const firstName = userName.split(" ")[0];
 
-  /* ── placeholder style ── */
   useEffect(() => {
     const id = "agrisense-placeholder-style";
     if (!document.getElementById(id)) {
@@ -139,7 +141,6 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
       setNotifsLoading(false);
     }
   }, []);
-
   const loadAlerts = useCallback(async () => {
     setAlertsLoading(true);
     try {
@@ -247,71 +248,28 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
     return `${Math.floor(h / 24)}d ago`;
   };
 
-  /* ── Icon button helper ── */
-  const IconBtn = ({ children, active, onClick, badge, style: s = {} }) => (
-    <button
-      onClick={onClick}
-      style={{
-        width: "38px",
-        height: "38px",
-        borderRadius: "12px",
-        background: active
-          ? isDark
-            ? "rgba(52,211,153,0.12)"
-            : "#f0fdf4"
-          : iconBg,
-        border: `1px solid ${active ? "rgba(52,211,153,0.35)" : borderCol}`,
-        cursor: "pointer",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        position: "relative",
-        transition: "all 0.18s ease",
-        boxShadow: active
-          ? "0 0 12px rgba(52,211,153,0.15)"
-          : isDark
-            ? "none"
-            : "0 1px 3px rgba(0,0,0,0.06)",
-        ...s,
-      }}
-    >
-      {children}
-      {badge > 0 && (
-        <span
-          style={{
-            position: "absolute",
-            top: "-4px",
-            right: "-4px",
-            minWidth: "17px",
-            height: "17px",
-            borderRadius: "10px",
-            background: "#ef4444",
-            border: `2px solid ${isDark ? "#0a1628" : "white"}`,
-            color: "white",
-            fontSize: "9px",
-            fontWeight: 800,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "0 3px",
-          }}
-        >
-          {badge > 9 ? "9+" : badge}
-        </span>
-      )}
-    </button>
-  );
+  const inputSel = {
+    padding: "7px 10px",
+    borderRadius: "10px",
+    border: `1px solid ${menuBorder}`,
+    background: isDark ? "rgba(30,41,59,0.9)" : "white",
+    color: isDark ? "#f1f5f9" : "#111827",
+    fontSize: "12px",
+    outline: "none",
+  };
 
   return (
     <>
       <style>{`
+        .nb-icon-btn { transition: all 0.18s ease !important; }
         .nb-icon-btn:hover { background: ${isDark ? "rgba(52,211,153,0.1)" : "rgba(255,255,255,0.95)"} !important; border-color: rgba(52,211,153,0.3) !important; }
         .nb-search-item:hover { background: ${isDark ? "rgba(52,211,153,0.06)" : "#f0fdf4"} !important; }
         .nb-profile-item:hover { background: ${isDark ? "rgba(255,255,255,0.05)" : "#f8fafc"} !important; }
-        .nb-logout:hover { background: rgba(239,68,68,0.07) !important; }
+        .nb-logout:hover { background: rgba(248,113,113,0.07) !important; }
         .nb-tab-btn { transition: all 0.15s; }
         .nb-tab-btn:hover { color: #34d399 !important; }
-        ${isDark ? "select option { background: #1e293b; color: #f1f5f9; }" : ""}
+        .nb-notif-row:hover { background: ${isDark ? "rgba(52,211,153,0.04)" : "#f0fdf4"} !important; }
+        ${isDark ? "select option{background:#1e293b;color:#f1f5f9;}" : ""}
       `}</style>
 
       <div
@@ -322,14 +280,14 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
           alignItems: "center",
           justifyContent: "space-between",
           paddingInline: isMobile ? "12px" : isTablet ? "12px" : "16px",
-          background: bg,
+          background: navBg,
           position: "sticky",
           top: 0,
           zIndex: 40,
           backdropFilter: isDark ? "blur(12px)" : "none",
         }}
       >
-        {/* ── LEFT ── */}
+        {/* LEFT */}
         <div
           style={{
             display: "flex",
@@ -339,8 +297,8 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
         >
           {(isMobile || isTablet) && (
             <button
-              onClick={onMenuClick}
               className="nb-icon-btn"
+              onClick={onMenuClick}
               style={{
                 width: "38px",
                 height: "38px",
@@ -352,13 +310,11 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
-                boxShadow: isDark ? "none" : "0 1px 3px rgba(0,0,0,0.06)",
               }}
             >
               <Menu style={{ width: "18px", height: "18px", color: muted }} />
             </button>
           )}
-
           <div style={{ display: isMobile && searchOpen ? "none" : "block" }}>
             <h2
               style={{
@@ -387,7 +343,7 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
           </div>
         </div>
 
-        {/* ── RIGHT ── */}
+        {/* RIGHT */}
         <div
           style={{
             display: "flex",
@@ -397,120 +353,63 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
         >
           {/* Search */}
           {isMobile ? (
-            <>
-              {searchOpen ? (
+            searchOpen ? (
+              <div
+                style={{
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
                 <div
                   style={{
-                    position: "relative",
                     display: "flex",
                     alignItems: "center",
-                    gap: "6px",
+                    gap: "8px",
+                    background: inputBg,
+                    border: "1.5px solid rgba(52,211,153,0.5)",
+                    borderRadius: "12px",
+                    padding: "0 12px",
+                    height: "38px",
+                    width: "180px",
+                    boxShadow: "0 0 0 3px rgba(52,211,153,0.1)",
                   }}
                 >
-                  <div
+                  <Search
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      background: inputBg,
-                      border: `1.5px solid rgba(52,211,153,0.5)`,
-                      borderRadius: "12px",
-                      padding: "0 12px",
-                      height: "38px",
-                      width: "180px",
-                      boxShadow: "0 0 0 3px rgba(52,211,153,0.1)",
+                      width: "14px",
+                      height: "14px",
+                      color: "#34d399",
+                      flexShrink: 0,
                     }}
-                  >
-                    <Search
-                      style={{
-                        width: "14px",
-                        height: "14px",
-                        color: "#34d399",
-                        flexShrink: 0,
-                      }}
-                    />
-                    <input
-                      autoFocus
-                      value={searchVal}
-                      onChange={(e) => setSearchVal(e.target.value)}
-                      placeholder="Search crops..."
-                      className={
-                        isDark
-                          ? "as-search-input as-input-dark"
-                          : "as-search-input"
-                      }
-                      style={{
-                        border: "none",
-                        background: "transparent",
-                        outline: "none",
-                        fontSize: "13px",
-                        color: isDark ? "#e8edf8" : "#0f172a",
-                        width: "100%",
-                      }}
-                    />
-                  </div>
-                  <button
-                    onClick={() => {
-                      setSearchOpen(false);
-                      setSearchVal("");
-                    }}
-                    className="nb-icon-btn"
+                  />
+                  <input
+                    autoFocus
+                    value={searchVal}
+                    onChange={(e) => setSearchVal(e.target.value)}
+                    placeholder="Search crops..."
+                    className={
+                      isDark
+                        ? "as-search-input as-input-dark"
+                        : "as-search-input"
+                    }
                     style={{
-                      width: "38px",
-                      height: "38px",
-                      borderRadius: "12px",
-                      background: iconBg,
-                      border: `1px solid ${borderCol}`,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      border: "none",
+                      background: "transparent",
+                      outline: "none",
+                      fontSize: "13px",
+                      color: isDark ? "#e8edf8" : "#0f172a",
+                      width: "100%",
                     }}
-                  >
-                    <X
-                      style={{ width: "14px", height: "14px", color: muted }}
-                    />
-                  </button>
-                  {searchVal && filtered.length > 0 && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: "44px",
-                        left: 0,
-                        right: "44px",
-                        background: menuBg,
-                        border: `1px solid ${borderCol}`,
-                        borderRadius: "14px",
-                        boxShadow: "0 12px 32px rgba(0,0,0,0.2)",
-                        overflow: "hidden",
-                        zIndex: 200,
-                      }}
-                    >
-                      {filtered.map((crop) => (
-                        <div
-                          key={crop}
-                          className="nb-search-item"
-                          onMouseDown={() => setSearchVal(crop)}
-                          style={{
-                            padding: "9px 14px",
-                            fontSize: "13px",
-                            color: text,
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px",
-                          }}
-                        >
-                          {CROP_EMOJI[crop] || "🌾"} {crop}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  />
                 </div>
-              ) : (
                 <button
-                  onClick={() => setSearchOpen(true)}
                   className="nb-icon-btn"
+                  onClick={() => {
+                    setSearchOpen(false);
+                    setSearchVal("");
+                  }}
                   style={{
                     width: "38px",
                     height: "38px",
@@ -523,14 +422,66 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                     justifyContent: "center",
                   }}
                 >
-                  <Search
-                    style={{ width: "16px", height: "16px", color: muted }}
-                  />
+                  <X style={{ width: "14px", height: "14px", color: muted }} />
                 </button>
-              )}
-            </>
+                {searchVal && filtered.length > 0 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "44px",
+                      left: 0,
+                      right: "44px",
+                      background: menuBg,
+                      border: `1px solid ${menuBorder}`,
+                      borderRadius: "14px",
+                      boxShadow: "0 12px 32px rgba(0,0,0,0.25)",
+                      overflow: "hidden",
+                      zIndex: 200,
+                    }}
+                  >
+                    {filtered.map((crop) => (
+                      <div
+                        key={crop}
+                        className="nb-search-item"
+                        onMouseDown={() => setSearchVal(crop)}
+                        style={{
+                          padding: "9px 14px",
+                          fontSize: "13px",
+                          color: text,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                      >
+                        {CROP_EMOJI[crop] || "🌾"} {crop}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                className="nb-icon-btn"
+                onClick={() => setSearchOpen(true)}
+                style={{
+                  width: "38px",
+                  height: "38px",
+                  borderRadius: "12px",
+                  background: iconBg,
+                  border: `1px solid ${borderCol}`,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Search
+                  style={{ width: "16px", height: "16px", color: muted }}
+                />
+              </button>
+            )
           ) : (
-            /* Desktop search */
             <div style={{ position: "relative" }}>
               <div
                 style={{
@@ -607,9 +558,9 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                     left: 0,
                     right: 0,
                     background: menuBg,
-                    border: `1px solid ${borderCol}`,
+                    border: `1px solid ${menuBorder}`,
                     borderRadius: "14px",
-                    boxShadow: "0 12px 32px rgba(0,0,0,0.2)",
+                    boxShadow: "0 12px 32px rgba(0,0,0,0.25)",
                     overflow: "hidden",
                     zIndex: 200,
                   }}
@@ -637,7 +588,7 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
             </div>
           )}
 
-          {/* Theme toggle */}
+          {/* Theme */}
           {!(isMobile && searchOpen) && (
             <button
               className="nb-icon-btn"
@@ -652,8 +603,6 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                transition: "all 0.18s ease",
-                boxShadow: isDark ? "none" : "0 1px 3px rgba(0,0,0,0.06)",
               }}
             >
               {isDark ? (
@@ -694,10 +643,7 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                   position: "relative",
                   boxShadow: notifOpen
                     ? "0 0 12px rgba(52,211,153,0.15)"
-                    : isDark
-                      ? "none"
-                      : "0 1px 3px rgba(0,0,0,0.06)",
-                  transition: "all 0.18s ease",
+                    : "none",
                 }}
               >
                 <Bell
@@ -740,14 +686,15 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                     top: "48px",
                     width: dropW,
                     background: menuBg,
-                    border: `1px solid ${borderCol}`,
+                    border: `1px solid ${menuBorder}`,
                     borderRadius: "18px",
-                    boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+                    boxShadow: isDark
+                      ? "0 20px 60px rgba(0,0,0,0.5)"
+                      : "0 20px 60px rgba(0,0,0,0.15)",
                     zIndex: 200,
                     overflow: "hidden",
                   }}
                 >
-                  {/* Shimmer top */}
                   <div
                     style={{
                       position: "absolute",
@@ -761,10 +708,11 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                     }}
                   />
 
+                  {/* Header */}
                   <div
                     style={{
                       padding: "14px 16px 0",
-                      borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
+                      borderBottom: `1px solid ${rowBorder}`,
                     }}
                   >
                     <div
@@ -846,7 +794,7 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                             padding: "8px 16px",
                             display: "flex",
                             justifyContent: "space-between",
-                            borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "#f1f5f9"}`,
+                            borderBottom: `1px solid ${rowBorder}`,
                           }}
                         >
                           <button
@@ -922,6 +870,7 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                           notifications.map((n) => (
                             <div
                               key={n.id || n.created_at}
+                              className="nb-notif-row"
                               style={{
                                 padding: "11px 16px",
                                 display: "flex",
@@ -929,10 +878,11 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                                 alignItems: "flex-start",
                                 background: !n.read
                                   ? isDark
-                                    ? "rgba(52,211,153,0.04)"
+                                    ? "rgba(52,211,153,0.08)"
                                     : "#f0fdf4"
                                   : "transparent",
-                                borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.03)" : "#f9fafb"}`,
+                                borderBottom: `1px solid ${rowBorder}`,
+                                cursor: "default",
                               }}
                             >
                               <span style={{ fontSize: "18px", flexShrink: 0 }}>
@@ -944,6 +894,7 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                                     fontSize: "12px",
                                     color: text,
                                     fontWeight: !n.read ? 700 : 400,
+                                    lineHeight: 1.5,
                                   }}
                                 >
                                   {n.message}
@@ -978,7 +929,7 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                       <div
                         style={{
                           padding: "10px 16px",
-                          borderTop: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
+                          borderTop: `1px solid ${rowBorder}`,
                           textAlign: "center",
                         }}
                       >
@@ -1005,7 +956,7 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                         style={{
                           padding: "14px 16px",
                           background: panelBg,
-                          borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
+                          borderBottom: `1px solid ${rowBorder}`,
                         }}
                       >
                         <div
@@ -1014,7 +965,6 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                             fontWeight: 800,
                             color: text,
                             marginBottom: "10px",
-                            letterSpacing: "-0.01em",
                           }}
                         >
                           ➕ New Price Alert
@@ -1030,17 +980,7 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                           <select
                             value={newCrop}
                             onChange={(e) => setNewCrop(e.target.value)}
-                            style={{
-                              padding: "7px 10px",
-                              borderRadius: "10px",
-                              border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
-                              background: isDark
-                                ? "rgba(30,41,59,0.8)"
-                                : "white",
-                              color: isDark ? "#f1f5f9" : "#111827",
-                              fontSize: "12px",
-                              outline: "none",
-                            }}
+                            style={inputSel}
                           >
                             {CROPS.map((c) => (
                               <option key={c} value={c}>
@@ -1052,9 +992,9 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                             style={{
                               display: "flex",
                               background: isDark
-                                ? "rgba(30,41,59,0.8)"
+                                ? "rgba(30,41,59,0.9)"
                                 : "white",
-                              border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+                              border: `1px solid ${menuBorder}`,
                               borderRadius: "10px",
                               overflow: "hidden",
                             }}
@@ -1095,35 +1035,13 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                             value={newThreshold}
                             onChange={(e) => setNewThreshold(e.target.value)}
                             placeholder="Price threshold ₹"
-                            style={{
-                              flex: 1,
-                              padding: "7px 10px",
-                              borderRadius: "10px",
-                              border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
-                              background: isDark
-                                ? "rgba(30,41,59,0.8)"
-                                : "white",
-                              color: isDark ? "#f1f5f9" : "#111827",
-                              fontSize: "12px",
-                              outline: "none",
-                            }}
+                            style={{ ...inputSel, flex: 1 }}
                           />
                           <input
                             value={newNote}
                             onChange={(e) => setNewNote(e.target.value)}
                             placeholder="Note (optional)"
-                            style={{
-                              flex: 1,
-                              padding: "7px 10px",
-                              borderRadius: "10px",
-                              border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
-                              background: isDark
-                                ? "rgba(30,41,59,0.8)"
-                                : "white",
-                              color: isDark ? "#f1f5f9" : "#111827",
-                              fontSize: "12px",
-                              outline: "none",
-                            }}
+                            style={{ ...inputSel, flex: 1 }}
                           />
                         </div>
                         {saveMsg && (
@@ -1158,7 +1076,6 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                             boxShadow: saving
                               ? "none"
                               : "0 4px 12px rgba(22,163,74,0.3)",
-                            transition: "all 0.18s",
                           }}
                         >
                           {saving ? "Saving…" : "Create Alert"}
@@ -1196,7 +1113,7 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                                 display: "flex",
                                 alignItems: "center",
                                 gap: "10px",
-                                borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "#f1f5f9"}`,
+                                borderBottom: `1px solid ${rowBorder}`,
                                 opacity: a.active ? 1 : 0.55,
                               }}
                             >
@@ -1296,9 +1213,7 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                   transition: "all 0.18s ease",
                   boxShadow: profileOpen
                     ? "0 0 12px rgba(52,211,153,0.15)"
-                    : isDark
-                      ? "none"
-                      : "0 1px 3px rgba(0,0,0,0.06)",
+                    : "none",
                 }}
               >
                 <div
@@ -1353,14 +1268,15 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                     top: "52px",
                     width: isMobile ? "min(90vw,260px)" : "260px",
                     background: menuBg,
-                    border: `1px solid ${borderCol}`,
+                    border: `1px solid ${menuBorder}`,
                     borderRadius: "18px",
-                    boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+                    boxShadow: isDark
+                      ? "0 20px 60px rgba(0,0,0,0.5)"
+                      : "0 20px 60px rgba(0,0,0,0.15)",
                     zIndex: 200,
                     overflow: "hidden",
                   }}
                 >
-                  {/* Shimmer */}
                   <div
                     style={{
                       position: "absolute",
@@ -1373,13 +1289,11 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                       pointerEvents: "none",
                     }}
                   />
-
-                  {/* User header */}
                   <div
                     style={{
                       padding: "16px",
-                      borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
-                      background: isDark ? "rgba(52,211,153,0.06)" : "#f0fdf4",
+                      borderBottom: `1px solid ${rowBorder}`,
+                      background: isDark ? "rgba(52,211,153,0.05)" : "#f0fdf4",
                     }}
                   >
                     <div
@@ -1440,7 +1354,6 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                       </div>
                     </div>
                   </div>
-
                   <div style={{ padding: "6px 0" }}>
                     {[
                       {
@@ -1539,10 +1452,9 @@ export default function Navbar({ onMenuClick, isMobile, isTablet }) {
                       </div>
                     ))}
                   </div>
-
                   <div
                     style={{
-                      borderTop: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
+                      borderTop: `1px solid ${rowBorder}`,
                       padding: "6px 0",
                     }}
                   >
