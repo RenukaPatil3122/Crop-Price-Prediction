@@ -299,7 +299,12 @@ export default function ProfilePage() {
 
       <div
         className="pf-fade-2"
-        style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "20px" }}
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 2fr",
+          gap: "20px",
+          alignItems: "start",
+        }}
       >
         {/* ── LEFT — Avatar + Info card ── */}
         <Card style={{ padding: "0", overflow: "hidden" }}>
@@ -411,64 +416,82 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Info rows */}
+          {/* Info grid — 2 columns compact */}
           <div style={{ padding: "12px" }}>
-            {infoRows.map(({ icon: Icon, label, value }) => (
-              <div
-                key={label}
-                className="pf-info-row"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  padding: "10px 12px",
-                }}
-              >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "8px",
+              }}
+            >
+              {infoRows.map(({ icon: Icon, label, value }) => (
                 <div
+                  key={label}
                   style={{
-                    width: "32px",
-                    height: "32px",
-                    borderRadius: "9px",
-                    background: isDark ? "rgba(52,211,153,0.08)" : "#f0fdf4",
-                    border: `1px solid ${isDark ? "rgba(52,211,153,0.15)" : "rgba(22,163,74,0.15)"}`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
+                    padding: "10px 12px",
+                    borderRadius: "12px",
+                    background: isDark ? "rgba(255,255,255,0.03)" : "#f8fafc",
+                    border: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}`,
                   }}
                 >
-                  <Icon
-                    style={{ width: "13px", height: "13px", color: "#34d399" }}
-                  />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
-                      fontSize: "10px",
-                      color: muted,
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.07em",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      marginBottom: "5px",
                     }}
                   >
-                    {label}
+                    <div
+                      style={{
+                        width: "22px",
+                        height: "22px",
+                        borderRadius: "7px",
+                        background: isDark ? "rgba(52,211,153,0.1)" : "#f0fdf4",
+                        border: `1px solid ${isDark ? "rgba(52,211,153,0.15)" : "rgba(22,163,74,0.15)"}`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Icon
+                        style={{
+                          width: "11px",
+                          height: "11px",
+                          color: "#34d399",
+                        }}
+                      />
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "9px",
+                        color: muted,
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                      }}
+                    >
+                      {label}
+                    </div>
                   </div>
                   <div
                     style={{
-                      fontSize: "13px",
+                      fontSize: "12px",
                       fontWeight: 700,
                       color: text,
-                      marginTop: "1px",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
+                      paddingLeft: "2px",
                     }}
                   >
                     {value}
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </Card>
 
