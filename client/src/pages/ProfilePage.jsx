@@ -262,16 +262,12 @@ export default function ProfilePage() {
     <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
       <style>{`
         @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes popIn  { 0%{opacity:0;transform:scale(0.92) translateY(10px)} 60%{transform:scale(1.02)} 100%{opacity:1;transform:scale(1)} }
         .pf-fade-1 { animation: fadeUp 0.45s 0.00s ease both; }
         .pf-fade-2 { animation: fadeUp 0.45s 0.07s ease both; }
         .pf-save-btn { transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1); }
         .pf-save-btn:not(:disabled):hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 24px rgba(22,163,74,0.4) !important; }
-        .pf-info-row { transition: background 0.15s; border-radius: 10px; }
-        .pf-info-row:hover { background: ${isDark ? "rgba(52,211,153,0.04)" : "#f0fdf4"} !important; }
         ${isDark ? "select option { background:#1e293b; color:#f1f5f9; }" : ""}
 
-        /* ── Mobile layout ── */
         .pf-layout {
           display: grid;
           grid-template-columns: 1fr 2fr;
@@ -288,23 +284,12 @@ export default function ProfilePage() {
           grid-template-columns: 1fr 1fr;
           gap: 8px;
         }
-
         @media (max-width: 700px) {
-          .pf-layout {
-            grid-template-columns: 1fr !important;
-          }
-          .pf-fields-grid {
-            grid-template-columns: 1fr !important;
-          }
-          .pf-info-grid {
-            grid-template-columns: 1fr 1fr !important;
-          }
+          .pf-layout { grid-template-columns: 1fr !important; }
+          .pf-fields-grid { grid-template-columns: 1fr !important; }
         }
-
         @media (max-width: 400px) {
-          .pf-info-grid {
-            grid-template-columns: 1fr !important;
-          }
+          .pf-info-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
 
@@ -336,108 +321,93 @@ export default function ProfilePage() {
       <div className="pf-fade-2 pf-layout">
         {/* ── LEFT — Avatar + Info card ── */}
         <Card style={{ padding: "0", overflow: "hidden" }}>
-          {/* Green gradient header */}
+          {/* Compact profile header — horizontal pill style */}
           <div
             style={{
-              background: "linear-gradient(135deg,#166534 0%,#16a34a 100%)",
-              padding: "28px 24px 20px",
-              textAlign: "center",
-              position: "relative",
-              overflow: "hidden",
+              padding: "20px",
+              borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "12px",
             }}
           >
+            {/* Avatar — smaller, accent ring only */}
             <div
               style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                height: "1px",
-                background:
-                  "linear-gradient(90deg,transparent,rgba(52,211,153,0.5),transparent)",
-                pointerEvents: "none",
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                top: "-30px",
-                right: "-20px",
-                width: "120px",
-                height: "120px",
-                borderRadius: "50%",
-                background:
-                  "radial-gradient(circle,rgba(52,211,153,0.15) 0%,transparent 70%)",
-                pointerEvents: "none",
-              }}
-            />
-
-            {/* Avatar */}
-            <div
-              style={{
-                width: "76px",
-                height: "76px",
-                borderRadius: "22px",
-                background: "rgba(255,255,255,0.15)",
-                border: "2px solid rgba(255,255,255,0.3)",
+                width: "56px",
+                height: "56px",
+                borderRadius: "16px",
+                background: isDark
+                  ? "linear-gradient(135deg,rgba(52,211,153,0.2),rgba(22,163,74,0.1))"
+                  : "linear-gradient(135deg,#dcfce7,#bbf7d0)",
+                border: `2px solid ${isDark ? "rgba(52,211,153,0.35)" : "rgba(22,163,74,0.3)"}`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "28px",
+                fontSize: "20px",
                 fontWeight: 800,
-                color: "white",
-                margin: "0 auto 14px",
-                boxShadow: "0 8px 28px rgba(0,0,0,0.25)",
+                color: isDark ? "#34d399" : "#16a34a",
+                boxShadow: isDark
+                  ? "0 4px 16px rgba(52,211,153,0.15)"
+                  : "0 4px 12px rgba(22,163,74,0.12)",
+                flexShrink: 0,
               }}
             >
               {initials}
             </div>
 
-            <div
-              style={{
-                fontSize: "18px",
-                fontWeight: 800,
-                color: "white",
-                letterSpacing: "-0.02em",
-              }}
-            >
-              {user?.name || "User"}
-            </div>
-            <div
-              style={{
-                fontSize: "12px",
-                color: "rgba(167,243,208,0.9)",
-                marginTop: "4px",
-                fontWeight: 500,
-              }}
-            >
-              {user?.email}
+            {/* Name + email */}
+            <div style={{ textAlign: "center" }}>
+              <div
+                style={{
+                  fontSize: "15px",
+                  fontWeight: 800,
+                  color: text,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                {user?.name || "User"}
+              </div>
+              <div
+                style={{
+                  fontSize: "11px",
+                  color: muted,
+                  marginTop: "2px",
+                  fontWeight: 500,
+                }}
+              >
+                {user?.email}
+              </div>
             </div>
 
-            {/* Live badge */}
+            {/* Active badge — subtle */}
             <div
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "5px",
-                marginTop: "10px",
-                background: "rgba(0,0,0,0.2)",
-                border: "1px solid rgba(52,211,153,0.3)",
+                background: isDark ? "rgba(52,211,153,0.08)" : "#f0fdf4",
+                border: `1px solid ${isDark ? "rgba(52,211,153,0.2)" : "rgba(22,163,74,0.2)"}`,
                 borderRadius: "20px",
-                padding: "4px 10px",
+                padding: "3px 10px",
               }}
             >
               <div
                 style={{
-                  width: "6px",
-                  height: "6px",
+                  width: "5px",
+                  height: "5px",
                   borderRadius: "50%",
                   background: "#34d399",
-                  boxShadow: "0 0 6px rgba(52,211,153,0.6)",
+                  boxShadow: "0 0 5px rgba(52,211,153,0.6)",
                 }}
               />
               <span
-                style={{ fontSize: "11px", color: "#a7f3d0", fontWeight: 700 }}
+                style={{
+                  fontSize: "10px",
+                  color: isDark ? "#34d399" : "#16a34a",
+                  fontWeight: 700,
+                }}
               >
                 Active Account
               </span>
@@ -526,7 +496,6 @@ export default function ProfilePage() {
                 alignItems: "center",
                 gap: "10px",
                 marginBottom: "20px",
-                position: "relative",
               }}
             >
               <div
@@ -700,7 +669,6 @@ export default function ProfilePage() {
                 alignItems: "center",
                 gap: "10px",
                 marginBottom: "20px",
-                position: "relative",
               }}
             >
               <div
