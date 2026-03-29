@@ -22,9 +22,6 @@ import {
 } from "recharts";
 import { fullPredict } from "../api";
 
-/* ─────────────────────────────────────────
-   CONSTANTS
-───────────────────────────────────────── */
 const CROPS = [
   "Wheat",
   "Rice",
@@ -88,9 +85,6 @@ const CROP_EMOJI = {
   Soyabean: "🫘",
 };
 
-/* ─────────────────────────────────────────
-   HOOKS
-───────────────────────────────────────── */
 function useInView(threshold = 0.1) {
   const ref = useRef();
   const [inView, setInView] = useState(false);
@@ -118,8 +112,7 @@ function useCountUp(target, duration = 1400, enabled = true) {
     const step = (ts) => {
       if (!start) start = ts;
       const p = Math.min((ts - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setVal(Math.round(eased * num));
+      setVal(Math.round((1 - Math.pow(1 - p, 3)) * num));
       if (p < 1) rafRef.current = requestAnimationFrame(step);
       else setVal(num);
     };
@@ -129,9 +122,18 @@ function useCountUp(target, duration = 1400, enabled = true) {
   return val;
 }
 
-/* ─────────────────────────────────────────
-   GLOW RESULT CARD
-───────────────────────────────────────── */
+function useBreakpoint() {
+  const [bp, setBp] = useState(() =>
+    window.innerWidth < 640 ? "mobile" : "desktop",
+  );
+  useEffect(() => {
+    const fn = () => setBp(window.innerWidth < 640 ? "mobile" : "desktop");
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+  return bp;
+}
+
 function GlowResultCard({ label, value, sub, glowColor, isDark, delay = 0 }) {
   const [ref, inView] = useInView();
   const [hovered, setHovered] = useState(false);
@@ -240,9 +242,6 @@ function GlowResultCard({ label, value, sub, glowColor, isDark, delay = 0 }) {
   );
 }
 
-/* ─────────────────────────────────────────
-   CUSTOM TOOLTIP
-───────────────────────────────────────── */
 const CustomBarTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -282,9 +281,6 @@ const CustomBarTooltip = ({ active, payload, label }) => {
   );
 };
 
-/* ─────────────────────────────────────────
-   STYLED SELECT
-───────────────────────────────────────── */
 function StyledSelect({
   label,
   value,
@@ -368,11 +364,11 @@ function StyledSelect({
   );
 }
 
-/* ─────────────────────────────────────────
-   MAIN
-───────────────────────────────────────── */
 export default function Predictions() {
   const { isDark } = useTheme();
+  const bp = useBreakpoint();
+  const isMobile = bp === "mobile";
+
   const [form, setForm] = useState({
     crop: "",
     region: "",
@@ -493,27 +489,48 @@ export default function Predictions() {
         @keyframes popIn  { 0%{opacity:0;transform:scale(0.92) translateY(10px)} 60%{transform:scale(1.02)} 100%{opacity:1;transform:scale(1)} }
         @keyframes spin   { to{transform:rotate(360deg)} }
         @keyframes pulse  { 0%,100%{opacity:1} 50%{opacity:0.4} }
-
         .pred-fade-1 { animation: fadeUp 0.45s 0.00s ease both; }
         .pred-fade-2 { animation: fadeUp 0.45s 0.07s ease both; }
         .pred-fade-3 { animation: fadeUp 0.45s 0.14s ease both; }
         .pred-fade-4 { animation: fadeUp 0.45s 0.21s ease both; }
-
         .spin { animation: spin 0.75s linear infinite; }
         .pulse-dot { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; }
-
         .pred-btn { transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1) !important; }
         .pred-btn:not(:disabled):hover { transform: translateY(-2px) scale(1.02) !important; box-shadow: 0 8px 32px rgba(22,163,74,0.35) !important; }
-        .pred-btn:not(:disabled):active { transform: scale(0.97) !important; }
-
         .factor-card { transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1); }
         .factor-card:hover { transform: translateX(4px); }
-
         .popular-row { transition: background 0.15s; cursor: pointer; }
         .popular-row:hover { background: rgba(52,211,153,0.04) !important; border-radius: 8px; }
-
         .reset-btn { transition: all 0.18s ease; }
-        .reset-btn:hover { background: rgba(52,211,153,0.15) !important; transform: translateX(-2px); }
+        .reset-btn:hover { background: rgba(52,211,153,0.15) !important; }
+
+        /* ── Responsive grids ── */
+        .pred-form-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+        }
+        .pred-result-stats {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr 1fr;
+          gap: 16px;
+        }
+        .pred-result-charts {
+          display: grid;
+          grid-template-columns: 1.6fr 1fr;
+          gap: 20px;
+        }
+        @media (max-width: 640px) {
+          .pred-form-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .pred-result-stats {
+            grid-template-columns: 1fr 1fr !important;
+          }
+          .pred-result-charts {
+            grid-template-columns: 1fr !important;
+          }
+        }
       `}</style>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
@@ -524,6 +541,8 @@ export default function Predictions() {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "flex-start",
+            flexWrap: "wrap",
+            gap: "10px",
           }}
         >
           <div>
@@ -565,6 +584,7 @@ export default function Predictions() {
                 display: "flex",
                 alignItems: "center",
                 gap: "6px",
+                flexShrink: 0,
               }}
             >
               ← New Prediction
@@ -572,7 +592,6 @@ export default function Predictions() {
           )}
         </div>
 
-        {/* ERROR */}
         {error && (
           <div
             style={{
@@ -591,13 +610,7 @@ export default function Predictions() {
 
         {step === 0 ? (
           /* ══ FORM ══ */
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "20px",
-            }}
-          >
+          <div className="pred-form-grid">
             {/* Form Card */}
             <div
               className="pred-fade-2"
@@ -622,20 +635,6 @@ export default function Predictions() {
                   pointerEvents: "none",
                 }}
               />
-              <div
-                style={{
-                  position: "absolute",
-                  top: "-40px",
-                  right: "-20px",
-                  width: "160px",
-                  height: "160px",
-                  borderRadius: "50%",
-                  background:
-                    "radial-gradient(circle,rgba(52,211,153,0.04) 0%,transparent 70%)",
-                  pointerEvents: "none",
-                }}
-              />
-
               <div
                 style={{
                   display: "flex",
@@ -762,7 +761,7 @@ export default function Predictions() {
                           borderTopColor: "white",
                           borderRadius: "50%",
                         }}
-                      />
+                      />{" "}
                       Analyzing market data…
                     </>
                   ) : (
@@ -787,8 +786,7 @@ export default function Predictions() {
                   borderRadius: "22px",
                   padding: "24px",
                   border: "1px solid rgba(52,211,153,0.2)",
-                  boxShadow:
-                    "0 8px 40px rgba(22,163,74,0.2), 0 0 80px rgba(52,211,153,0.05)",
+                  boxShadow: "0 8px 40px rgba(22,163,74,0.2)",
                   position: "relative",
                   overflow: "hidden",
                 }}
@@ -1026,7 +1024,6 @@ export default function Predictions() {
                             fontSize: "13px",
                             fontWeight: 700,
                             color: text,
-                            letterSpacing: "-0.01em",
                           }}
                         >
                           {crop}
@@ -1043,7 +1040,6 @@ export default function Predictions() {
                           fontWeight: 800,
                           color: text,
                           fontFamily: "'DM Mono',monospace",
-                          letterSpacing: "-0.02em",
                         }}
                       >
                         {price}
@@ -1076,13 +1072,7 @@ export default function Predictions() {
             style={{ display: "flex", flexDirection: "column", gap: "20px" }}
           >
             {/* Stat Cards */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr 1fr",
-                gap: "16px",
-              }}
-            >
+            <div className="pred-result-stats">
               {[
                 {
                   label: "Predicted Price",
@@ -1119,13 +1109,7 @@ export default function Predictions() {
             </div>
 
             {/* Chart + Factors */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1.6fr 1fr",
-                gap: "20px",
-              }}
-            >
+            <div className="pred-result-charts">
               {/* Forecast Chart */}
               <div
                 className="pred-fade-2"
@@ -1166,7 +1150,6 @@ export default function Predictions() {
                     }}
                   />
                 )}
-
                 <div
                   style={{
                     marginBottom: "14px",
@@ -1179,6 +1162,7 @@ export default function Predictions() {
                       display: "flex",
                       alignItems: "center",
                       gap: "8px",
+                      flexWrap: "wrap",
                     }}
                   >
                     <span
@@ -1224,7 +1208,6 @@ export default function Predictions() {
                     {form.crop} · {form.region} · ₹ per quintal
                   </div>
                 </div>
-
                 <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={result.forecast} barSize={28}>
@@ -1307,7 +1290,6 @@ export default function Predictions() {
                     pointerEvents: "none",
                   }}
                 />
-
                 <div
                   style={{
                     display: "flex",
@@ -1344,7 +1326,6 @@ export default function Predictions() {
                     Market Factors
                   </span>
                 </div>
-
                 <div
                   style={{
                     display: "flex",
@@ -1378,7 +1359,6 @@ export default function Predictions() {
                             fontSize: "13px",
                             fontWeight: 700,
                             color: text,
-                            letterSpacing: "-0.01em",
                           }}
                         >
                           {label}
@@ -1466,10 +1446,11 @@ export default function Predictions() {
                 justifyContent: "space-between",
                 alignItems: "center",
                 border: "1px solid rgba(52,211,153,0.2)",
-                boxShadow:
-                  "0 8px 40px rgba(22,163,74,0.2), 0 0 80px rgba(52,211,153,0.05)",
+                boxShadow: "0 8px 40px rgba(22,163,74,0.2)",
                 position: "relative",
                 overflow: "hidden",
+                flexWrap: "wrap",
+                gap: "12px",
               }}
             >
               <div
@@ -1518,10 +1499,7 @@ export default function Predictions() {
                   background: "rgba(0,0,0,0.35)",
                   borderRadius: "14px",
                   border: "1px solid rgba(253,224,71,0.3)",
-                  boxShadow: "0 0 20px rgba(253,224,71,0.15)",
                   padding: "10px 16px",
-                  backdropFilter: "blur(8px)",
-                  flexShrink: 0,
                   backdropFilter: "blur(8px)",
                   flexShrink: 0,
                 }}
