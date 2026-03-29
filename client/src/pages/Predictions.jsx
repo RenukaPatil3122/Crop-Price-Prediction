@@ -290,9 +290,10 @@ function StyledSelect({
   isDark,
 }) {
   const [open, setOpen] = useState(false);
+  const [flipUp, setFlipUp] = useState(false);
   const ref = useRef();
+  const triggerRef = useRef();
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e) => {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
@@ -301,7 +302,19 @@ function StyledSelect({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  const handleOpen = () => {
+    if (!open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setFlipUp(spaceBelow < 240); // flip up if less than 240px below
+    }
+    setOpen((p) => !p);
+  };
+
   const selected = value || "";
+  const dropStyle = flipUp
+    ? { bottom: "calc(100% + 6px)", top: "auto" }
+    : { top: "calc(100% + 6px)", bottom: "auto" };
 
   return (
     <div ref={ref} style={{ position: "relative", zIndex: open ? 100 : 1 }}>
@@ -321,7 +334,8 @@ function StyledSelect({
 
       {/* Trigger */}
       <div
-        onClick={() => setOpen((p) => !p)}
+        ref={triggerRef}
+        onClick={handleOpen}
         style={{
           width: "100%",
           height: "44px",
@@ -349,6 +363,7 @@ function StyledSelect({
           transition: "all 0.2s ease",
           boxSizing: "border-box",
           userSelect: "none",
+          position: "relative",
         }}
       >
         <span
@@ -372,30 +387,28 @@ function StyledSelect({
             color: open ? "#34d399" : isDark ? "#475569" : "#9ca3af",
             pointerEvents: "none",
             transition: "transform 0.2s ease",
-            flexShrink: 0,
           }}
         />
       </div>
 
-      {/* Dropdown list */}
+      {/* Dropdown list — flips up when near bottom of viewport */}
       {open && (
         <div
           style={{
             position: "absolute",
-            top: "calc(100% + 6px)",
             left: 0,
             right: 0,
+            ...dropStyle,
             background: isDark ? "#1e293b" : "white",
             border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}`,
             borderRadius: "12px",
             boxShadow: isDark
               ? "0 16px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(52,211,153,0.1)"
               : "0 16px 40px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05)",
-            overflow: "hidden",
             zIndex: 9999,
-            animation: "fadeUp 0.15s ease both",
             maxHeight: "220px",
             overflowY: "auto",
+            animation: "fadeUp 0.15s ease both",
           }}
         >
           {options.map((o) => (
