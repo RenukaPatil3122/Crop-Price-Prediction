@@ -588,7 +588,7 @@ export default function SettingsPage() {
               border: "none",
               cursor: "pointer",
               boxShadow: "0 4px 16px rgba(22,163,74,0.3)",
-              width: "100%",
+              width: "fit-content",
               letterSpacing: "0.01em",
             }}
           >
