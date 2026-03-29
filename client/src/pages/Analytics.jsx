@@ -416,6 +416,7 @@ export default function Analytics() {
       if (age < CACHE_TTL) {
         setData(cache.current[key].data);
         setLastFetch(new Date(cache.current[key].ts));
+        setError(""); // ← ADD THIS
         setLoading(false);
         return;
       }
@@ -423,7 +424,7 @@ export default function Analytics() {
     setLoading(true);
     try {
       const ctrl = new AbortController();
-      const tid = setTimeout(() => ctrl.abort(), 15000);
+      const tid = setTimeout(() => ctrl.abort(), 45000);
       const res = await fetch(
         `${API_BASE}/analytics/summary?months=${months}`,
         { signal: ctrl.signal },
@@ -433,6 +434,7 @@ export default function Analytics() {
       const json = await res.json();
       cache.current[key] = { data: json, ts: Date.now() };
       setData(json);
+      setError(""); // ← ADD THIS
       setLastFetch(new Date());
     } catch (err) {
       if (err.name === "AbortError") {
@@ -440,10 +442,12 @@ export default function Analytics() {
           "Request timed out — make sure your backend is running on port 8000.",
         );
       } else if (err.message?.includes("503")) {
-        setError("⏳ Model is training (~60s). Auto-retrying in 15s...");
+        setError("⏳ Model is warming up (~60s). Auto-retrying...");
         setTimeout(() => fetchSummary(months, true), 15000);
+      } else if (err.message?.includes("Failed to fetch")) {
+        setError("Backend offline — start it with: uvicorn main:app --reload");
       } else {
-        setError(`Backend offline — ${err.message}`);
+        setError(`Error: ${err.message}`);
       }
     } finally {
       setLoading(false);
