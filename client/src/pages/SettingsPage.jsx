@@ -204,6 +204,19 @@ export default function SettingsPage() {
         .st-save-btn:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 24px rgba(22,163,74,0.4) !important; }
         .theme-btn { transition: all 0.2s ease; }
         .theme-btn:hover { transform: translateY(-1px); }
+
+        /* ── Responsive grid ── */
+        .settings-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+          align-items: start;
+        }
+        @media (max-width: 640px) {
+          .settings-grid {
+            grid-template-columns: 1fr;
+          }
+        }
       `}</style>
 
       <div className="st-fade-1">
@@ -230,15 +243,7 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <div
-        className="st-fade-2"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "20px",
-          alignItems: "start",
-        }}
-      >
+      <div className="st-fade-2 settings-grid">
         {/* Left */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           {/* Appearance */}
@@ -447,12 +452,13 @@ export default function SettingsPage() {
                     >
                       <Icon style={{ width: "17px", height: "17px", color }} />
                     </div>
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <div
                         style={{
                           display: "flex",
                           alignItems: "center",
                           gap: "7px",
+                          flexWrap: "wrap",
                         }}
                       >
                         <span
@@ -476,6 +482,7 @@ export default function SettingsPage() {
                                 : "rgba(251,191,36,0.12)",
                             color: badge === "Live" ? "#34d399" : "#fbbf24",
                             border: `1px solid ${badge === "Live" ? "rgba(52,211,153,0.2)" : "rgba(251,191,36,0.2)"}`,
+                            whiteSpace: "nowrap",
                           }}
                         >
                           {badge === "Live" ? "● Live" : "⏰ Scheduled"}
@@ -486,6 +493,7 @@ export default function SettingsPage() {
                           fontSize: "11px",
                           color: muted,
                           marginTop: "2px",
+                          wordBreak: "break-word",
                         }}
                       >
                         {sub}
@@ -580,7 +588,7 @@ export default function SettingsPage() {
               border: "none",
               cursor: "pointer",
               boxShadow: "0 4px 16px rgba(22,163,74,0.3)",
-              width: "fit-content",
+              width: "100%",
               letterSpacing: "0.01em",
             }}
           >
