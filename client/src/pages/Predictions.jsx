@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useTheme } from "../context/ThemeContext";
 import {
   Sprout,
@@ -281,6 +282,7 @@ const CustomBarTooltip = ({ active, payload, label }) => {
   );
 };
 
+// ── Portal-based dropdown — escapes any parent overflow/z-index trap ──
 function StyledSelect({
   label,
   value,
@@ -290,34 +292,124 @@ function StyledSelect({
   isDark,
 }) {
   const [open, setOpen] = useState(false);
-  const [flipUp, setFlipUp] = useState(false);
-  const ref = useRef();
+  const [dropdownStyle, setDropdownStyle] = useState({});
+  const wrapperRef = useRef();
   const triggerRef = useRef();
+  const portalRef = useRef();
 
+  // Close on outside click — skip if click is inside wrapper OR portal
   useEffect(() => {
     const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+      if (wrapperRef.current && wrapperRef.current.contains(e.target)) return;
+      if (portalRef.current && portalRef.current.contains(e.target)) return;
+      setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  const calcStyle = () => {
+    if (!triggerRef.current) return {};
+    const rect = triggerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const flipUp = spaceBelow < 220;
+    return {
+      position: "fixed",
+      left: rect.left,
+      width: rect.width,
+      zIndex: 99999,
+      ...(flipUp
+        ? { bottom: window.innerHeight - rect.top + 6 }
+        : { top: rect.bottom + 6 }),
+    };
+  };
+
+  // Keep position in sync while open (scroll / resize)
+  useEffect(() => {
+    if (!open) return;
+    const update = () => setDropdownStyle(calcStyle());
+    update();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, [open]);
+
   const handleOpen = () => {
-    if (!open && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      setFlipUp(spaceBelow < 240); // flip up if less than 240px below
-    }
+    setDropdownStyle(calcStyle());
     setOpen((p) => !p);
   };
 
   const selected = value || "";
-  const dropStyle = flipUp
-    ? { bottom: "calc(100% + 6px)", top: "auto" }
-    : { top: "calc(100% + 6px)", bottom: "auto" };
+
+  // Render dropdown into body via portal — no parent clips it
+  const dropdown = open
+    ? createPortal(
+        <div
+          ref={portalRef}
+          style={{
+            ...dropdownStyle,
+            background: isDark ? "#1e293b" : "white",
+            border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}`,
+            borderRadius: "12px",
+            boxShadow: isDark
+              ? "0 16px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(52,211,153,0.1)"
+              : "0 16px 40px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05)",
+            maxHeight: "220px",
+            overflowY: "auto",
+            animation: "fadeUp 0.15s ease both",
+          }}
+        >
+          {options.map((o) => (
+            <div
+              key={o}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onChange(o);
+                setOpen(false);
+              }}
+              style={{
+                padding: "10px 14px",
+                fontSize: "13px",
+                fontWeight: 500,
+                color:
+                  o === selected ? "#34d399" : isDark ? "#e8edf8" : "#111827",
+                background:
+                  o === selected
+                    ? isDark
+                      ? "rgba(52,211,153,0.1)"
+                      : "#f0fdf4"
+                    : "transparent",
+                cursor: "pointer",
+                borderLeft:
+                  o === selected
+                    ? "2px solid #34d399"
+                    : "2px solid transparent",
+                transition: "background 0.12s",
+              }}
+              onMouseEnter={(e) => {
+                if (o !== selected)
+                  e.currentTarget.style.background = isDark
+                    ? "rgba(255,255,255,0.04)"
+                    : "#f8fafc";
+              }}
+              onMouseLeave={(e) => {
+                if (o !== selected)
+                  e.currentTarget.style.background = "transparent";
+              }}
+            >
+              {o}
+            </div>
+          ))}
+        </div>,
+        document.body,
+      )
+    : null;
 
   return (
-    <div ref={ref} style={{ position: "relative" }}>
+    <div ref={wrapperRef} style={{ position: "relative" }}>
       <label
         style={{
           fontSize: "11px",
@@ -332,7 +424,6 @@ function StyledSelect({
         {label}
       </label>
 
-      {/* Trigger */}
       <div
         ref={triggerRef}
         onClick={handleOpen}
@@ -391,68 +482,7 @@ function StyledSelect({
         />
       </div>
 
-      {/* Dropdown list — flips up when near bottom of viewport */}
-      {open && (
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            ...dropStyle,
-            background: isDark ? "#1e293b" : "white",
-            border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}`,
-            borderRadius: "12px",
-            boxShadow: isDark
-              ? "0 16px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(52,211,153,0.1)"
-              : "0 16px 40px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05)",
-            zIndex: 9999,
-            maxHeight: "220px",
-            overflowY: "auto",
-            animation: "fadeUp 0.15s ease both",
-          }}
-        >
-          {options.map((o) => (
-            <div
-              key={o}
-              onClick={() => {
-                onChange(o);
-                setOpen(false);
-              }}
-              style={{
-                padding: "10px 14px",
-                fontSize: "13px",
-                fontWeight: 500,
-                color:
-                  o === selected ? "#34d399" : isDark ? "#e8edf8" : "#111827",
-                background:
-                  o === selected
-                    ? isDark
-                      ? "rgba(52,211,153,0.1)"
-                      : "#f0fdf4"
-                    : "transparent",
-                cursor: "pointer",
-                borderLeft:
-                  o === selected
-                    ? "2px solid #34d399"
-                    : "2px solid transparent",
-                transition: "background 0.12s",
-              }}
-              onMouseEnter={(e) => {
-                if (o !== selected)
-                  e.currentTarget.style.background = isDark
-                    ? "rgba(255,255,255,0.04)"
-                    : "#f8fafc";
-              }}
-              onMouseLeave={(e) => {
-                if (o !== selected)
-                  e.currentTarget.style.background = "transparent";
-              }}
-            >
-              {o}
-            </div>
-          ))}
-        </div>
-      )}
+      {dropdown}
     </div>
   );
 }
@@ -473,7 +503,6 @@ export default function Predictions() {
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
 
-  const card = isDark ? "rgba(30,41,59,0.8)" : "white";
   const cardBorder = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
   const text = isDark ? "#e8edf8" : "#0f172a";
   const muted = isDark ? "#94a3b8" : "#4b5563";
@@ -578,7 +607,7 @@ export default function Predictions() {
     <>
       <style>{`
         ${isDark ? "select option { background: #1e293b; color: #f1f5f9; }" : ""}
-        @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
         @keyframes popIn  { 0%{opacity:0;transform:scale(0.92) translateY(10px)} 60%{transform:scale(1.02)} 100%{opacity:1;transform:scale(1)} }
         @keyframes spin   { to{transform:rotate(360deg)} }
         @keyframes pulse  { 0%,100%{opacity:1} 50%{opacity:0.4} }
@@ -596,8 +625,6 @@ export default function Predictions() {
         .popular-row:hover { background: rgba(52,211,153,0.04) !important; border-radius: 8px; }
         .reset-btn { transition: all 0.18s ease; }
         .reset-btn:hover { background: rgba(52,211,153,0.15) !important; }
-
-        /* ── Responsive grids ── */
         .pred-form-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
@@ -614,27 +641,13 @@ export default function Predictions() {
           gap: 20px;
         }
         @media (max-width: 640px) {
-          .pred-form-grid {
-            grid-template-columns: 1fr !important;
-          }
-          .pred-result-stats {
-            grid-template-columns: 1fr 1fr !important;
-          }
-          .pred-result-charts {
-            grid-template-columns: 1fr !important;
-          }
+          .pred-form-grid { grid-template-columns: 1fr !important; }
+          .pred-result-stats { grid-template-columns: 1fr 1fr !important; }
+          .pred-result-charts { grid-template-columns: 1fr !important; }
         }
       `}</style>
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "16px",
-          position: "relative",
-          overflow: "visible", // ← add this
-        }}
-      >
+      <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
         {/* HEADER */}
         <div
           className="pred-fade-1"
@@ -710,7 +723,6 @@ export default function Predictions() {
         )}
 
         {step === 0 ? (
-          /* ══ FORM ══ */
           <div className="pred-form-grid">
             {/* Form Card */}
             <div
@@ -722,6 +734,7 @@ export default function Predictions() {
                 boxShadow: cardShadow,
                 padding: "28px",
                 position: "relative",
+                // NO overflow:hidden here — would clip portal's trigger ref calc
               }}
             >
               <div
@@ -781,7 +794,6 @@ export default function Predictions() {
                   display: "flex",
                   flexDirection: "column",
                   gap: "16px",
-                  position: "relative",
                 }}
               >
                 {[
@@ -1167,7 +1179,6 @@ export default function Predictions() {
             </div>
           </div>
         ) : (
-          /* ══ RESULT ══ */
           <div
             style={{ display: "flex", flexDirection: "column", gap: "20px" }}
           >
