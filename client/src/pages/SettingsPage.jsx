@@ -565,44 +565,46 @@ export default function SettingsPage() {
               </div>
             )}
           </Card>
-
-          <button
-            className="st-save-btn"
-            onClick={() => {
-              setSaved(true);
-              setTimeout(() => setSaved(false), 2500);
-            }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              padding: "12px 28px",
-              borderRadius: "14px",
-              background: saved
-                ? "#34d399"
-                : "linear-gradient(135deg,#166534 0%,#16A34A 100%)",
-              color: "white",
-              fontWeight: 800,
-              fontSize: "14px",
-              border: "none",
-              cursor: "pointer",
-              boxShadow: "0 4px 16px rgba(22,163,74,0.3)",
-              width: "fit-content",
-              letterSpacing: "0.01em",
-            }}
-          >
-            {saved ? (
-              <>
-                <CheckCircle style={{ width: "15px", height: "15px" }} /> Saved!
-              </>
-            ) : (
-              <>
-                <Save style={{ width: "15px", height: "15px" }} /> Save Settings
-              </>
-            )}
-          </button>
         </div>
+      </div>
+
+      {/* Save button — outside grid, always centered */}
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <button
+          className="st-save-btn"
+          onClick={() => {
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2500);
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+            padding: "13px 48px",
+            borderRadius: "14px",
+            background: saved
+              ? "#34d399"
+              : "linear-gradient(135deg,#166534 0%,#16A34A 100%)",
+            color: "white",
+            fontWeight: 800,
+            fontSize: "14px",
+            border: "none",
+            cursor: "pointer",
+            boxShadow: "0 4px 16px rgba(22,163,74,0.3)",
+            letterSpacing: "0.01em",
+          }}
+        >
+          {saved ? (
+            <>
+              <CheckCircle style={{ width: "15px", height: "15px" }} /> Saved!
+            </>
+          ) : (
+            <>
+              <Save style={{ width: "15px", height: "15px" }} /> Save Settings
+            </>
+          )}
+        </button>
       </div>
     </div>
   );
