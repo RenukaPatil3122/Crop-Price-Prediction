@@ -629,11 +629,13 @@ export default function Predictions() {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 20px;
+          align-items: start;
         }
         .pred-result-stats {
           display: grid;
           grid-template-columns: 1fr 1fr 1fr 1fr;
           gap: 16px;
+          align-items: start;
         }
         .pred-result-charts {
           display: grid;
@@ -734,7 +736,7 @@ export default function Predictions() {
                 boxShadow: cardShadow,
                 padding: "28px",
                 position: "relative",
-                // NO overflow:hidden here — would clip portal's trigger ref calc
+                alignSelf: "start",
               }}
             >
               <div
@@ -1230,7 +1232,6 @@ export default function Predictions() {
                   border: `1px solid ${cardBorder}`,
                   boxShadow: cardShadow,
                   padding: "22px 22px 12px",
-                  height: "340px",
                   display: "flex",
                   flexDirection: "column",
                   position: "relative",
@@ -1319,7 +1320,9 @@ export default function Predictions() {
                     {form.crop} · {form.region} · ₹ per quintal
                   </div>
                 </div>
-                <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
+                <div
+                  style={{ flex: 1, minHeight: "240px", position: "relative" }}
+                >
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={result.forecast} barSize={28}>
                       <defs>
