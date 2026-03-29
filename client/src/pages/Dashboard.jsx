@@ -881,6 +881,31 @@ export default function Dashboard() {
       `}</style>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
+        {/* ── PAGE HEADER ── */}
+        <div className="fade-up-1">
+          <h1
+            style={{
+              fontSize: "22px",
+              fontWeight: 800,
+              color: text,
+              margin: 0,
+              letterSpacing: "-0.02em",
+            }}
+          >
+            Dashboard
+          </h1>
+          <p
+            style={{
+              fontSize: "13px",
+              color: muted,
+              marginTop: "4px",
+              fontWeight: 400,
+            }}
+          >
+            Live crop prices & AI predictions
+          </p>
+        </div>
+
         {/* ── METRIC CARDS ── */}
         <div
           style={{
