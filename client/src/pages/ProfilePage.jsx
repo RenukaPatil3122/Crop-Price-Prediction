@@ -270,6 +270,42 @@ export default function ProfilePage() {
         .pf-info-row { transition: background 0.15s; border-radius: 10px; }
         .pf-info-row:hover { background: ${isDark ? "rgba(52,211,153,0.04)" : "#f0fdf4"} !important; }
         ${isDark ? "select option { background:#1e293b; color:#f1f5f9; }" : ""}
+
+        /* ── Mobile layout ── */
+        .pf-layout {
+          display: grid;
+          grid-template-columns: 1fr 2fr;
+          gap: 20px;
+          align-items: start;
+        }
+        .pf-fields-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 14px;
+        }
+        .pf-info-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+        }
+
+        @media (max-width: 700px) {
+          .pf-layout {
+            grid-template-columns: 1fr !important;
+          }
+          .pf-fields-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .pf-info-grid {
+            grid-template-columns: 1fr 1fr !important;
+          }
+        }
+
+        @media (max-width: 400px) {
+          .pf-info-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
       `}</style>
 
       {/* Header */}
@@ -297,18 +333,10 @@ export default function ProfilePage() {
         </p>
       </div>
 
-      <div
-        className="pf-fade-2"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 2fr",
-          gap: "20px",
-          alignItems: "start",
-        }}
-      >
+      <div className="pf-fade-2 pf-layout">
         {/* ── LEFT — Avatar + Info card ── */}
         <Card style={{ padding: "0", overflow: "hidden" }}>
-          {/* Green gradient header section */}
+          {/* Green gradient header */}
           <div
             style={{
               background: "linear-gradient(135deg,#166534 0%,#16a34a 100%)",
@@ -416,15 +444,9 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Info grid — 2 columns compact */}
+          {/* Info grid */}
           <div style={{ padding: "12px" }}>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "8px",
-              }}
-            >
+            <div className="pf-info-grid">
               {infoRows.map(({ icon: Icon, label, value }) => (
                 <div
                   key={label}
@@ -532,13 +554,7 @@ export default function ProfilePage() {
               </span>
             </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "14px",
-              }}
-            >
+            <div className="pf-fields-grid">
               <FieldRow
                 icon={User}
                 label="Full Name"

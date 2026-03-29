@@ -305,8 +305,8 @@ export default function History() {
         setAllData(STATIC_DATA);
         setStats({
           total: STATIC_DATA.length,
-          verified: STATIC_DATA.filter((d) => d.status === "Verified").length,
-          pending: STATIC_DATA.filter((d) => d.status === "Pending").length,
+          verified: 5,
+          pending: 3,
           avg_accuracy: 91.2,
         });
         setDbLive(false);
@@ -436,21 +436,70 @@ export default function History() {
 
         ${isDark ? "select option { background: #1e293b; color: #f1f5f9; }" : ""}
 
-        @media (max-width: 640px) {
-          .h-header { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
-          .h-stats-grid { grid-template-columns: 1fr 1fr !important; }
+        /* ── Mobile responsive ── */
+        .h-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+        .h-header-btns {
+          display: flex;
+          gap: 8px;
+          flex-shrink: 0;
+        }
+        .h-stats-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr 1fr;
+          gap: 16px;
+        }
+        .h-filters {
+          display: flex;
+          gap: 12px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+
+        @media (max-width: 700px) {
+          .h-stats-grid {
+            grid-template-columns: 1fr 1fr !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .h-header {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+          .h-header-btns {
+            width: 100%;
+          }
+          .h-header-btns button {
+            flex: 1;
+            justify-content: center;
+          }
+          .h-export-label {
+            display: none;
+          }
+          .h-stats-grid {
+            grid-template-columns: 1fr 1fr !important;
+            gap: 10px !important;
+          }
+          .h-filters {
+            flex-direction: column;
+            align-items: stretch !important;
+          }
+          .h-filter-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+          }
         }
       `}</style>
 
       {/* HEADER */}
-      <div
-        className="h-fade-1 h-header"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-        }}
-      >
+      <div className="h-fade-1 h-header">
         <div>
           <div
             style={{
@@ -458,6 +507,7 @@ export default function History() {
               alignItems: "center",
               gap: "10px",
               marginBottom: "4px",
+              flexWrap: "wrap",
             }}
           >
             <h1
@@ -517,7 +567,7 @@ export default function History() {
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
+        <div className="h-header-btns">
           <button
             className="h-refresh-btn"
             onClick={loadData}
@@ -579,8 +629,11 @@ export default function History() {
               </>
             ) : (
               <>
-                <Download style={{ width: "14px", height: "14px" }} /> Export
-                CSV ({sorted.length})
+                <Download style={{ width: "14px", height: "14px" }} />
+                <span className="h-export-label">
+                  {" "}
+                  Export CSV ({sorted.length})
+                </span>
               </>
             )}
           </button>
@@ -588,14 +641,7 @@ export default function History() {
       </div>
 
       {/* STAT CARDS */}
-      <div
-        className="h-fade-2 h-stats-grid"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr 1fr",
-          gap: "16px",
-        }}
-      >
+      <div className="h-fade-2 h-stats-grid">
         {statCards.map(({ label, value, sub, glowColor, icon }, i) => (
           <div
             key={label}
@@ -692,137 +738,148 @@ export default function History() {
         cardBorder={cardBorder}
         cardShadow={cardShadow}
         className="h-fade-3"
-        style={{
-          padding: "16px 20px",
-          display: "flex",
-          gap: "12px",
-          alignItems: "center",
-          flexWrap: "wrap",
-        }}
+        style={{ padding: "16px 20px" }}
       >
-        <div
-          className="search-wrap"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            background: inputBg,
-            border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
-            borderRadius: "12px",
-            padding: "0 14px",
-            flex: 1,
-            minWidth: "180px",
-          }}
-        >
-          <Search
+        <div className="h-filters">
+          {/* Search */}
+          <div
+            className="search-wrap"
             style={{
-              width: "14px",
-              height: "14px",
-              color: muted,
-              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              background: inputBg,
+              border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+              borderRadius: "12px",
+              padding: "0 14px",
+              flex: 1,
+              minWidth: "160px",
             }}
-          />
-          <input
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Search crop or state..."
+          >
+            <Search
+              style={{
+                width: "14px",
+                height: "14px",
+                color: muted,
+                flexShrink: 0,
+              }}
+            />
+            <input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Search crop or state..."
+              style={{
+                border: "none",
+                background: "transparent",
+                outline: "none",
+                fontSize: "13px",
+                color: text,
+                padding: "10px 0",
+                width: "100%",
+              }}
+            />
+          </div>
+
+          <div
+            className="h-filter-row"
             style={{
-              border: "none",
-              background: "transparent",
-              outline: "none",
-              fontSize: "13px",
-              color: text,
-              padding: "10px 0",
-              width: "100%",
+              display: "flex",
+              gap: "8px",
+              flexWrap: "wrap",
+              alignItems: "center",
             }}
-          />
-        </div>
-
-        <select
-          className="filter-sel"
-          value={cropFilter}
-          onChange={(e) => {
-            setCropFilter(e.target.value);
-            setPage(1);
-          }}
-          style={{
-            height: "42px",
-            borderRadius: "12px",
-            padding: "0 30px 0 12px",
-            fontSize: "13px",
-            fontWeight: 500,
-            color: isDark ? "#f1f5f9" : "#111827",
-            background: inputBg,
-            border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
-            outline: "none",
-            cursor: "pointer",
-            appearance: "none",
-            WebkitAppearance: "none",
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-            backgroundRepeat: "no-repeat",
-            backgroundPosition: "right 10px center",
-          }}
-        >
-          {CROPS.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-
-        <div
-          style={{
-            display: "flex",
-            background: isDark ? "rgba(0,0,0,0.3)" : "#f1f5f9",
-            borderRadius: "12px",
-            padding: "3px",
-            gap: "2px",
-            border: `1px solid ${cardBorder}`,
-          }}
-        >
-          {STATUSES.map((s) => (
-            <button
-              key={s}
-              onClick={() => {
-                setStatusFilter(s);
+          >
+            {/* Crop dropdown */}
+            <select
+              className="filter-sel"
+              value={cropFilter}
+              onChange={(e) => {
+                setCropFilter(e.target.value);
                 setPage(1);
               }}
               style={{
-                padding: "6px 14px",
-                borderRadius: "9px",
-                fontSize: "12px",
-                fontWeight: 700,
-                border: "none",
+                height: "42px",
+                borderRadius: "12px",
+                padding: "0 30px 0 12px",
+                fontSize: "13px",
+                fontWeight: 500,
+                color: isDark ? "#f1f5f9" : "#111827",
+                background: inputBg,
+                border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+                outline: "none",
                 cursor: "pointer",
-                transition: "all 0.15s",
-                background: statusFilter === s ? "#34d399" : "transparent",
-                color: statusFilter === s ? "#071a0e" : muted,
-                boxShadow:
-                  statusFilter === s ? "0 0 10px rgba(52,211,153,0.3)" : "none",
+                appearance: "none",
+                WebkitAppearance: "none",
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "right 10px center",
               }}
             >
-              {s}
-            </button>
-          ))}
-        </div>
+              {CROPS.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
 
-        <div
-          style={{
-            marginLeft: "auto",
-            fontSize: "12px",
-            color: muted,
-            fontWeight: 600,
-            background: isDark ? "rgba(52,211,153,0.06)" : "#f0fdf4",
-            padding: "5px 12px",
-            borderRadius: "20px",
-            border: "1px solid rgba(52,211,153,0.15)",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {filtered.length} result{filtered.length !== 1 ? "s" : ""}
+            {/* Status toggle */}
+            <div
+              style={{
+                display: "flex",
+                background: isDark ? "rgba(0,0,0,0.3)" : "#f1f5f9",
+                borderRadius: "12px",
+                padding: "3px",
+                gap: "2px",
+                border: `1px solid ${cardBorder}`,
+              }}
+            >
+              {STATUSES.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => {
+                    setStatusFilter(s);
+                    setPage(1);
+                  }}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: "9px",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    border: "none",
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                    background: statusFilter === s ? "#34d399" : "transparent",
+                    color: statusFilter === s ? "#071a0e" : muted,
+                    boxShadow:
+                      statusFilter === s
+                        ? "0 0 10px rgba(52,211,153,0.3)"
+                        : "none",
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+
+            {/* Results badge */}
+            <div
+              style={{
+                fontSize: "12px",
+                color: muted,
+                fontWeight: 600,
+                background: isDark ? "rgba(52,211,153,0.06)" : "#f0fdf4",
+                padding: "5px 12px",
+                borderRadius: "20px",
+                border: "1px solid rgba(52,211,153,0.15)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {filtered.length} result{filtered.length !== 1 ? "s" : ""}
+            </div>
+          </div>
         </div>
       </Card>
 

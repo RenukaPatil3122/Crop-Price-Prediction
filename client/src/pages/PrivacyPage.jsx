@@ -85,7 +85,7 @@ function DeleteConfirm({
           ❌ {error}
         </p>
       )}
-      <div style={{ display: "flex", gap: "10px" }}>
+      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
         <button
           onClick={handleDelete}
           disabled={deleting}
@@ -224,9 +224,17 @@ export default function PrivacyPage() {
               i < rows.length - 1
                 ? `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}`
                 : "none",
+            gap: "8px",
           }}
         >
-          <span style={{ fontSize: "13px", color: muted, fontWeight: 500 }}>
+          <span
+            style={{
+              fontSize: "13px",
+              color: muted,
+              fontWeight: 500,
+              flexShrink: 0,
+            }}
+          >
             {label}
           </span>
           <span
@@ -235,7 +243,8 @@ export default function PrivacyPage() {
               fontWeight: 700,
               color: text,
               textAlign: "right",
-              maxWidth: "55%",
+              maxWidth: "60%",
+              wordBreak: "break-word",
             }}
           >
             {val}
@@ -255,6 +264,31 @@ export default function PrivacyPage() {
         .pv-fade-4 { animation: fadeUp 0.45s 0.21s ease both; }
         .del-btn { transition: all 0.18s ease; }
         .del-btn:hover { background: rgba(248,113,113,0.12) !important; transform: translateY(-1px); }
+
+        /* Privacy hero banner */
+        .pv-hero {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+          flex-wrap: nowrap;
+        }
+
+        /* Info cards grid */
+        .pv-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+        }
+
+        @media (max-width: 640px) {
+          .pv-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .pv-hero {
+            flex-wrap: wrap;
+            gap: 14px;
+          }
+        }
       `}</style>
 
       <div className="pv-fade-1">
@@ -290,9 +324,6 @@ export default function PrivacyPage() {
           borderRadius: "22px",
           border: "1px solid rgba(96,165,250,0.15)",
           padding: "24px",
-          display: "flex",
-          alignItems: "center",
-          gap: "20px",
           position: "relative",
           overflow: "hidden",
           boxShadow: "0 8px 40px rgba(0,0,0,0.3)",
@@ -323,53 +354,54 @@ export default function PrivacyPage() {
             pointerEvents: "none",
           }}
         />
-        <div
-          style={{
-            width: "56px",
-            height: "56px",
-            background: "rgba(52,211,153,0.12)",
-            border: "1px solid rgba(52,211,153,0.2)",
-            borderRadius: "16px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-            boxShadow: "0 0 20px rgba(52,211,153,0.15)",
-          }}
-        >
-          <Shield style={{ width: "26px", height: "26px", color: "#34d399" }} />
-        </div>
-        <div>
+        <div className="pv-hero">
           <div
             style={{
-              fontSize: "16px",
-              fontWeight: 800,
-              color: "#e8edf8",
-              letterSpacing: "-0.02em",
+              width: "56px",
+              height: "56px",
+              background: "rgba(52,211,153,0.12)",
+              border: "1px solid rgba(52,211,153,0.2)",
+              borderRadius: "16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              boxShadow: "0 0 20px rgba(52,211,153,0.15)",
             }}
           >
-            Your privacy matters
+            <Shield
+              style={{ width: "26px", height: "26px", color: "#34d399" }}
+            />
           </div>
-          <div
-            style={{
-              fontSize: "13px",
-              color: "#94a3b8",
-              marginTop: "4px",
-              lineHeight: "1.65",
-            }}
-          >
-            AgriSense stores only what's essential. No ads, no tracking, no data
-            selling. Your predictions and alerts stay in your MongoDB Atlas
-            instance.
+          <div>
+            <div
+              style={{
+                fontSize: "16px",
+                fontWeight: 800,
+                color: "#e8edf8",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              Your privacy matters
+            </div>
+            <div
+              style={{
+                fontSize: "13px",
+                color: "#94a3b8",
+                marginTop: "4px",
+                lineHeight: "1.65",
+              }}
+            >
+              AgriSense stores only what's essential. No ads, no tracking, no
+              data selling. Your predictions and alerts stay in your MongoDB
+              Atlas instance.
+            </div>
           </div>
         </div>
       </div>
 
       {/* Info cards grid */}
-      <div
-        className="pv-fade-3"
-        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}
-      >
+      <div className="pv-fade-3 pv-grid">
         <InfoCard
           icon={Database}
           title="Your Data"
@@ -435,7 +467,6 @@ export default function PrivacyPage() {
             : "0 4px 16px rgba(239,68,68,0.06)",
         }}
       >
-        {/* Red shimmer */}
         <div
           style={{
             position: "absolute",
@@ -448,7 +479,6 @@ export default function PrivacyPage() {
             pointerEvents: "none",
           }}
         />
-        {/* Red blob */}
         <div
           style={{
             position: "absolute",

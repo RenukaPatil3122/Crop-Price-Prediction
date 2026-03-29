@@ -159,6 +159,52 @@ export default function HelpPage() {
         .faq-btn:hover { background: ${isDark ? "rgba(52,211,153,0.04)" : "#f0fdf4"} !important; }
         .link-btn { transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1); }
         .link-btn:hover { transform: translateX(3px); }
+
+        /* Hero stats row */
+        .hp-hero-inner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          flex-wrap: wrap;
+        }
+        .hp-hero-left {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          flex: 1;
+          min-width: 0;
+        }
+        .hp-stats {
+          display: flex;
+          gap: 20px;
+          flex-shrink: 0;
+        }
+
+        /* Main content grid */
+        .hp-content-grid {
+          display: grid;
+          grid-template-columns: 1.4fr 1fr;
+          gap: 20px;
+          align-items: start;
+        }
+
+        @media (max-width: 680px) {
+          .hp-content-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .hp-stats {
+            gap: 16px;
+          }
+          .hp-hero-inner {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+          .hp-stats {
+            width: 100%;
+            justify-content: space-around;
+          }
+        }
       `}</style>
 
       <div className="hp-fade-1">
@@ -192,9 +238,6 @@ export default function HelpPage() {
           background: "linear-gradient(135deg,#166534 0%,#16A34A 100%)",
           borderRadius: "22px",
           padding: "16px 24px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
           position: "relative",
           overflow: "hidden",
           border: "1px solid rgba(52,211,153,0.2)",
@@ -226,93 +269,81 @@ export default function HelpPage() {
             pointerEvents: "none",
           }}
         />
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <div
-            style={{
-              width: "56px",
-              height: "56px",
-              background: "rgba(255,255,255,0.15)",
-              border: "1px solid rgba(255,255,255,0.2)",
-              borderRadius: "16px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            <HelpCircle
-              style={{ width: "26px", height: "26px", color: "white" }}
-            />
-          </div>
-          <div>
+        <div className="hp-hero-inner">
+          <div className="hp-hero-left">
             <div
               style={{
-                fontSize: "18px",
-                fontWeight: 800,
-                color: "white",
-                letterSpacing: "-0.02em",
+                width: "56px",
+                height: "56px",
+                flexShrink: 0,
+                background: "rgba(255,255,255,0.15)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                borderRadius: "16px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              How can we help?
+              <HelpCircle
+                style={{ width: "26px", height: "26px", color: "white" }}
+              />
             </div>
-            <div
-              style={{
-                fontSize: "13px",
-                color: "rgba(255,255,255,0.75)",
-                marginTop: "4px",
-              }}
-            >
-              Browse FAQs or use the quick links to access useful resources
-            </div>
-          </div>
-        </div>
-        <div
-          style={{
-            display: "flex",
-            gap: "28px",
-            flexShrink: 0,
-            position: "relative",
-          }}
-        >
-          {[
-            ["10", "FAQs"],
-            ["9", "Crops"],
-            ["85%+", "Accuracy"],
-          ].map(([val, label]) => (
-            <div key={label} style={{ textAlign: "center" }}>
+            <div>
               <div
                 style={{
-                  fontSize: "22px",
+                  fontSize: "18px",
                   fontWeight: 800,
                   color: "white",
-                  fontFamily: "'DM Mono',monospace",
+                  letterSpacing: "-0.02em",
                 }}
               >
-                {val}
+                How can we help?
               </div>
               <div
                 style={{
-                  fontSize: "11px",
-                  color: "rgba(255,255,255,0.65)",
-                  fontWeight: 600,
+                  fontSize: "13px",
+                  color: "rgba(255,255,255,0.75)",
+                  marginTop: "4px",
                 }}
               >
-                {label}
+                Browse FAQs or use the quick links to access useful resources
               </div>
             </div>
-          ))}
+          </div>
+          <div className="hp-stats">
+            {[
+              ["10", "FAQs"],
+              ["9", "Crops"],
+              ["85%+", "Accuracy"],
+            ].map(([val, label]) => (
+              <div key={label} style={{ textAlign: "center" }}>
+                <div
+                  style={{
+                    fontSize: "22px",
+                    fontWeight: 800,
+                    color: "white",
+                    fontFamily: "'DM Mono',monospace",
+                  }}
+                >
+                  {val}
+                </div>
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: "rgba(255,255,255,0.65)",
+                    fontWeight: 600,
+                  }}
+                >
+                  {label}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div
-        className="hp-fade-3"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1.4fr 1fr",
-          gap: "20px",
-          alignItems: "start",
-        }}
-      >
+      {/* Main content */}
+      <div className="hp-fade-3 hp-content-grid">
         {/* FAQ accordion */}
         <Card style={{ overflow: "hidden" }}>
           <div
@@ -476,12 +507,19 @@ export default function HelpPage() {
               >
                 <Icon style={{ width: "16px", height: "16px", color }} />
               </div>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: "13px", fontWeight: 700, color: text }}>
                   {title}
                 </div>
                 <div
-                  style={{ fontSize: "11px", color: muted, marginTop: "1px" }}
+                  style={{
+                    fontSize: "11px",
+                    color: muted,
+                    marginTop: "1px",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
                 >
                   {sub}
                 </div>
