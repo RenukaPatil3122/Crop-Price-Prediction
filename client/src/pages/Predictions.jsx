@@ -289,9 +289,22 @@ function StyledSelect({
   placeholder,
   isDark,
 }) {
-  const [focused, setFocused] = useState(false);
+  const [open, setOpen] = useState(false);
+  const ref = useRef();
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const selected = value || "";
+
   return (
-    <div>
+    <div ref={ref} style={{ position: "relative", zIndex: open ? 100 : 1 }}>
       <label
         style={{
           fontSize: "11px",
@@ -305,61 +318,128 @@ function StyledSelect({
       >
         {label}
       </label>
-      <div style={{ position: "relative" }}>
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+
+      {/* Trigger */}
+      <div
+        onClick={() => setOpen((p) => !p)}
+        style={{
+          width: "100%",
+          height: "44px",
+          borderRadius: "12px",
+          padding: "0 36px 0 14px",
+          fontSize: "13px",
+          fontWeight: 500,
+          color: selected
+            ? isDark
+              ? "#f1f5f9"
+              : "#111827"
+            : isDark
+              ? "#94a3b8"
+              : "#6b7280",
+          background: isDark ? "#1e293b" : "white",
+          border: `1px solid ${open ? "rgba(52,211,153,0.5)" : isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)"}`,
+          boxShadow: open
+            ? "0 0 0 3px rgba(52,211,153,0.1)"
+            : isDark
+              ? "none"
+              : "0 1px 3px rgba(0,0,0,0.05)",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          transition: "all 0.2s ease",
+          boxSizing: "border-box",
+          userSelect: "none",
+        }}
+      >
+        <span
           style={{
-            width: "100%",
-            height: "44px",
-            borderRadius: "12px",
-            padding: "0 36px 0 14px",
-            fontSize: "13px",
-            fontWeight: 500,
-            color: value
-              ? isDark
-                ? "#f1f5f9"
-                : "#111827"
-              : isDark
-                ? "#94a3b8"
-                : "#374151",
-            background: isDark ? "#1e293b" : "white",
-            border: `1px solid ${focused ? "rgba(52,211,153,0.5)" : isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)"}`,
-            outline: "none",
-            appearance: "none",
-            WebkitAppearance: "none",
-            cursor: "pointer",
-            boxShadow: focused
-              ? "0 0 0 3px rgba(52,211,153,0.1)"
-              : isDark
-                ? "none"
-                : "0 1px 3px rgba(0,0,0,0.05)",
-            transition: "all 0.2s ease",
+            flex: 1,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
-          <option value="">{placeholder}</option>
-          {options.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
+          {selected || placeholder}
+        </span>
         <ChevronDown
           style={{
             position: "absolute",
             right: "12px",
             top: "50%",
-            transform: `translateY(-50%) rotate(${focused ? "180deg" : "0deg"})`,
+            transform: `translateY(-50%) rotate(${open ? "180deg" : "0deg"})`,
             width: "14px",
             height: "14px",
-            color: focused ? "#34d399" : isDark ? "#475569" : "#9ca3af",
+            color: open ? "#34d399" : isDark ? "#475569" : "#9ca3af",
             pointerEvents: "none",
-            transition: "all 0.2s ease",
+            transition: "transform 0.2s ease",
+            flexShrink: 0,
           }}
         />
       </div>
+
+      {/* Dropdown list */}
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            left: 0,
+            right: 0,
+            background: isDark ? "#1e293b" : "white",
+            border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}`,
+            borderRadius: "12px",
+            boxShadow: isDark
+              ? "0 16px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(52,211,153,0.1)"
+              : "0 16px 40px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05)",
+            overflow: "hidden",
+            zIndex: 9999,
+            animation: "fadeUp 0.15s ease both",
+            maxHeight: "220px",
+            overflowY: "auto",
+          }}
+        >
+          {options.map((o) => (
+            <div
+              key={o}
+              onClick={() => {
+                onChange(o);
+                setOpen(false);
+              }}
+              style={{
+                padding: "10px 14px",
+                fontSize: "13px",
+                fontWeight: 500,
+                color:
+                  o === selected ? "#34d399" : isDark ? "#e8edf8" : "#111827",
+                background:
+                  o === selected
+                    ? isDark
+                      ? "rgba(52,211,153,0.1)"
+                      : "#f0fdf4"
+                    : "transparent",
+                cursor: "pointer",
+                borderLeft:
+                  o === selected
+                    ? "2px solid #34d399"
+                    : "2px solid transparent",
+                transition: "background 0.12s",
+              }}
+              onMouseEnter={(e) => {
+                if (o !== selected)
+                  e.currentTarget.style.background = isDark
+                    ? "rgba(255,255,255,0.04)"
+                    : "#f8fafc";
+              }}
+              onMouseLeave={(e) => {
+                if (o !== selected)
+                  e.currentTarget.style.background = "transparent";
+              }}
+            >
+              {o}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -621,7 +701,6 @@ export default function Predictions() {
                 boxShadow: cardShadow,
                 padding: "28px",
                 position: "relative",
-                overflow: "hidden",
               }}
             >
               <div
