@@ -31,8 +31,6 @@ import {
   PolarRadiusAxis,
 } from "recharts";
 
-// ── Config ────────────────────────────────────────────────────────────────────
-
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const CACHE_TTL = 5 * 60 * 1000;
 
@@ -49,8 +47,6 @@ const CROP_COLORS = {
 const TIME_TABS = ["3M", "6M", "12M"];
 const TIME_MONTHS = { "3M": 3, "6M": 6, "12M": 12 };
 const fmt = (n) => `₹${Number(n).toLocaleString("en-IN")}`;
-
-// ── Hooks ─────────────────────────────────────────────────────────────────────
 
 function useInView(threshold = 0.1) {
   const ref = useRef();
@@ -79,8 +75,7 @@ function useCountUp(target, duration = 1400, enabled = true) {
     const step = (ts) => {
       if (!start) start = ts;
       const p = Math.min((ts - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setVal(Math.round(eased * num));
+      setVal(Math.round((1 - Math.pow(1 - p, 3)) * num));
       if (p < 1) rafRef.current = requestAnimationFrame(step);
       else setVal(num);
     };
@@ -90,7 +85,15 @@ function useCountUp(target, duration = 1400, enabled = true) {
   return val;
 }
 
-// ── Glow Stat Card ────────────────────────────────────────────────────────────
+function useBreakpoint() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
+  useEffect(() => {
+    const fn = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+  return isMobile;
+}
 
 function GlowStatCard({
   label,
@@ -277,8 +280,6 @@ function GlowStatCard({
   );
 }
 
-// ── Custom Tooltip ────────────────────────────────────────────────────────────
-
 const ChartTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -343,8 +344,6 @@ const ChartTooltip = ({ active, payload, label }) => {
   );
 };
 
-// ── Card Shell ────────────────────────────────────────────────────────────────
-
 function Card({
   children,
   isDark,
@@ -395,10 +394,9 @@ function Card({
   );
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
-
 export default function Analytics() {
   const { isDark } = useTheme();
+  const isMobile = useBreakpoint();
 
   const [activeCrop, setActiveCrop] = useState("All");
   const [activeTime, setActiveTime] = useState("6M");
@@ -416,7 +414,6 @@ export default function Analytics() {
       if (age < CACHE_TTL) {
         setData(cache.current[key].data);
         setLastFetch(new Date(cache.current[key].ts));
-        setError(""); // ← ADD THIS
         setLoading(false);
         return;
       }
@@ -434,21 +431,19 @@ export default function Analytics() {
       const json = await res.json();
       cache.current[key] = { data: json, ts: Date.now() };
       setData(json);
-      setError(""); // ← ADD THIS
+      setError("");
       setLastFetch(new Date());
     } catch (err) {
-      if (err.name === "AbortError") {
+      if (err.name === "AbortError")
         setError(
           "Request timed out — make sure your backend is running on port 8000.",
         );
-      } else if (err.message?.includes("503")) {
+      else if (err.message?.includes("503")) {
         setError("⏳ Model is warming up (~60s). Auto-retrying...");
         setTimeout(() => fetchSummary(months, true), 15000);
-      } else if (err.message?.includes("Failed to fetch")) {
+      } else if (err.message?.includes("Failed to fetch"))
         setError("Backend offline — start it with: uvicorn main:app --reload");
-      } else {
-        setError(`Error: ${err.message}`);
-      }
+      else setError(`Error: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -546,6 +541,7 @@ export default function Analytics() {
         background: active ? color : "transparent",
         color: active ? (isDark ? "#071a0e" : "white") : muted,
         boxShadow: active ? `0 0 10px ${color}40` : "none",
+        whiteSpace: "nowrap",
       }}
     >
       {label}
@@ -592,18 +588,58 @@ export default function Analytics() {
         @keyframes popIn   { 0%{opacity:0;transform:scale(0.92) translateY(10px)} 60%{transform:scale(1.02)} 100%{opacity:1;transform:scale(1)} }
         @keyframes spin    { to{transform:rotate(360deg)} }
         @keyframes pulse   { 0%,100%{opacity:1} 50%{opacity:0.4} }
-
         .an-fade-1 { animation: fadeUp 0.45s 0.00s ease both; }
         .an-fade-2 { animation: fadeUp 0.45s 0.07s ease both; }
         .an-fade-3 { animation: fadeUp 0.45s 0.14s ease both; }
         .an-fade-4 { animation: fadeUp 0.45s 0.21s ease both; }
         .an-fade-5 { animation: fadeUp 0.45s 0.28s ease both; }
-
         .pulse-dot { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; }
         .table-row { transition: background 0.15s; }
         .table-row:hover { background: ${isDark ? "rgba(52,211,153,0.04)" : "#f0fdf4"} !important; }
         .refresh-btn { transition: all 0.18s ease; }
         .refresh-btn:hover:not(:disabled) { background: ${isDark ? "rgba(52,211,153,0.1)" : "#f0fdf4"} !important; border-color: rgba(52,211,153,0.3) !important; color: #34d399 !important; }
+
+        /* ── Responsive grids ── */
+        .an-stat-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr 1fr;
+          gap: 16px;
+        }
+        .an-bottom-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 20px;
+        }
+        .an-crop-tabs {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 2px;
+        }
+        .an-trend-controls {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+        .an-table-wrap {
+          width: 100%;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        @media (max-width: 640px) {
+          .an-stat-grid {
+            grid-template-columns: 1fr 1fr !important;
+            gap: 12px !important;
+          }
+          .an-bottom-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+          }
+          .an-trend-controls {
+            justify-content: flex-start !important;
+          }
+        }
       `}</style>
 
       {/* HEADER */}
@@ -613,6 +649,8 @@ export default function Analytics() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "flex-start",
+          flexWrap: "wrap",
+          gap: "10px",
         }}
       >
         <div>
@@ -638,7 +676,14 @@ export default function Analytics() {
             Price trends, regional insights &amp; crop performance overview
           </p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
           {lastFetch && !loading && (
             <span style={{ fontSize: "11px", color: muted }}>
               Updated {lastFetch.toLocaleTimeString()}
@@ -693,14 +738,7 @@ export default function Analytics() {
       )}
 
       {/* STAT CARDS */}
-      <div
-        className="an-fade-2"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr 1fr",
-          gap: "16px",
-        }}
-      >
+      <div className="an-fade-2 an-stat-grid">
         {loading
           ? Array(4)
               .fill(0)
@@ -740,7 +778,7 @@ export default function Analytics() {
         className="an-fade-3"
         style={{
           padding: "22px 22px 12px",
-          height: "360px",
+          height: isMobile ? "420px" : "360px",
           display: "flex",
           flexDirection: "column",
         }}
@@ -753,10 +791,19 @@ export default function Analytics() {
             marginBottom: "16px",
             flexShrink: 0,
             position: "relative",
+            flexWrap: "wrap",
+            gap: "12px",
           }}
         >
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                flexWrap: "wrap",
+              }}
+            >
               <span
                 style={{
                   fontSize: "15px",
@@ -798,40 +845,45 @@ export default function Analytics() {
               ₹ per quintal · forecast
             </div>
           </div>
-          <div
-            style={{
-              display: "flex",
-              gap: "8px",
-              alignItems: "center",
-              flexWrap: "wrap",
-              justifyContent: "flex-end",
-            }}
-          >
+
+          {/* Controls — stack on mobile */}
+          <div className="an-trend-controls">
+            {/* Crop tabs — scrollable on mobile */}
             <div
               style={{
-                display: "flex",
-                background: isDark ? "rgba(0,0,0,0.3)" : "#f1f5f9",
-                borderRadius: "12px",
-                padding: "3px",
-                gap: "2px",
-                border: `1px solid ${cardBorder}`,
+                overflowX: "auto",
+                WebkitOverflowScrolling: "touch",
+                maxWidth: isMobile ? "100%" : "none",
               }}
             >
-              <TabBtn
-                label="All"
-                active={activeCrop === "All"}
-                onClick={() => setActiveCrop("All")}
-              />
-              {allCrops.map((c) => (
+              <div
+                style={{
+                  display: "flex",
+                  background: isDark ? "rgba(0,0,0,0.3)" : "#f1f5f9",
+                  borderRadius: "12px",
+                  padding: "3px",
+                  gap: "2px",
+                  border: `1px solid ${cardBorder}`,
+                  width: "max-content",
+                }}
+              >
                 <TabBtn
-                  key={c}
-                  label={c}
-                  active={activeCrop === c}
-                  onClick={() => setActiveCrop(c)}
-                  color={CROP_COLORS[c] || "#34d399"}
+                  label="All"
+                  active={activeCrop === "All"}
+                  onClick={() => setActiveCrop("All")}
                 />
-              ))}
+                {allCrops.map((c) => (
+                  <TabBtn
+                    key={c}
+                    label={c}
+                    active={activeCrop === c}
+                    onClick={() => setActiveCrop(c)}
+                    color={CROP_COLORS[c] || "#34d399"}
+                  />
+                ))}
+              </div>
             </div>
+            {/* Time tabs */}
             <div
               style={{
                 display: "flex",
@@ -840,6 +892,7 @@ export default function Analytics() {
                 padding: "3px",
                 gap: "2px",
                 border: `1px solid ${cardBorder}`,
+                flexShrink: 0,
               }}
             >
               {TIME_TABS.map((t) => (
@@ -857,7 +910,14 @@ export default function Analytics() {
             </div>
           </div>
         </div>
-        <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
+
+        <div
+          style={{
+            flex: 1,
+            minHeight: isMobile ? "260px" : 0,
+            position: "relative",
+          }}
+        >
           <ChartWrap empty={!trendData.length}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trendData}>
@@ -906,14 +966,7 @@ export default function Analytics() {
       </Card>
 
       {/* BOTTOM 3 CHARTS */}
-      <div
-        className="an-fade-4"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: "20px",
-        }}
-      >
+      <div className="an-fade-4 an-bottom-grid">
         {/* Regional Bar */}
         <Card
           isDark={isDark}
@@ -1233,6 +1286,8 @@ export default function Analytics() {
             alignItems: "center",
             marginBottom: "18px",
             position: "relative",
+            flexWrap: "wrap",
+            gap: "10px",
           }}
         >
           <div>
@@ -1308,142 +1363,159 @@ export default function Analytics() {
               ))}
           </div>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr
-                style={{
-                  borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
-                }}
-              >
-                {[
-                  "Region",
-                  "Avg Price (₹/qtl)",
-                  "Market Volume",
-                  "Growth",
-                  "Status",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    style={{
-                      textAlign: "left",
-                      padding: "10px 14px",
-                      fontSize: "11px",
-                      color: muted,
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                    }}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {regionData.map(({ region, avgPrice, volume, growth }) => (
+          /* Scrollable wrapper prevents table from busting layout on mobile */
+          <div className="an-table-wrap">
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                minWidth: "480px",
+              }}
+            >
+              <thead>
                 <tr
-                  key={region}
-                  className="table-row"
                   style={{
-                    borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "#f1f5f9"}`,
+                    borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
                   }}
                 >
-                  <td
-                    style={{
-                      padding: "12px 14px",
-                      fontSize: "13px",
-                      fontWeight: 700,
-                      color: text,
-                    }}
-                  >
-                    {region}
-                  </td>
-                  <td
-                    style={{
-                      padding: "12px 14px",
-                      fontSize: "13px",
-                      fontWeight: 800,
-                      color: text,
-                      fontFamily: "'DM Mono',monospace",
-                      letterSpacing: "-0.02em",
-                    }}
-                  >
-                    {avgPrice ? (
-                      fmt(avgPrice)
-                    ) : (
-                      <span style={{ color: muted }}>—</span>
-                    )}
-                  </td>
-                  <td
-                    style={{
-                      padding: "12px 14px",
-                      fontSize: "13px",
-                      color: muted,
-                    }}
-                  >
-                    {Number(volume).toLocaleString()} qtl
-                  </td>
-                  <td style={{ padding: "12px 14px" }}>
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 5 }}
-                    >
-                      {growth >= 0 ? (
-                        <TrendingUp size={13} color="#34d399" />
-                      ) : (
-                        <TrendingDown size={13} color="#f87171" />
-                      )}
-                      <span
-                        style={{
-                          fontSize: "13px",
-                          fontWeight: 700,
-                          color: growth >= 0 ? "#34d399" : "#f87171",
-                          fontFamily: "'DM Mono',monospace",
-                        }}
-                      >
-                        {growth >= 0 ? "+" : ""}
-                        {growth}%
-                      </span>
-                    </div>
-                  </td>
-                  <td style={{ padding: "12px 14px" }}>
-                    <span
+                  {[
+                    "Region",
+                    "Avg Price (₹/qtl)",
+                    "Market Volume",
+                    "Growth",
+                    "Status",
+                  ].map((h) => (
+                    <th
+                      key={h}
                       style={{
+                        textAlign: "left",
+                        padding: "10px 14px",
                         fontSize: "11px",
+                        color: muted,
                         fontWeight: 700,
-                        padding: "4px 12px",
-                        borderRadius: "20px",
-                        background:
-                          growth > 10
-                            ? isDark
-                              ? "rgba(52,211,153,0.12)"
-                              : "#f0fdf4"
-                            : growth > 0
-                              ? isDark
-                                ? "rgba(251,191,36,0.12)"
-                                : "#fffbeb"
-                              : isDark
-                                ? "rgba(248,113,113,0.12)"
-                                : "#fef2f2",
-                        color:
-                          growth > 10
-                            ? "#34d399"
-                            : growth > 0
-                              ? "#fbbf24"
-                              : "#f87171",
-                        border: `1px solid ${growth > 10 ? "rgba(52,211,153,0.2)" : growth > 0 ? "rgba(251,191,36,0.2)" : "rgba(248,113,113,0.2)"}`,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                        whiteSpace: "nowrap",
                       }}
                     >
-                      {growth > 10
-                        ? "Bullish"
-                        : growth > 0
-                          ? "Stable"
-                          : "Bearish"}
-                    </span>
-                  </td>
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {regionData.map(({ region, avgPrice, volume, growth }) => (
+                  <tr
+                    key={region}
+                    className="table-row"
+                    style={{
+                      borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "#f1f5f9"}`,
+                    }}
+                  >
+                    <td
+                      style={{
+                        padding: "12px 14px",
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        color: text,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {region}
+                    </td>
+                    <td
+                      style={{
+                        padding: "12px 14px",
+                        fontSize: "13px",
+                        fontWeight: 800,
+                        color: text,
+                        fontFamily: "'DM Mono',monospace",
+                        letterSpacing: "-0.02em",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {avgPrice ? (
+                        fmt(avgPrice)
+                      ) : (
+                        <span style={{ color: muted }}>—</span>
+                      )}
+                    </td>
+                    <td
+                      style={{
+                        padding: "12px 14px",
+                        fontSize: "13px",
+                        color: muted,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {Number(volume).toLocaleString()} qtl
+                    </td>
+                    <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 5,
+                        }}
+                      >
+                        {growth >= 0 ? (
+                          <TrendingUp size={13} color="#34d399" />
+                        ) : (
+                          <TrendingDown size={13} color="#f87171" />
+                        )}
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            color: growth >= 0 ? "#34d399" : "#f87171",
+                            fontFamily: "'DM Mono',monospace",
+                          }}
+                        >
+                          {growth >= 0 ? "+" : ""}
+                          {growth}%
+                        </span>
+                      </div>
+                    </td>
+                    <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          padding: "4px 12px",
+                          borderRadius: "20px",
+                          background:
+                            growth > 10
+                              ? isDark
+                                ? "rgba(52,211,153,0.12)"
+                                : "#f0fdf4"
+                              : growth > 0
+                                ? isDark
+                                  ? "rgba(251,191,36,0.12)"
+                                  : "#fffbeb"
+                                : isDark
+                                  ? "rgba(248,113,113,0.12)"
+                                  : "#fef2f2",
+                          color:
+                            growth > 10
+                              ? "#34d399"
+                              : growth > 0
+                                ? "#fbbf24"
+                                : "#f87171",
+                          border: `1px solid ${growth > 10 ? "rgba(52,211,153,0.2)" : growth > 0 ? "rgba(251,191,36,0.2)" : "rgba(248,113,113,0.2)"}`,
+                        }}
+                      >
+                        {growth > 10
+                          ? "Bullish"
+                          : growth > 0
+                            ? "Stable"
+                            : "Bearish"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
     </div>
