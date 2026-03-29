@@ -441,7 +441,7 @@ export default function Compare() {
         .add-crop-btn { transition: all 0.2s; }
         .add-crop-btn:hover { border-color: #34d399 !important; color: #34d399 !important; background: rgba(52,211,153,0.04) !important; }
 
-        .chart-tab { transition: all 0.15s; }
+        .chart-tab { transition: all 0.15s; white-space: nowrap; flex-shrink: 0; }
         .chart-tab:hover { color: #34d399 !important; }
 
         .table-row { transition: background 0.15s; }
@@ -451,18 +451,58 @@ export default function Compare() {
         .cmp-btn:not(:disabled):hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 32px rgba(22,163,74,0.4) !important; }
         .cmp-btn:not(:disabled):active { transform: scale(0.97); }
 
+        /* ── Responsive ── */
+        .cmp-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+        .cmp-slots-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+          gap: 12px;
+          align-items: flex-start;
+        }
+        .cmp-summary-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+          gap: 16px;
+        }
+        .cmp-chart-tabs {
+          display: flex;
+          gap: 4px;
+          padding: 16px 22px 0;
+          border-bottom: 1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"};
+          position: relative;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+        }
+        .cmp-chart-tabs::-webkit-scrollbar { display: none; }
+        .cmp-banner {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 14px;
+        }
+
+        @media (max-width: 640px) {
+          .cmp-summary-grid {
+            grid-template-columns: 1fr 1fr !important;
+          }
+          .cmp-slots-grid {
+            grid-template-columns: 1fr 1fr !important;
+          }
+        }
+
         ${isDark ? "select option { background: #1e293b; color: #f1f5f9; }" : ""}
       `}</style>
 
       {/* ── HEADER ── */}
-      <div
-        className="cmp-fade-1"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-        }}
-      >
+      <div className="cmp-fade-1 cmp-header">
         <div>
           <h1
             style={{
@@ -521,6 +561,7 @@ export default function Compare() {
             opacity: loading ? 0.7 : 1,
             boxShadow: "0 4px 20px rgba(22,163,74,0.3)",
             letterSpacing: "0.01em",
+            flexShrink: 0,
           }}
         >
           <RefreshCw
@@ -573,15 +614,9 @@ export default function Compare() {
             Select Crops to Compare
           </span>
         </div>
-        <div
-          style={{
-            display: "flex",
-            gap: "12px",
-            flexWrap: "wrap",
-            alignItems: "flex-start",
-            position: "relative",
-          }}
-        >
+
+        {/* FIX 1: CSS grid auto-fill instead of flex wrap */}
+        <div className="cmp-slots-grid">
           {slots.map((slot, idx) => (
             <div
               key={idx}
@@ -591,7 +626,6 @@ export default function Compare() {
                 border: `1.5px solid ${CROP_COLORS[idx]}35`,
                 borderRadius: "16px",
                 padding: "16px",
-                minWidth: "190px",
                 position: "relative",
                 boxShadow: isDark ? "none" : "0 1px 4px rgba(0,0,0,0.05)",
               }}
@@ -668,13 +702,14 @@ export default function Compare() {
               </select>
             </div>
           ))}
+
+          {/* Add Crop button — lives inside the same grid */}
           {slots.length < 5 && (
             <button
               className="add-crop-btn"
               onClick={addSlot}
               style={{
-                minWidth: "140px",
-                height: "130px",
+                minHeight: "130px",
                 borderRadius: "16px",
                 border: `2px dashed ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}`,
                 background: "transparent",
@@ -716,15 +751,8 @@ export default function Compare() {
       {/* ── RESULTS ── */}
       {loaded && results.length > 0 && (
         <>
-          {/* Summary Cards */}
-          <div
-            className="cmp-fade-3"
-            style={{
-              display: "grid",
-              gridTemplateColumns: `repeat(${results.length},1fr)`,
-              gap: "16px",
-            }}
-          >
+          {/* FIX 2: Summary cards — auto-fill grid instead of fixed repeat(N) */}
+          <div className="cmp-fade-3 cmp-summary-grid">
             {results.map((r) => (
               <div
                 key={r.crop + r.state}
@@ -837,22 +865,34 @@ export default function Compare() {
                       justifyContent: "center",
                       fontSize: "18px",
                       boxShadow: `0 0 12px ${r.color}15`,
+                      flexShrink: 0,
                     }}
                   >
                     {CROP_EMOJI[r.crop] || "🌱"}
                   </div>
-                  <div>
+                  <div style={{ minWidth: 0 }}>
                     <div
                       style={{
                         fontSize: "15px",
                         fontWeight: 800,
                         color: text,
                         letterSpacing: "-0.01em",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       {r.crop}
                     </div>
-                    <div style={{ fontSize: "11px", color: muted }}>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: muted,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       {r.state}
                     </div>
                   </div>
@@ -861,13 +901,16 @@ export default function Compare() {
                 {/* Price */}
                 <div
                   style={{
-                    fontSize: "30px",
+                    fontSize: "26px",
                     fontWeight: 800,
                     color: r.color,
                     marginBottom: "3px",
                     fontFamily: "'DM Mono',monospace",
                     letterSpacing: "-0.03em",
                     textShadow: `0 0 20px ${r.color}30`,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   ₹
@@ -931,10 +974,13 @@ export default function Compare() {
                       </div>
                       <div
                         style={{
-                          fontSize: "13px",
+                          fontSize: "12px",
                           fontWeight: 800,
                           color: text,
                           fontFamily: "'DM Mono',monospace",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
                         }}
                       >
                         {value}
@@ -1004,16 +1050,8 @@ export default function Compare() {
             className="cmp-fade-4"
             style={{ overflow: "hidden" }}
           >
-            {/* Tab bar */}
-            <div
-              style={{
-                display: "flex",
-                gap: "4px",
-                padding: "16px 22px 0",
-                borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
-                position: "relative",
-              }}
-            >
+            {/* FIX 3: Tab bar scrollable on mobile */}
+            <div className="cmp-chart-tabs">
               {[
                 { key: "price", label: "📊 Price Range" },
                 { key: "forecast", label: "📈 6M Forecast" },
@@ -1316,8 +1354,20 @@ export default function Compare() {
                 ✓ Live ML data
               </span>
             </div>
-            <div style={{ overflowX: "auto", position: "relative" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <div
+              style={{
+                overflowX: "auto",
+                WebkitOverflowScrolling: "touch",
+                position: "relative",
+              }}
+            >
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  minWidth: "400px",
+                }}
+              >
                 <thead>
                   <tr
                     style={{
@@ -1333,6 +1383,7 @@ export default function Compare() {
                         textAlign: "left",
                         textTransform: "uppercase",
                         letterSpacing: "0.06em",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       Attribute
@@ -1347,6 +1398,7 @@ export default function Compare() {
                           color: r.color,
                           textAlign: "center",
                           letterSpacing: "-0.01em",
+                          whiteSpace: "nowrap",
                         }}
                       >
                         {CROP_EMOJI[r.crop]} {r.crop}
@@ -1408,6 +1460,7 @@ export default function Compare() {
                             fontSize: "12px",
                             color: muted,
                             fontWeight: 600,
+                            whiteSpace: "nowrap",
                           }}
                         >
                           {label}
@@ -1435,6 +1488,7 @@ export default function Compare() {
                                   ? "'DM Mono',monospace"
                                   : "inherit",
                                 letterSpacing: "-0.01em",
+                                whiteSpace: "nowrap",
                               }}
                             >
                               {isBest && "★ "}
@@ -1458,9 +1512,6 @@ export default function Compare() {
                 background: "linear-gradient(135deg,#166534 0%,#16A34A 100%)",
                 borderRadius: "22px",
                 padding: "18px 24px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
                 border: "1px solid rgba(52,211,153,0.2)",
                 boxShadow:
                   "0 8px 40px rgba(22,163,74,0.2), 0 0 80px rgba(52,211,153,0.05)",
@@ -1495,86 +1546,93 @@ export default function Compare() {
                 }}
               />
 
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: "14px",
-                  position: "relative",
-                }}
-              >
-                <span style={{ fontSize: "22px", flexShrink: 0 }}>💡</span>
-                <div>
-                  <div
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: 800,
-                      color: "white",
-                      marginBottom: "5px",
-                      letterSpacing: "-0.01em",
-                    }}
-                  >
-                    AgriSense Recommendation
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "13px",
-                      color: "rgba(167,243,208,0.85)",
-                      lineHeight: 1.65,
-                    }}
-                  >
-                    Based on current predictions,{" "}
-                    <strong style={{ color: "white" }}>{bestPrice.crop}</strong>{" "}
-                    in{" "}
-                    <strong style={{ color: "white" }}>
-                      {bestPrice.state}
-                    </strong>{" "}
-                    offers the highest price at{" "}
-                    <strong style={{ color: "white" }}>
-                      ₹{Math.round(bestPrice.price).toLocaleString()}/quintal
-                    </strong>
-                    .{" "}
-                    {bestConfidence && bestConfidence.crop !== bestPrice.crop
-                      ? `For highest prediction accuracy, consider ${bestConfidence.crop} with ${bestConfidence.confidence}% confidence.`
-                      : `It also has the highest model confidence at ${bestConfidence?.confidence}%.`}
-                  </div>
-                </div>
-              </div>
-
-              {/* Badge */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  flexShrink: 0,
-                  background: "rgba(0,0,0,0.3)",
-                  borderRadius: "14px",
-                  border: "1px solid rgba(253,224,71,0.3)",
-                  boxShadow: "0 0 20px rgba(253,224,71,0.15)",
-                  padding: "10px 16px",
-                  backdropFilter: "blur(8px)",
-                }}
-              >
-                <TrendingUp
-                  style={{ width: "20px", height: "20px", color: "#fde047" }}
-                />
-                <span
+              {/* FIX 4: Banner wraps on mobile */}
+              <div className="cmp-banner">
+                <div
                   style={{
-                    color: "#fde047",
-                    fontWeight: 800,
-                    fontSize: "16px",
-                    fontFamily: "'DM Mono',monospace",
-                    letterSpacing: "-0.02em",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "14px",
+                    position: "relative",
+                    flex: 1,
+                    minWidth: 0,
                   }}
                 >
-                  +
-                  {(
-                    (bestPrice.price / (bestPrice.price * 0.91) - 1) *
-                    100
-                  ).toFixed(1)}
-                  %
-                </span>
+                  <span style={{ fontSize: "22px", flexShrink: 0 }}>💡</span>
+                  <div>
+                    <div
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: 800,
+                        color: "white",
+                        marginBottom: "5px",
+                        letterSpacing: "-0.01em",
+                      }}
+                    >
+                      AgriSense Recommendation
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        color: "rgba(167,243,208,0.85)",
+                        lineHeight: 1.65,
+                      }}
+                    >
+                      Based on current predictions,{" "}
+                      <strong style={{ color: "white" }}>
+                        {bestPrice.crop}
+                      </strong>{" "}
+                      in{" "}
+                      <strong style={{ color: "white" }}>
+                        {bestPrice.state}
+                      </strong>{" "}
+                      offers the highest price at{" "}
+                      <strong style={{ color: "white" }}>
+                        ₹{Math.round(bestPrice.price).toLocaleString()}/quintal
+                      </strong>
+                      .{" "}
+                      {bestConfidence && bestConfidence.crop !== bestPrice.crop
+                        ? `For highest prediction accuracy, consider ${bestConfidence.crop} with ${bestConfidence.confidence}% confidence.`
+                        : `It also has the highest model confidence at ${bestConfidence?.confidence}%.`}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Badge */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    flexShrink: 0,
+                    background: "rgba(0,0,0,0.3)",
+                    borderRadius: "14px",
+                    border: "1px solid rgba(253,224,71,0.3)",
+                    boxShadow: "0 0 20px rgba(253,224,71,0.15)",
+                    padding: "10px 16px",
+                    backdropFilter: "blur(8px)",
+                  }}
+                >
+                  <TrendingUp
+                    style={{ width: "20px", height: "20px", color: "#fde047" }}
+                  />
+                  <span
+                    style={{
+                      color: "#fde047",
+                      fontWeight: 800,
+                      fontSize: "16px",
+                      fontFamily: "'DM Mono',monospace",
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
+                    +
+                    {(
+                      (bestPrice.price / (bestPrice.price * 0.91) - 1) *
+                      100
+                    ).toFixed(1)}
+                    %
+                  </span>
+                </div>
               </div>
             </div>
           )}
