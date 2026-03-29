@@ -317,7 +317,7 @@ function StyledSelect({
     : { top: "calc(100% + 6px)", bottom: "auto" };
 
   return (
-    <div ref={ref} style={{ position: "relative", zIndex: open ? 100 : 1 }}>
+    <div ref={ref} style={{ position: "relative" }}>
       <label
         style={{
           fontSize: "11px",
@@ -626,7 +626,15 @@ export default function Predictions() {
         }
       `}</style>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px",
+          position: "relative",
+          overflow: "visible", // ← add this
+        }}
+      >
         {/* HEADER */}
         <div
           className="pred-fade-1"
