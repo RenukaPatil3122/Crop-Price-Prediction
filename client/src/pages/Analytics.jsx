@@ -41,6 +41,8 @@ const CROP_COLORS = {
   Onion: "#e879f9",
   Cotton: "#22d3ee",
   Maize: "#fbbf24",
+  Potato: "#f97316",
+  Mustard: "#facc15",
   Soyabean: "#a78bfa",
 };
 
@@ -454,7 +456,18 @@ export default function Analytics() {
   }, [activeTime]);
 
   const dashboard = data?.dashboard || [];
-  const allCrops = data?.crops || Object.keys(CROP_COLORS);
+  const allCrops = data?.crops || [
+    "Wheat",
+    "Rice",
+    "Tomato",
+    "Onion",
+    "Cotton",
+    "Maize",
+    "Potato",
+    "Mustard",
+    "Soyabean",
+  ];
+
   const trendData = data?.trend || [];
   const radarData = data?.radar || [];
   const regionData = data?.regional || [];

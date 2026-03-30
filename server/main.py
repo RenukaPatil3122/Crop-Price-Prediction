@@ -37,17 +37,18 @@ security = HTTPBearer(auto_error=False)
 # ─────────────────────────────────────────────────────────────────────────────
 # SINGLE SOURCE OF TRUTH — all pages use these exact lists
 # ─────────────────────────────────────────────────────────────────────────────
-APP_CROPS = ["Wheat", "Rice", "Tomato", "Onion", "Maize", "Soyabean"]
+APP_CROPS = ["Wheat", "Rice", "Tomato", "Onion", "Cotton", "Maize", "Potato", "Mustard", "Soyabean"]
 
 CROP_DEFAULT_STATES = {
     "Wheat":    "Punjab",
     "Rice":     "Punjab",
     "Tomato":   "Maharashtra",
     "Onion":    "Maharashtra",
-    "Maize":    "Haryana",
-    "Soyabean": "Madhya Pradesh",
+    "Cotton":   "Gujarat",
+    "Maize":    "Karnataka",
     "Potato":   "Uttar Pradesh",
     "Mustard":  "Rajasthan",
+    "Soyabean": "Madhya Pradesh",
 }
 
 _region_baselines: dict = {}
