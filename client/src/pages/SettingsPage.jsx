@@ -14,7 +14,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 
-const BASE = "http://localhost:8000";
+const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 export default function SettingsPage() {
   const { isDark, toggleTheme } = useTheme();
