@@ -33,12 +33,9 @@ import {
   getCurrentPrices,
 } from "../api";
 
-/* ─────────────────────────────────────────
-   HOOKS
-───────────────────────────────────────── */
 function useBreakpoint() {
   const [bp, setBp] = useState(() =>
-    window.innerWidth < 768
+    window.innerWidth < 640
       ? "mobile"
       : window.innerWidth < 1024
         ? "tablet"
@@ -47,7 +44,7 @@ function useBreakpoint() {
   useEffect(() => {
     const fn = () =>
       setBp(
-        window.innerWidth < 768
+        window.innerWidth < 640
           ? "mobile"
           : window.innerWidth < 1024
             ? "tablet"
@@ -70,7 +67,7 @@ function useCountUp(target, duration = 1400, enabled = true) {
     const step = (ts) => {
       if (!start) start = ts;
       const p = Math.min((ts - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - p, 3); // ease-out-cubic
+      const eased = 1 - Math.pow(1 - p, 3);
       setVal(Math.round(eased * num));
       if (p < 1) rafRef.current = requestAnimationFrame(step);
       else setVal(num);
@@ -97,9 +94,6 @@ function useInView(threshold = 0.1) {
   return [ref, inView];
 }
 
-/* ─────────────────────────────────────────
-   CONSTANTS
-───────────────────────────────────────── */
 const CROP_CHANGES = {
   Wheat: { change: "+12%", up: true },
   Rice: { change: "+5%", up: true },
@@ -289,9 +283,6 @@ function buildInsightsFromPrices(prices) {
     .slice(0, 6);
 }
 
-/* ─────────────────────────────────────────
-   CUSTOM CHART TOOLTIP
-───────────────────────────────────────── */
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -357,9 +348,6 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
-/* ─────────────────────────────────────────
-   GLOW METRIC CARD
-───────────────────────────────────────── */
 function GlowMetricCard({
   title,
   value,
@@ -395,8 +383,8 @@ function GlowMetricCard({
         background: isDark
           ? "rgba(30, 41, 59, 0.6)"
           : "linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)",
-        borderRadius: "20px",
-        padding: "22px 24px",
+        borderRadius: "16px",
+        padding: "14px 12px",
         border: `1px solid ${hovered ? glowColor + "55" : isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
         boxShadow: hovered
           ? `0 0 0 1px ${glowColor}30, 0 8px 40px rgba(0,0,0,0.45), 0 0 60px ${glowColor}18`
@@ -406,25 +394,22 @@ function GlowMetricCard({
         transform: hovered ? "translateY(-3px)" : "translateY(0)",
         transition: "all 0.25s cubic-bezier(0.34,1.56,0.64,1)",
         animationDelay: `${delay}ms`,
+        minWidth: 0,
       }}
       className="metric-card-anim"
     >
-      {/* Ambient glow blob */}
       <div
         style={{
           position: "absolute",
           top: "-30px",
           right: "-20px",
-          width: "100px",
-          height: "100px",
+          width: "80px",
+          height: "80px",
           borderRadius: "50%",
           background: `radial-gradient(circle, ${glowColor}22 0%, transparent 70%)`,
           pointerEvents: "none",
-          transform: hovered ? "scale(1.5)" : "scale(1)",
-          transition: "transform 0.4s ease",
         }}
       />
-      {/* Shimmer line at top */}
       <div
         style={{
           position: "absolute",
@@ -444,41 +429,46 @@ function GlowMetricCard({
           justifyContent: "space-between",
           alignItems: "flex-start",
           position: "relative",
+          gap: "6px",
         }}
       >
-        <div>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <p
             style={{
-              fontSize: "11px",
+              fontSize: "9px",
               color: isDark ? "#94a3b8" : "#9ca3af",
               fontWeight: 700,
               margin: 0,
               textTransform: "uppercase",
-              letterSpacing: "0.07em",
+              letterSpacing: "0.05em",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
             }}
           >
             {title}
           </p>
           <h3
             style={{
-              fontSize: "28px",
+              fontSize: "clamp(14px, 3.5vw, 24px)",
               fontWeight: 800,
               color: isDark ? "#f0f4ff" : "#0f172a",
-              margin: "7px 0 3px",
+              margin: "5px 0 2px",
               letterSpacing: "-0.03em",
-              textShadow:
-                hovered && isDark ? `0 0 20px ${glowColor}40` : "none",
-              transition: "text-shadow 0.3s",
+              lineHeight: 1.1,
             }}
           >
             {displayVal}
           </h3>
           <p
             style={{
-              fontSize: "11px",
+              fontSize: "9px",
               color: isDark ? "#cbd5e1" : "#94a3b8",
               margin: 0,
               fontWeight: 500,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }}
           >
             {sub}
@@ -486,24 +476,14 @@ function GlowMetricCard({
         </div>
         <div
           style={{
-            background: hovered ? `${glowColor}25` : `${glowColor}15`,
-            border: `1px solid ${hovered ? glowColor + "50" : glowColor + "30"}`,
-            borderRadius: "14px",
-            padding: "11px",
-            boxShadow: hovered ? `0 0 20px ${glowColor}30` : "none",
-            transition: "all 0.25s ease",
+            background: `${glowColor}15`,
+            border: `1px solid ${glowColor}30`,
+            borderRadius: "10px",
+            padding: "7px",
             flexShrink: 0,
           }}
         >
-          <Icon
-            style={{
-              width: "20px",
-              height: "20px",
-              color: glowColor,
-              filter: hovered ? `drop-shadow(0 0 6px ${glowColor})` : "none",
-              transition: "filter 0.25s",
-            }}
-          />
+          <Icon style={{ width: "14px", height: "14px", color: glowColor }} />
         </div>
       </div>
 
@@ -511,9 +491,9 @@ function GlowMetricCard({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "6px",
-          marginTop: "16px",
-          paddingTop: "14px",
+          gap: "4px",
+          marginTop: "10px",
+          paddingTop: "10px",
           borderTop: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}`,
         }}
       >
@@ -521,25 +501,25 @@ function GlowMetricCard({
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "4px",
+            gap: "3px",
             background: up ? "rgba(52,211,153,0.1)" : "rgba(248,113,113,0.1)",
             border: `1px solid ${up ? "rgba(52,211,153,0.2)" : "rgba(248,113,113,0.2)"}`,
             borderRadius: "20px",
-            padding: "3px 8px",
+            padding: "2px 6px",
           }}
         >
           {up ? (
             <TrendingUp
-              style={{ width: "12px", height: "12px", color: "#34d399" }}
+              style={{ width: "10px", height: "10px", color: "#34d399" }}
             />
           ) : (
             <TrendingDown
-              style={{ width: "12px", height: "12px", color: "#f87171" }}
+              style={{ width: "10px", height: "10px", color: "#f87171" }}
             />
           )}
           <span
             style={{
-              fontSize: "12px",
+              fontSize: "10px",
               fontWeight: 700,
               color: up ? "#34d399" : "#f87171",
             }}
@@ -547,19 +527,11 @@ function GlowMetricCard({
             {trend}
           </span>
         </div>
-        <span
-          style={{ fontSize: "11px", color: isDark ? "#cbd5e1" : "#94a3b8" }}
-        >
-          vs last week
-        </span>
       </div>
     </div>
   );
 }
 
-/* ─────────────────────────────────────────
-   MAIN DASHBOARD
-───────────────────────────────────────── */
 export default function Dashboard() {
   const { isDark } = useTheme();
   const bp = useBreakpoint();
@@ -605,7 +577,7 @@ export default function Dashboard() {
     {
       title: "Price Trend",
       value: "Rising",
-      sub: "Tomato · Maharashtra",
+      sub: "Tomato · MH",
       icon: TrendingUp,
       trend: "+8.7%",
       up: true,
@@ -613,17 +585,14 @@ export default function Dashboard() {
     },
   ]);
 
-  /* theme tokens */
   const card = isDark ? "rgba(13,20,40,0.9)" : "white";
   const cardBorder = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
   const text = isDark ? "#e8edf8" : "#0f172a";
   const muted = isDark ? "#94a3b8" : "#4b5563";
-  const subtleBg = isDark ? "rgba(255,255,255,0.03)" : "#f9fafb";
   const cardShadow = isDark
     ? "0 2px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)"
     : "0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)";
 
-  /* data fetching */
   useEffect(() => {
     getDashboardPrices()
       .then((res) => {
@@ -826,66 +795,50 @@ export default function Dashboard() {
     backgroundRepeat: "no-repeat",
     backgroundPosition: "right 10px center",
     cursor: "pointer",
+    boxSizing: "border-box",
   };
 
   return (
     <>
-      {/* ── GLOBAL STYLES ── */}
       <style>{`
-       
-
-        /* Layout base */
-        
-
-        /* Keyframes */
         @keyframes fadeUp   { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
         @keyframes pulse    { 0%,100%{opacity:1}  50%{opacity:0.4} }
         @keyframes spin     { to{transform:rotate(360deg)} }
-        @keyframes shimmer  { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
-        @keyframes glow-in  { from{box-shadow:none} to{box-shadow:0 0 20px rgba(52,211,153,0.15)} }
         @keyframes popIn    { 0%{opacity:0;transform:scale(0.92) translateY(10px)} 60%{transform:scale(1.02)} 100%{opacity:1;transform:scale(1)} }
-
-        /* Entrance animations */
         .metric-card-anim { animation: popIn 0.55s cubic-bezier(0.34,1.56,0.64,1) both; }
         .fade-up-1 { animation: fadeUp 0.45s 0.00s ease both; }
         .fade-up-2 { animation: fadeUp 0.45s 0.07s ease both; }
         .fade-up-3 { animation: fadeUp 0.45s 0.14s ease both; }
         .fade-up-4 { animation: fadeUp 0.45s 0.21s ease both; }
-        .fade-up-5 { animation: fadeUp 0.45s 0.28s ease both; }
-
-        /* Utilities */
         .pulse-dot  { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; }
         .spin       { animation: spin 0.75s linear infinite; }
-
-        /* Interactive */
-        .insight-card {
-          transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease, border-color 0.2s ease !important;
-        }
-        .insight-card:hover {
-          transform: translateY(-4px) !important;
-        }
+        .insight-card { transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease, border-color 0.2s ease !important; }
+        .insight-card:hover { transform: translateY(-4px) !important; }
         .recent-row { transition: background 0.15s, border-radius 0.15s; }
         .recent-row:hover { background: rgba(52,211,153,0.04) !important; border-radius: 10px; }
-
         .predict-btn { transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1) !important; }
         .predict-btn:not(:disabled):hover { transform: scale(1.04) !important; background: #fde047 !important; box-shadow: 0 4px 16px rgba(250,204,21,0.4) !important; }
-        .predict-btn:not(:disabled):active { transform: scale(0.97) !important; }
-
         .range-btn { transition: all 0.15s ease; }
         .range-btn:hover:not(.active) { background: rgba(52,211,153,0.08) !important; }
-
-        /* Scrollbar */
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(52,211,153,0.2); border-radius: 2px; }
       `}</style>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
-        {/* ── PAGE HEADER ── */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px",
+          width: "100%",
+          boxSizing: "border-box",
+        }}
+      >
+        {/* PAGE HEADER */}
         <div className="fade-up-1">
           <h1
             style={{
-              fontSize: "22px",
+              fontSize: isMobile ? "18px" : "22px",
               fontWeight: 800,
               color: text,
               margin: 0,
@@ -906,12 +859,13 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* ── METRIC CARDS ── */}
+        {/* METRIC CARDS — always 3 columns */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr",
-            gap: "16px",
+            gridTemplateColumns: "1fr 1fr 1fr",
+            gap: isMobile ? "8px" : "16px",
+            width: "100%",
           }}
         >
           {metricCards.map((c, i) => (
@@ -924,33 +878,38 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* ── MAIN GRID ── */}
+        {/* MAIN GRID */}
         <div
           style={{
             display: "grid",
             gridTemplateColumns: mainCols,
-            gap: "20px",
+            gap: "16px",
+            width: "100%",
           }}
         >
-          {/* ══ LEFT ══ */}
+          {/* LEFT COLUMN */}
           <div
-            style={{ display: "flex", flexDirection: "column", gap: "20px" }}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+              minWidth: 0,
+            }}
           >
             {/* Quick Predict */}
             <div
               className="fade-up-1"
               style={{
                 background: "linear-gradient(135deg, #166534 0%, #16A34A 100%)",
-                borderRadius: "22px",
-                padding: "24px",
+                borderRadius: "20px",
+                padding: isMobile ? "16px" : "24px",
                 border: "1px solid rgba(52,211,153,0.2)",
                 boxShadow:
-                  "0 0 0 1px rgba(52,211,153,0.07), 0 8px 48px rgba(0,0,0,0.4), 0 0 80px rgba(52,211,153,0.05)",
+                  "0 0 0 1px rgba(52,211,153,0.07), 0 8px 48px rgba(0,0,0,0.4)",
                 position: "relative",
                 overflow: "hidden",
               }}
             >
-              {/* BG decorations */}
               <div
                 style={{
                   position: "absolute",
@@ -960,18 +919,6 @@ export default function Dashboard() {
                   height: "180px",
                   background:
                     "radial-gradient(circle, rgba(52,211,153,0.1) 0%, transparent 65%)",
-                  pointerEvents: "none",
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: "-30px",
-                  left: "10%",
-                  width: "120px",
-                  height: "120px",
-                  background:
-                    "radial-gradient(circle, rgba(52,211,153,0.06) 0%, transparent 70%)",
                   pointerEvents: "none",
                 }}
               />
@@ -993,7 +940,7 @@ export default function Dashboard() {
                   display: "flex",
                   alignItems: "center",
                   gap: "10px",
-                  marginBottom: "18px",
+                  marginBottom: "16px",
                   position: "relative",
                 }}
               >
@@ -1007,44 +954,23 @@ export default function Dashboard() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: "0 0 12px rgba(250,204,21,0.15)",
                   }}
                 >
                   <span style={{ fontSize: "17px" }}>⚡</span>
                 </div>
-                <div>
-                  <span
-                    style={{
-                      color: "white",
-                      fontWeight: 800,
-                      fontSize: "15px",
-                      letterSpacing: "-0.02em",
-                    }}
-                  >
-                    Quick Predict
-                  </span>
-                  {!isMobile && (
-                    <span
-                      style={{
-                        color: "rgba(167,243,208,0.55)",
-                        fontSize: "12px",
-                        marginLeft: "8px",
-                        fontWeight: 400,
-                      }}
-                    >
-                      Get instant price prediction
-                    </span>
-                  )}
-                </div>
+                <span
+                  style={{ color: "white", fontWeight: 800, fontSize: "15px" }}
+                >
+                  Quick Predict
+                </span>
               </div>
 
-              {/* Controls */}
+              {/* Controls — 2 cols on mobile, then button below */}
               <div
                 style={{
-                  display: "flex",
-                  alignItems: "flex-end",
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
                   gap: "10px",
-                  flexWrap: isMobile ? "wrap" : "nowrap",
                   position: "relative",
                 }}
               >
@@ -1064,13 +990,7 @@ export default function Dashboard() {
                     "Select region...",
                   ],
                 ].map(([label, opts, val, setter, ph]) => (
-                  <div
-                    key={label}
-                    style={{
-                      flex: 1,
-                      minWidth: isMobile ? "calc(50% - 5px)" : "130px",
-                    }}
-                  >
+                  <div key={label} style={{ minWidth: 0 }}>
                     <label
                       style={{
                         color: "rgba(167,243,208,0.7)",
@@ -1098,61 +1018,60 @@ export default function Dashboard() {
                     </select>
                   </div>
                 ))}
-                <button
-                  className="predict-btn"
-                  onClick={handlePredict}
-                  disabled={disabled}
-                  style={{
-                    height: "40px",
-                    padding: "0 22px",
-                    borderRadius: "10px",
-                    background: disabled ? "rgba(250,204,21,0.3)" : "#facc15",
-                    fontWeight: 800,
-                    fontSize: "13px",
-                    color: "#1a2e05",
-                    border: "none",
-                    cursor: disabled ? "not-allowed" : "pointer",
-                    whiteSpace: "nowrap",
-                    flexShrink: 0,
-                    letterSpacing: "0.01em",
-                    boxShadow: disabled
-                      ? "none"
-                      : "0 2px 12px rgba(250,204,21,0.3)",
-                  }}
-                >
-                  {loading ? (
-                    <span
-                      className="spin"
-                      style={{
-                        display: "inline-block",
-                        width: "14px",
-                        height: "14px",
-                        border: "2px solid #1a2e0540",
-                        borderTopColor: "#1a2e05",
-                        borderRadius: "50%",
-                      }}
-                    />
-                  ) : (
-                    "Predict →"
-                  )}
-                </button>
               </div>
+
+              {/* Predict button — full width below on mobile */}
+              <button
+                className="predict-btn"
+                onClick={handlePredict}
+                disabled={disabled}
+                style={{
+                  marginTop: "10px",
+                  width: "100%",
+                  height: "40px",
+                  borderRadius: "10px",
+                  background: disabled ? "rgba(250,204,21,0.3)" : "#facc15",
+                  fontWeight: 800,
+                  fontSize: "13px",
+                  color: "#1a2e05",
+                  border: "none",
+                  cursor: disabled ? "not-allowed" : "pointer",
+                  letterSpacing: "0.01em",
+                  boxShadow: disabled
+                    ? "none"
+                    : "0 2px 12px rgba(250,204,21,0.3)",
+                }}
+              >
+                {loading ? (
+                  <span
+                    className="spin"
+                    style={{
+                      display: "inline-block",
+                      width: "14px",
+                      height: "14px",
+                      border: "2px solid #1a2e0540",
+                      borderTopColor: "#1a2e05",
+                      borderRadius: "50%",
+                    }}
+                  />
+                ) : (
+                  "Predict →"
+                )}
+              </button>
 
               {/* Result */}
               {prediction && (
                 <div
                   style={{
                     display: "flex",
-                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "12px",
                     background: "rgba(0,0,0,0.35)",
                     borderRadius: "14px",
                     padding: "14px 18px",
-                    marginTop: "16px",
+                    marginTop: "14px",
                     backdropFilter: "blur(12px)",
                     border: "1px solid rgba(52,211,153,0.15)",
-                    boxShadow: "inset 0 1px 0 rgba(52,211,153,0.08)",
-                    flexWrap: "wrap",
-                    gap: "0",
                     animation:
                       "popIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both",
                   }}
@@ -1165,51 +1084,29 @@ export default function Dashboard() {
                       prediction.change,
                       prediction.up ? "#34d399" : "#f87171",
                     ],
-                  ].map(([label, val, col], i) => (
-                    <div
-                      key={label}
-                      style={{ display: "flex", alignItems: "center" }}
-                    >
-                      {i > 0 && (
-                        <div
-                          style={{
-                            width: "1px",
-                            height: "32px",
-                            background: "rgba(255,255,255,0.08)",
-                            margin: "0 18px",
-                          }}
-                        />
-                      )}
-                      <div>
-                        <div
-                          style={{
-                            color: "rgba(167,243,208,0.5)",
-                            fontSize: "10px",
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.08em",
-                            marginBottom: "3px",
-                          }}
-                        >
-                          {label}
-                        </div>
-                        <div
-                          style={{
-                            color: col,
-                            fontWeight: 800,
-                            fontSize: "16px",
-                            fontFamily: "'DM Mono',monospace",
-                            letterSpacing: "-0.02em",
-                            textShadow:
-                              i === 2 && prediction.up
-                                ? "0 0 12px rgba(52,211,153,0.5)"
-                                : i === 2 && !prediction.up
-                                  ? "0 0 12px rgba(248,113,113,0.5)"
-                                  : "none",
-                          }}
-                        >
-                          {val}
-                        </div>
+                  ].map(([label, val, col]) => (
+                    <div key={label}>
+                      <div
+                        style={{
+                          color: "rgba(167,243,208,0.5)",
+                          fontSize: "10px",
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.08em",
+                          marginBottom: "3px",
+                        }}
+                      >
+                        {label}
+                      </div>
+                      <div
+                        style={{
+                          color: col,
+                          fontWeight: 800,
+                          fontSize: "15px",
+                          fontFamily: "'DM Mono',monospace",
+                        }}
+                      >
+                        {val}
                       </div>
                     </div>
                   ))}
@@ -1222,10 +1119,10 @@ export default function Dashboard() {
               className="fade-up-2"
               style={{
                 background: card,
-                borderRadius: "22px",
+                borderRadius: "20px",
                 border: `1px solid ${cardBorder}`,
-                padding: "22px 22px 12px",
-                height: isMobile ? "280px" : "340px",
+                padding: "18px 18px 12px",
+                height: isMobile ? "260px" : "340px",
                 display: "flex",
                 flexDirection: "column",
                 boxShadow: cardShadow,
@@ -1233,33 +1130,6 @@ export default function Dashboard() {
                 overflow: "hidden",
               }}
             >
-              {/* Subtle grid texture */}
-              {isDark && (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    backgroundImage:
-                      "radial-gradient(rgba(52,211,153,0.025) 1px, transparent 1px)",
-                    backgroundSize: "28px 28px",
-                    pointerEvents: "none",
-                    borderRadius: "22px",
-                  }}
-                />
-              )}
-              {/* Top shimmer */}
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: "15%",
-                  right: "15%",
-                  height: "1px",
-                  background: `linear-gradient(90deg,transparent,${isDark ? "rgba(52,211,153,0.3)" : "rgba(22,163,74,0.2)"},transparent)`,
-                  pointerEvents: "none",
-                }}
-              />
-
               <div
                 style={{
                   display: "flex",
@@ -1267,7 +1137,6 @@ export default function Dashboard() {
                   alignItems: "flex-start",
                   marginBottom: "14px",
                   flexShrink: 0,
-                  position: "relative",
                 }}
               >
                 <div>
@@ -1279,12 +1148,7 @@ export default function Dashboard() {
                     }}
                   >
                     <span
-                      style={{
-                        fontSize: "15px",
-                        fontWeight: 800,
-                        color: text,
-                        letterSpacing: "-0.02em",
-                      }}
+                      style={{ fontSize: "14px", fontWeight: 800, color: text }}
                     >
                       Price Trends
                     </span>
@@ -1320,15 +1184,10 @@ export default function Dashboard() {
                     )}
                   </div>
                   <div
-                    style={{
-                      fontSize: "11px",
-                      color: muted,
-                      marginTop: "2px",
-                      fontWeight: 400,
-                    }}
+                    style={{ fontSize: "11px", color: muted, marginTop: "2px" }}
                   >
                     Next {{ "3M": "3", "6M": "6", "12M": "12" }[chartRange]}{" "}
-                    months · ₹ per quintal
+                    months · ₹/qtl
                   </div>
                 </div>
                 <div
@@ -1339,6 +1198,7 @@ export default function Dashboard() {
                     borderRadius: "12px",
                     padding: "3px",
                     border: `1px solid ${cardBorder}`,
+                    flexShrink: 0,
                   }}
                 >
                   {["3M", "6M", "12M"].map((p) => (
@@ -1347,9 +1207,9 @@ export default function Dashboard() {
                       className={`range-btn${chartRange === p ? " active" : ""}`}
                       onClick={() => setChartRange(p)}
                       style={{
-                        padding: "5px 13px",
+                        padding: "4px 10px",
                         borderRadius: "9px",
-                        fontSize: "12px",
+                        fontSize: "11px",
                         fontWeight: 700,
                         border: "none",
                         cursor: "pointer",
@@ -1365,12 +1225,6 @@ export default function Dashboard() {
                               ? "#071a0e"
                               : "white"
                             : muted,
-                        boxShadow:
-                          chartRange === p
-                            ? isDark
-                              ? "0 0 12px rgba(52,211,153,0.3)"
-                              : "0 2px 8px rgba(22,163,74,0.3)"
-                            : "none",
                       }}
                     >
                       {p}
@@ -1378,8 +1232,7 @@ export default function Dashboard() {
                   ))}
                 </div>
               </div>
-
-              <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
+              <div style={{ flex: 1, minHeight: 0 }}>
                 {chartLoading ? (
                   <div
                     style={{
@@ -1394,8 +1247,8 @@ export default function Dashboard() {
                     <div
                       className="spin"
                       style={{
-                        width: "36px",
-                        height: "36px",
+                        width: "32px",
+                        height: "32px",
                         borderRadius: "50%",
                         border: `3px solid ${isDark ? "rgba(52,211,153,0.1)" : "#dcfce7"}`,
                         borderTopColor: "#34d399",
@@ -1440,15 +1293,15 @@ export default function Dashboard() {
                       />
                       <XAxis
                         dataKey="month"
-                        tick={{ fontSize: 11, fill: muted }}
+                        tick={{ fontSize: 10, fill: muted }}
                         axisLine={false}
                         tickLine={false}
                       />
                       <YAxis
-                        tick={{ fontSize: 11, fill: muted }}
+                        tick={{ fontSize: 10, fill: muted }}
                         axisLine={false}
                         tickLine={false}
-                        width={isMobile ? 44 : 52}
+                        width={isMobile ? 36 : 48}
                       />
                       <Tooltip content={<CustomTooltip />} />
                       {!isMobile && (
@@ -1464,9 +1317,9 @@ export default function Dashboard() {
                             dataKey={key}
                             stroke={color}
                             strokeWidth={2}
-                            dot={{ r: 3, fill: color, strokeWidth: 0 }}
+                            dot={{ r: 2, fill: color, strokeWidth: 0 }}
                             activeDot={{
-                              r: 5,
+                              r: 4,
                               strokeWidth: 2,
                               stroke: color + "60",
                             }}
@@ -1485,42 +1338,23 @@ export default function Dashboard() {
               className="fade-up-3"
               style={{
                 background: card,
-                borderRadius: "22px",
+                borderRadius: "20px",
                 border: `1px solid ${cardBorder}`,
-                padding: "22px",
+                padding: "18px",
                 boxShadow: cardShadow,
-                position: "relative",
-                overflow: "hidden",
               }}
             >
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: "20%",
-                  right: "20%",
-                  height: "1px",
-                  background: `linear-gradient(90deg,transparent,${isDark ? "rgba(52,211,153,0.2)" : "rgba(22,163,74,0.15)"},transparent)`,
-                  pointerEvents: "none",
-                }}
-              />
-
               <div
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  marginBottom: "18px",
+                  marginBottom: "16px",
                 }}
               >
                 <div>
                   <div
-                    style={{
-                      fontSize: "15px",
-                      fontWeight: 800,
-                      color: text,
-                      letterSpacing: "-0.02em",
-                    }}
+                    style={{ fontSize: "14px", fontWeight: 800, color: text }}
                   >
                     Market Insights
                   </div>
@@ -1542,6 +1376,7 @@ export default function Dashboard() {
                     display: "flex",
                     alignItems: "center",
                     gap: "5px",
+                    flexShrink: 0,
                   }}
                 >
                   <span
@@ -1557,7 +1392,6 @@ export default function Dashboard() {
                   Live
                 </span>
               </div>
-
               <div
                 style={{
                   display: "grid",
@@ -1574,11 +1408,8 @@ export default function Dashboard() {
                         background: isDark ? "rgba(30,41,59,0.8)" : "white",
                         border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
                         borderRadius: "14px",
-                        padding: "14px",
+                        padding: "12px",
                         cursor: "pointer",
-                        boxShadow: isDark
-                          ? "none"
-                          : "0 1px 4px rgba(0,0,0,0.04)",
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.borderColor = `${tagColor}40`;
@@ -1588,9 +1419,7 @@ export default function Dashboard() {
                         e.currentTarget.style.borderColor = isDark
                           ? "rgba(255,255,255,0.06)"
                           : "rgba(0,0,0,0.06)";
-                        e.currentTarget.style.boxShadow = isDark
-                          ? "none"
-                          : "0 1px 4px rgba(0,0,0,0.04)";
+                        e.currentTarget.style.boxShadow = "none";
                       }}
                     >
                       <div
@@ -1598,13 +1427,13 @@ export default function Dashboard() {
                           display: "flex",
                           justifyContent: "space-between",
                           alignItems: "flex-start",
-                          marginBottom: "10px",
+                          marginBottom: "8px",
                         }}
                       >
                         <div
                           style={{
-                            width: "34px",
-                            height: "34px",
+                            width: "30px",
+                            height: "30px",
                             borderRadius: "9px",
                             background: `${iconBg}16`,
                             border: `1px solid ${iconBg}28`,
@@ -1615,8 +1444,8 @@ export default function Dashboard() {
                         >
                           <NewsIcon
                             style={{
-                              width: "15px",
-                              height: "15px",
+                              width: "14px",
+                              height: "14px",
                               color: iconBg,
                             }}
                           />
@@ -1630,7 +1459,6 @@ export default function Dashboard() {
                             border: `1px solid ${tagColor}25`,
                             padding: "2px 8px",
                             borderRadius: "20px",
-                            letterSpacing: "0.02em",
                           }}
                         >
                           {tag}
@@ -1638,11 +1466,10 @@ export default function Dashboard() {
                       </div>
                       <div
                         style={{
-                          fontSize: "13px",
+                          fontSize: "12px",
                           fontWeight: 700,
                           color: text,
                           marginBottom: "4px",
-                          letterSpacing: "-0.01em",
                         }}
                       >
                         {title}
@@ -1651,7 +1478,7 @@ export default function Dashboard() {
                         style={{
                           fontSize: "11px",
                           color: muted,
-                          lineHeight: 1.55,
+                          lineHeight: 1.5,
                         }}
                       >
                         {desc}
@@ -1663,86 +1490,39 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* ══ RIGHT ══ */}
+          {/* RIGHT COLUMN */}
           <div
-            style={{ display: "flex", flexDirection: "column", gap: "20px" }}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+              minWidth: 0,
+            }}
           >
             {/* Recent Predictions */}
             <div
               className="fade-up-2"
               style={{
                 background: isDark ? "rgba(30,41,59,0.8)" : "white",
-                borderRadius: "22px",
+                borderRadius: "20px",
                 border: `1px solid ${cardBorder}`,
-                padding: "20px",
+                padding: "18px",
                 boxShadow: cardShadow,
-                position: "relative",
-                overflow: "hidden",
               }}
             >
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: "15%",
-                  right: "15%",
-                  height: "1px",
-                  background: `linear-gradient(90deg,transparent,${isDark ? "rgba(52,211,153,0.2)" : "rgba(22,163,74,0.15)"},transparent)`,
-                  pointerEvents: "none",
-                }}
-              />
-
               <div
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  marginBottom: "16px",
+                  marginBottom: "14px",
                 }}
               >
-                <div
-                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                <span
+                  style={{ fontSize: "14px", fontWeight: 800, color: text }}
                 >
-                  <span
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: 800,
-                      color: text,
-                      letterSpacing: "-0.02em",
-                    }}
-                  >
-                    Recent Predictions
-                  </span>
-                  {recentFromDB.length > 0 && (
-                    <span
-                      style={{
-                        fontSize: "10px",
-                        color: "#34d399",
-                        background: isDark ? "rgba(52,211,153,0.1)" : "#dcfce7",
-                        padding: "2px 7px",
-                        borderRadius: "20px",
-                        fontWeight: 700,
-                        border: "1px solid rgba(52,211,153,0.25)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "4px",
-                      }}
-                    >
-                      <span
-                        className="pulse-dot"
-                        style={{
-                          width: "5px",
-                          height: "5px",
-                          borderRadius: "50%",
-                          background: "#34d399",
-                          display: "inline-block",
-                        }}
-                      />
-                      Live
-                    </span>
-                  )}
-                </div>
-
+                  Recent Predictions
+                </span>
                 <button
                   onClick={() => setShowAllPredictions(true)}
                   style={{
@@ -1758,7 +1538,6 @@ export default function Dashboard() {
                   View all →
                 </button>
               </div>
-
               {recentPredictions.length === 0 ? (
                 <div
                   style={{
@@ -1807,6 +1586,7 @@ export default function Dashboard() {
                             alignItems: "center",
                             justifyContent: "center",
                             fontSize: "15px",
+                            flexShrink: 0,
                           }}
                         >
                           {CROP_EMOJI[crop] || "🌱"}
@@ -1817,7 +1597,6 @@ export default function Dashboard() {
                               fontSize: "13px",
                               fontWeight: 700,
                               color: text,
-                              letterSpacing: "-0.01em",
                             }}
                           >
                             {crop}
@@ -1827,14 +1606,13 @@ export default function Dashboard() {
                           </div>
                         </div>
                       </div>
-                      <div style={{ textAlign: "right" }}>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
                         <div
                           style={{
                             fontSize: "13px",
                             fontWeight: 800,
                             color: text,
                             fontFamily: "'DM Mono',monospace",
-                            letterSpacing: "-0.02em",
                           }}
                         >
                           {price}
@@ -1873,64 +1651,24 @@ export default function Dashboard() {
                 background: isDark
                   ? "linear-gradient(135deg, #080f2a 0%, #0d1e4a 50%, #0a1d55 100%)"
                   : "linear-gradient(135deg, #1e3a5f 0%, #1d4ed8 100%)",
-                borderRadius: "22px",
-                padding: "22px",
+                borderRadius: "20px",
+                padding: "18px",
                 border: "1px solid rgba(96,165,250,0.2)",
-                boxShadow:
-                  "0 0 60px rgba(29,78,216,0.12), inset 0 1px 0 rgba(255,255,255,0.05)",
+                boxShadow: "0 0 60px rgba(29,78,216,0.12)",
                 position: "relative",
                 overflow: "hidden",
               }}
             >
               <div
                 style={{
-                  position: "absolute",
-                  top: "-20px",
-                  right: "-20px",
-                  width: "120px",
-                  height: "120px",
-                  background:
-                    "radial-gradient(circle,rgba(96,165,250,0.2) 0%,transparent 70%)",
-                  pointerEvents: "none",
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: "-30px",
-                  left: "10%",
-                  width: "100px",
-                  height: "100px",
-                  background:
-                    "radial-gradient(circle,rgba(96,165,250,0.1) 0%,transparent 70%)",
-                  pointerEvents: "none",
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: "15%",
-                  right: "15%",
-                  height: "1px",
-                  background:
-                    "linear-gradient(90deg,transparent,rgba(147,197,253,0.3),transparent)",
-                  pointerEvents: "none",
-                }}
-              />
-
-              <div
-                style={{
                   fontSize: "14px",
                   fontWeight: 800,
                   color: "white",
-                  marginBottom: "18px",
-                  letterSpacing: "-0.02em",
+                  marginBottom: "16px",
                 }}
               >
                 📊 Today's Market
               </div>
-
               {[
                 {
                   label: "Mandis Active",
@@ -1954,7 +1692,7 @@ export default function Dashboard() {
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    padding: "11px 0",
+                    padding: "10px 0",
                     borderBottom:
                       i < 2 ? "1px solid rgba(255,255,255,0.07)" : "none",
                   }}
@@ -1998,11 +1736,10 @@ export default function Dashboard() {
                   </div>
                   <span
                     style={{
-                      fontSize: "15px",
+                      fontSize: "14px",
                       fontWeight: 800,
                       color: "white",
                       fontFamily: "'DM Mono',monospace",
-                      letterSpacing: "-0.02em",
                     }}
                   >
                     {value}
@@ -2013,6 +1750,7 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
       {/* All Predictions Modal */}
       {showAllPredictions && (
         <div
@@ -2026,7 +1764,6 @@ export default function Dashboard() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            animation: "fadeUp 0.2s ease both",
           }}
         >
           <div
@@ -2040,12 +1777,10 @@ export default function Dashboard() {
               maxWidth: "90vw",
               maxHeight: "75vh",
               overflowY: "auto",
-              boxShadow:
-                "0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(52,211,153,0.1)",
+              boxShadow: "0 24px 80px rgba(0,0,0,0.5)",
               animation: "popIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both",
             }}
           >
-            {/* Modal header */}
             <div
               style={{
                 display: "flex",
@@ -2080,8 +1815,6 @@ export default function Dashboard() {
                 ✕ Close
               </button>
             </div>
-
-            {/* Modal list */}
             {recentPredictions.map(
               ({ crop, region, price, change, up }, idx) => (
                 <div
