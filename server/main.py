@@ -534,7 +534,7 @@ async def analytics_summary(
             if c and c in CROPS and c not in seen_set:
                 seen_crops.append(c)
                 seen_set.add(c)
-        active_crops = seen_crops if seen_crops else APP_CROPS
+        active_crops = APP_CROPS  # always show all crops
     except Exception as e:
         print(f"[analytics] get_predictions failed: {e}")
         all_preds    = []
@@ -548,7 +548,7 @@ async def analytics_summary(
             crop_state_map[c] = s
 
     def crop_state(crop: str) -> str:
-        return crop_state_map.get(crop) or CROP_DEFAULT_STATES.get(crop, "Punjab")
+            return CROP_DEFAULT_STATES.get(crop, "Punjab")
 
     # ── 1. Dashboard stat cards ───────────────────────────────────────────────
     async def get_dashboard():
