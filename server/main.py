@@ -535,7 +535,7 @@ async def analytics_summary(
             if c and c in CROPS and c not in seen_set:
                 seen_crops.append(c)
                 seen_set.add(c)
-        active_crops = APP_CROPS  # always show all crops
+        active_crops = seen_crops if seen_crops else APP_CROPS
     except Exception as e:
         print(f"[analytics] get_predictions failed: {e}")
         all_preds    = []

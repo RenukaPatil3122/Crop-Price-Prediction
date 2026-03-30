@@ -32,7 +32,7 @@ import {
 } from "recharts";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = 30 * 1000; // 30 seconds
 
 const CROP_COLORS = {
   Wheat: "#34d399",
@@ -424,9 +424,13 @@ export default function Analytics() {
     try {
       const ctrl = new AbortController();
       const tid = setTimeout(() => ctrl.abort(), 45000);
+      const token = localStorage.getItem("agrisense_token");
       const res = await fetch(
         `${API_BASE}/analytics/summary?months=${months}`,
-        { signal: ctrl.signal },
+        {
+          signal: ctrl.signal,
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        },
       );
       clearTimeout(tid);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
