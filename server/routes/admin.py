@@ -3,14 +3,20 @@ from pydantic import BaseModel
 from datetime import datetime, timedelta
 from bson import ObjectId
 
-# ── Reuse your existing DB connection ─────────────────────────────────────────
-from database import db   # same pattern as auth.py / data_fetcher.py
+# ── Reuse the singleton from database.py ──────────────────────────────────────
+# db is a Database() instance with:
+#   db.users_col      → "users" collection
+#   db.collection     → "predictions" collection
+#   db._connected     → bool
+# Date field in both collections: created_at  (snake_case)
+# Predictions fields: crop, state, predicted_price, confidence, user_id
+from database import db
 
 admin_router = APIRouter()
 
 # ── Config ────────────────────────────────────────────────────────────────────
 ADMIN_PASSWORD = "agrisense@admin2024"
-ADMIN_TOKEN    = "agrisense_admin_secret_token_2024"   # static internal token
+ADMIN_TOKEN    = "agrisense_admin_secret_token_2024"
 
 # ── Auth dependency ───────────────────────────────────────────────────────────
 def verify_admin(x_admin_token: str = Header(...)):
@@ -21,6 +27,10 @@ def verify_admin(x_admin_token: str = Header(...)):
 def str_id(doc: dict) -> dict:
     doc["_id"] = str(doc["_id"])
     return doc
+
+def check_db():
+    if not db._connected or db.users_col is None:
+        raise HTTPException(status_code=503, detail="Database not connected")
 
 # ── Schema ────────────────────────────────────────────────────────────────────
 class LoginRequest(BaseModel):
@@ -39,50 +49,55 @@ async def admin_login(body: LoginRequest):
 
 @admin_router.get("/stats")
 async def admin_stats(_: None = Depends(verify_admin)):
+    check_db()
+
     now        = datetime.utcnow()
     week_start = now - timedelta(days=7)
 
     # ── Scalar counts ─────────────────────────────────────────────────────────
-    total_users       = await db.users.count_documents({})
-    total_predictions = await db.predictions.count_documents({})
-    week_predictions  = await db.predictions.count_documents({"createdAt": {"$gte": week_start}})
-    new_users_week    = await db.users.count_documents({"createdAt": {"$gte": week_start}})
+    total_users       = await db.users_col.count_documents({})
+    total_predictions = await db.collection.count_documents({})
+    week_predictions  = await db.collection.count_documents({"created_at": {"$gte": week_start}})
+    new_users_week    = await db.users_col.count_documents({"created_at": {"$gte": week_start}})
 
-    # ── All users (name, email, createdAt only) ───────────────────────────────
+    # ── All users ─────────────────────────────────────────────────────────────
     all_users = [
         str_id(u)
-        async for u in db.users.find({}, {"name": 1, "email": 1, "createdAt": 1})
+        async for u in db.users_col.find(
+            {},
+            {"name": 1, "email": 1, "created_at": 1}
+        )
     ]
 
     # ── All predictions ───────────────────────────────────────────────────────
     all_predictions = [
         str_id(p)
-        async for p in db.predictions.find(
+        async for p in db.collection.find(
             {},
-            {"crop": 1, "region": 1, "predictedPrice": 1, "confidenceScore": 1, "createdAt": 1},
+            {"crop": 1, "state": 1, "predicted_price": 1, "confidence": 1, "created_at": 1}
         )
     ]
 
     # ── Top 5 most predicted crops ────────────────────────────────────────────
     top_crops = [
-        c async for c in db.predictions.aggregate([
-            {"$group": {"_id": "$crop", "count": {"$sum": 1}}},
-            {"$sort":  {"count": -1}},
-            {"$limit": 5},
+        c async for c in db.collection.aggregate([
+            {"$group":   {"_id": "$crop", "count": {"$sum": 1}}},
+            {"$sort":    {"count": -1}},
+            {"$limit":   5},
             {"$project": {"crop": "$_id", "count": 1, "_id": 0}},
         ])
     ]
 
-    # ── Signups per day for last 7 days (no gaps) ─────────────────────────────
+    # ── Signups per day last 7 days (no gaps) ─────────────────────────────────
     signup_raw = [
-        s async for s in db.users.aggregate([
-            {"$match": {"createdAt": {"$gte": week_start}}},
+        s async for s in db.users_col.aggregate([
+            {"$match": {"created_at": {"$gte": week_start}}},
             {
                 "$group": {
                     "_id": {
-                        "year":  {"$year":  "$createdAt"},
-                        "month": {"$month": "$createdAt"},
-                        "day":   {"$dayOfMonth": "$createdAt"},
+                        "year":  {"$year":  "$created_at"},
+                        "month": {"$month": "$created_at"},
+                        "day":   {"$dayOfMonth": "$created_at"},
                     },
                     "count": {"$sum": 1},
                 }
@@ -118,29 +133,31 @@ async def admin_stats(_: None = Depends(verify_admin)):
 
 
 @admin_router.delete("/users/{user_id}")
-async def delete_user(user_id: str, _: None = Depends(verify_admin)):
+async def admin_delete_user(user_id: str, _: None = Depends(verify_admin)):
+    check_db()
     try:
         oid = ObjectId(user_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid user ID")
 
-    result = await db.users.delete_one({"_id": oid})
+    result = await db.users_col.delete_one({"_id": oid})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Cascade: remove all predictions belonging to this user
-    await db.predictions.delete_many({"userId": user_id})
+    # Cascade: remove this user's predictions
+    await db.collection.delete_many({"user_id": user_id})
     return {"message": "User deleted"}
 
 
 @admin_router.delete("/predictions/{prediction_id}")
-async def delete_prediction(prediction_id: str, _: None = Depends(verify_admin)):
+async def admin_delete_prediction(prediction_id: str, _: None = Depends(verify_admin)):
+    check_db()
     try:
         oid = ObjectId(prediction_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid prediction ID")
 
-    result = await db.predictions.delete_one({"_id": oid})
+    result = await db.collection.delete_one({"_id": oid})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Prediction not found")
 

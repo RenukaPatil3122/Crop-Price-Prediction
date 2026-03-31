@@ -3,13 +3,12 @@ import { useState, useEffect, useCallback } from "react";
 const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const TOKEN_KEY = "agrisense_admin_token";
 
-// ── Palette ──────────────────────────────────────────────────────────────────
 const C = {
   bg: "#0f1923",
   surface: "#162130",
   surfaceHi: "#1c2b3a",
   border: "#1e3248",
-  accent: "#22c55e", // AgriSense green
+  accent: "#22c55e",
   accentDim: "#166534",
   accentGlow: "rgba(34,197,94,0.15)",
   text: "#e2eaf4",
@@ -19,10 +18,6 @@ const C = {
   warning: "#f59e0b",
   blue: "#38bdf8",
 };
-
-// ── Tiny helpers ─────────────────────────────────────────────────────────────
-const fmt = (v) =>
-  v == null ? "—" : typeof v === "number" ? `₹${v.toLocaleString()}` : v;
 
 const fmtDate = (v) => {
   if (!v) return "—";
@@ -36,10 +31,10 @@ const fmtDate = (v) => {
     return "—";
   }
 };
+const fmtPrice = (v) =>
+  v == null ? "—" : `₹${Number(v).toLocaleString("en-IN")}`;
+const fmtPct = (v) => (v == null ? "—" : `${(Number(v) * 100).toFixed(1)}%`);
 
-const fmtPct = (v) => (v == null ? "—" : `${(v * 100).toFixed(1)}%`);
-
-// ── CSS injected once ─────────────────────────────────────────────────────────
 const GLOBAL_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -48,21 +43,9 @@ const GLOBAL_CSS = `
   ::-webkit-scrollbar-track { background: ${C.surface}; }
   ::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: ${C.accentDim}; }
-
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(16px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes pulse-border {
-    0%, 100% { box-shadow: 0 0 0 0 ${C.accentGlow}; }
-    50%       { box-shadow: 0 0 0 6px ${C.accentGlow}; }
-  }
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
-  }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes spin   { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
   .fade-up { animation: fadeUp 0.4s ease both; }
-  .bar-fill { transition: width 0.8s cubic-bezier(.4,0,.2,1); }
 `;
 
 function injectCSS() {
@@ -73,7 +56,7 @@ function injectCSS() {
   document.head.appendChild(s);
 }
 
-// ── Shared UI primitives ──────────────────────────────────────────────────────
+// ── Primitives ────────────────────────────────────────────────────────────────
 const Card = ({ children, style = {}, delay = 0 }) => (
   <div
     className="fade-up"
@@ -97,7 +80,7 @@ const Btn = ({
   disabled = false,
   style = {},
 }) => {
-  const variants = {
+  const v = {
     default: {
       background: C.surfaceHi,
       color: C.text,
@@ -114,14 +97,13 @@ const Btn = ({
       color: C.danger,
       border: `1px solid ${C.danger}`,
     },
-    ghost: { background: "transparent", color: C.textMuted, border: "none" },
-  };
+  }[variant];
   return (
     <button
       onClick={onClick}
       disabled={disabled}
       style={{
-        ...variants[variant],
+        ...v,
         padding: "7px 16px",
         borderRadius: 8,
         fontSize: 13,
@@ -131,7 +113,7 @@ const Btn = ({
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
-        transition: "opacity .2s, filter .2s",
+        transition: "filter .2s",
         ...style,
       }}
       onMouseEnter={(e) =>
@@ -161,15 +143,16 @@ const Badge = ({ children, color = C.accent }) => (
   </span>
 );
 
-const Spinner = () => (
+const Spinner = ({ size = 20 }) => (
   <div
     style={{
-      width: 20,
-      height: 20,
+      width: size,
+      height: size,
       border: `2px solid ${C.border}`,
       borderTop: `2px solid ${C.accent}`,
       borderRadius: "50%",
       animation: "spin 0.8s linear infinite",
+      flexShrink: 0,
     }}
   />
 );
@@ -216,13 +199,13 @@ const StatCard = ({ label, value, icon, color = C.accent, delay = 0 }) => (
           fontFamily: "'IBM Plex Mono', monospace",
         }}
       >
-        {value ?? "—"}
+        {value ?? <Spinner size={22} />}
       </div>
     </div>
   </Card>
 );
 
-// ── Bar Chart (pure CSS) ──────────────────────────────────────────────────────
+// ── Bar Charts ────────────────────────────────────────────────────────────────
 const BarChart = ({
   data = [],
   valueKey = "count",
@@ -236,7 +219,7 @@ const BarChart = ({
       {title && (
         <div
           style={{
-            fontSize: 13,
+            fontSize: 12,
             color: C.textMuted,
             marginBottom: 20,
             textTransform: "uppercase",
@@ -254,76 +237,72 @@ const BarChart = ({
           height: 140,
         }}
       >
-        {data.map((d, i) => {
-          const pct = (d[valueKey] / max) * 100;
-          return (
+        {data.map((d, i) => (
+          <div
+            key={i}
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 6,
+              height: "100%",
+            }}
+          >
             <div
-              key={i}
               style={{
                 flex: 1,
+                width: "100%",
                 display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 6,
-                height: "100%",
+                alignItems: "flex-end",
               }}
             >
               <div
                 style={{
-                  flex: 1,
                   width: "100%",
-                  display: "flex",
-                  alignItems: "flex-end",
+                  height: `${(d[valueKey] / max) * 100}%`,
+                  minHeight: d[valueKey] > 0 ? 4 : 0,
+                  background: `linear-gradient(180deg, ${color}, ${color}88)`,
+                  borderRadius: "4px 4px 0 0",
+                  position: "relative",
+                  transition: "height 0.8s cubic-bezier(.4,0,.2,1)",
                 }}
               >
-                <div
-                  style={{
-                    width: "100%",
-                    height: `${pct}%`,
-                    minHeight: d[valueKey] > 0 ? 4 : 0,
-                    background: `linear-gradient(180deg, ${color}, ${color}88)`,
-                    borderRadius: "4px 4px 0 0",
-                    position: "relative",
-                    transition: "height 0.8s cubic-bezier(.4,0,.2,1)",
-                  }}
-                >
-                  {d[valueKey] > 0 && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: -20,
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        fontSize: 11,
-                        color,
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {d[valueKey]}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div
-                style={{
-                  fontSize: 10,
-                  color: C.textMuted,
-                  textAlign: "center",
-                  lineHeight: 1.2,
-                }}
-              >
-                {d[labelKey]}
+                {d[valueKey] > 0 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: -20,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      fontSize: 11,
+                      color,
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {d[valueKey]}
+                  </div>
+                )}
               </div>
             </div>
-          );
-        })}
+            <div
+              style={{
+                fontSize: 10,
+                color: C.textMuted,
+                textAlign: "center",
+                lineHeight: 1.2,
+              }}
+            >
+              {d[labelKey]}
+            </div>
+          </div>
+        ))}
       </div>
     </Card>
   );
 };
 
-// ── Horizontal bar for top crops ──────────────────────────────────────────────
 const HorizBar = ({ data = [] }) => {
   const max = Math.max(...data.map((d) => d.count), 1);
   const colors = [C.accent, C.blue, C.warning, "#a78bfa", "#fb923c"];
@@ -331,7 +310,7 @@ const HorizBar = ({ data = [] }) => {
     <Card>
       <div
         style={{
-          fontSize: 13,
+          fontSize: 12,
           color: C.textMuted,
           marginBottom: 20,
           textTransform: "uppercase",
@@ -340,9 +319,13 @@ const HorizBar = ({ data = [] }) => {
       >
         Top 5 Crops
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {data.map((d, i) => (
-          <div key={i}>
+      {data.length === 0 ? (
+        <div style={{ color: C.textMuted, fontSize: 13 }}>
+          No prediction data yet
+        </div>
+      ) : (
+        data.map((d, i) => (
+          <div key={i} style={{ marginBottom: 14 }}>
             <div
               style={{
                 display: "flex",
@@ -351,12 +334,10 @@ const HorizBar = ({ data = [] }) => {
                 fontSize: 13,
               }}
             >
-              <span style={{ color: C.text, textTransform: "capitalize" }}>
-                {d.crop}
-              </span>
+              <span style={{ textTransform: "capitalize" }}>{d.crop}</span>
               <span
                 style={{
-                  color: colors[i % colors.length],
+                  color: colors[i],
                   fontFamily: "'IBM Plex Mono', monospace",
                 }}
               >
@@ -375,15 +356,15 @@ const HorizBar = ({ data = [] }) => {
                 style={{
                   height: "100%",
                   width: `${(d.count / max) * 100}%`,
-                  background: colors[i % colors.length],
+                  background: colors[i],
                   borderRadius: 3,
                   transition: "width 0.9s cubic-bezier(.4,0,.2,1)",
                 }}
               />
             </div>
           </div>
-        ))}
-      </div>
+        ))
+      )}
     </Card>
   );
 };
@@ -391,14 +372,12 @@ const HorizBar = ({ data = [] }) => {
 // ── Table ─────────────────────────────────────────────────────────────────────
 const Table = ({ columns, rows, onDelete }) => {
   const [deletingId, setDeletingId] = useState(null);
-
   const handleDelete = async (row) => {
     if (!window.confirm("Delete this record? This cannot be undone.")) return;
     setDeletingId(row._id);
     await onDelete(row._id);
     setDeletingId(null);
   };
-
   return (
     <div style={{ overflowX: "auto" }}>
       <table
@@ -446,15 +425,13 @@ const Table = ({ columns, rows, onDelete }) => {
               key={row._id ?? i}
               style={{
                 borderBottom: `1px solid ${C.border}22`,
-                background: i % 2 === 0 ? "transparent" : `${C.surfaceHi}55`,
                 transition: "background 0.15s",
               }}
               onMouseEnter={(e) =>
                 (e.currentTarget.style.background = C.surfaceHi)
               }
               onMouseLeave={(e) =>
-                (e.currentTarget.style.background =
-                  i % 2 === 0 ? "transparent" : `${C.surfaceHi}55`)
+                (e.currentTarget.style.background = "transparent")
               }
             >
               {columns.map((col) => (
@@ -478,7 +455,7 @@ const Table = ({ columns, rows, onDelete }) => {
                   disabled={deletingId === row._id}
                   style={{ padding: "4px 10px", fontSize: 12 }}
                 >
-                  {deletingId === row._id ? <Spinner /> : "✕ Delete"}
+                  {deletingId === row._id ? <Spinner size={14} /> : "✕ Delete"}
                 </Btn>
               </td>
             </tr>
@@ -488,6 +465,31 @@ const Table = ({ columns, rows, onDelete }) => {
     </div>
   );
 };
+
+// ── Search Bar ────────────────────────────────────────────────────────────────
+const SearchBar = ({ value, onChange, placeholder }) => (
+  <div style={{ marginBottom: 16 }}>
+    <input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      style={{
+        background: C.surface,
+        border: `1px solid ${C.border}`,
+        borderRadius: 8,
+        padding: "9px 14px",
+        color: C.text,
+        fontSize: 13,
+        fontFamily: "'Outfit', sans-serif",
+        outline: "none",
+        width: "100%",
+        maxWidth: 340,
+      }}
+      onFocus={(e) => (e.target.style.borderColor = C.accent)}
+      onBlur={(e) => (e.target.style.borderColor = C.border)}
+    />
+  </div>
+);
 
 // ── Login Screen ──────────────────────────────────────────────────────────────
 function LoginScreen({ onLogin }) {
@@ -526,7 +528,6 @@ function LoginScreen({ onLogin }) {
         fontFamily: "'Outfit', sans-serif",
       }}
     >
-      {/* Ambient glow */}
       <div
         style={{
           position: "fixed",
@@ -540,7 +541,6 @@ function LoginScreen({ onLogin }) {
           pointerEvents: "none",
         }}
       />
-
       <div
         className="fade-up"
         style={{
@@ -550,11 +550,9 @@ function LoginScreen({ onLogin }) {
           padding: "40px 44px",
           width: "100%",
           maxWidth: 400,
-          position: "relative",
           zIndex: 1,
         }}
       >
-        {/* Logo mark */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div
             style={{
@@ -572,12 +570,10 @@ function LoginScreen({ onLogin }) {
           >
             🌾
           </div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: C.text }}>
-            AgriSense
-          </div>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>AgriSense</div>
           <div
             style={{
-              fontSize: 13,
+              fontSize: 12,
               color: C.textMuted,
               marginTop: 4,
               letterSpacing: "0.12em",
@@ -588,50 +584,47 @@ function LoginScreen({ onLogin }) {
           </div>
         </div>
 
-        <div style={{ marginBottom: 14 }}>
-          <label
-            style={{
-              fontSize: 12,
-              color: C.textMuted,
-              display: "block",
-              marginBottom: 8,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-            }}
-          >
-            Admin Password
-          </label>
-          <input
-            type="password"
-            value={pw}
-            onChange={(e) => setPw(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && submit()}
-            placeholder="Enter password…"
-            style={{
-              width: "100%",
-              background: C.surfaceHi,
-              border: `1px solid ${err ? C.danger : C.border}`,
-              borderRadius: 8,
-              padding: "11px 14px",
-              color: C.text,
-              fontSize: 14,
-              fontFamily: "'IBM Plex Mono', monospace",
-              outline: "none",
-              transition: "border-color 0.2s",
-            }}
-            onFocus={(e) => (e.target.style.borderColor = C.accent)}
-            onBlur={(e) =>
-              (e.target.style.borderColor = err ? C.danger : C.border)
-            }
-          />
-        </div>
-
+        <label
+          style={{
+            fontSize: 12,
+            color: C.textMuted,
+            display: "block",
+            marginBottom: 8,
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+          }}
+        >
+          Admin Password
+        </label>
+        <input
+          type="password"
+          value={pw}
+          onChange={(e) => setPw(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && submit()}
+          placeholder="Enter password…"
+          style={{
+            width: "100%",
+            background: C.surfaceHi,
+            border: `1px solid ${err ? C.danger : C.border}`,
+            borderRadius: 8,
+            padding: "11px 14px",
+            color: C.text,
+            fontSize: 14,
+            fontFamily: "'IBM Plex Mono', monospace",
+            outline: "none",
+            marginBottom: 12,
+          }}
+          onFocus={(e) => (e.target.style.borderColor = C.accent)}
+          onBlur={(e) =>
+            (e.target.style.borderColor = err ? C.danger : C.border)
+          }
+        />
         {err && (
           <div
             style={{
               color: C.danger,
               fontSize: 13,
-              marginBottom: 14,
+              marginBottom: 12,
               padding: "8px 12px",
               background: `${C.danger}11`,
               borderRadius: 6,
@@ -640,7 +633,6 @@ function LoginScreen({ onLogin }) {
             {err}
           </div>
         )}
-
         <Btn
           variant="accent"
           onClick={submit}
@@ -654,7 +646,7 @@ function LoginScreen({ onLogin }) {
         >
           {loading ? (
             <>
-              <Spinner /> Verifying…
+              <Spinner size={16} /> Verifying…
             </>
           ) : (
             "Sign In →"
@@ -676,7 +668,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState("overview");
   const [search, setSearch] = useState("");
-  const [refreshAt, setRefreshAt] = useState(Date.now());
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [error, setError] = useState("");
 
   const authHeaders = {
     "x-admin-token": token,
@@ -686,6 +679,7 @@ export default function AdminDashboard() {
   const fetchStats = useCallback(async () => {
     if (!token) return;
     setLoading(true);
+    setError("");
     try {
       const res = await fetch(`${BACKEND_URL}/api/admin/stats`, {
         headers: authHeaders,
@@ -694,14 +688,15 @@ export default function AdminDashboard() {
         handleLogout();
         return;
       }
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data = await res.json();
       setStats(data);
     } catch (e) {
-      console.error(e);
+      setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [token, refreshAt]); // eslint-disable-line
+  }, [token, refreshKey]); // eslint-disable-line
 
   useEffect(() => {
     fetchStats();
@@ -724,7 +719,6 @@ export default function AdminDashboard() {
       totalUsers: prev.totalUsers - 1,
     }));
   };
-
   const deletePrediction = async (id) => {
     await fetch(`${BACKEND_URL}/api/admin/predictions/${id}`, {
       method: "DELETE",
@@ -739,7 +733,6 @@ export default function AdminDashboard() {
 
   if (!token) return <LoginScreen onLogin={setToken} />;
 
-  // Filter helpers
   const q = search.toLowerCase();
   const filteredUsers = (stats?.users ?? []).filter(
     (u) =>
@@ -747,7 +740,7 @@ export default function AdminDashboard() {
   );
   const filteredPreds = (stats?.predictions ?? []).filter(
     (p) =>
-      p.crop?.toLowerCase().includes(q) || p.region?.toLowerCase().includes(q),
+      p.crop?.toLowerCase().includes(q) || p.state?.toLowerCase().includes(q),
   );
 
   const TABS = ["overview", "users", "predictions"];
@@ -760,7 +753,7 @@ export default function AdminDashboard() {
         fontFamily: "'Outfit', sans-serif",
       }}
     >
-      {/* ── Top bar ── */}
+      {/* Top bar */}
       <div
         style={{
           position: "sticky",
@@ -779,14 +772,14 @@ export default function AdminDashboard() {
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 20 }}>🌾</span>
           <span style={{ color: C.textMuted, fontSize: 14 }}>AgriSense</span>
-          <span style={{ color: C.border, fontSize: 14 }}>/</span>
+          <span style={{ color: C.border }}>/</span>
           <span style={{ fontSize: 14, fontWeight: 600, color: C.accent }}>
             Admin Dashboard
           </span>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {loading && <Spinner />}
-          <Btn onClick={() => setRefreshAt(Date.now())} disabled={loading}>
+          <Btn onClick={() => setRefreshKey((k) => k + 1)} disabled={loading}>
             ↺ Refresh
           </Btn>
           <Btn
@@ -802,7 +795,24 @@ export default function AdminDashboard() {
       <div
         style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 28px 60px" }}
       >
-        {/* ── Stat cards ── */}
+        {/* Error banner */}
+        {error && (
+          <div
+            style={{
+              background: `${C.danger}11`,
+              border: `1px solid ${C.danger}44`,
+              borderRadius: 8,
+              padding: "12px 16px",
+              marginBottom: 20,
+              color: C.danger,
+              fontSize: 13,
+            }}
+          >
+            ⚠ {error}
+          </div>
+        )}
+
+        {/* Stat cards */}
         <div
           style={{
             display: "grid",
@@ -841,14 +851,13 @@ export default function AdminDashboard() {
           />
         </div>
 
-        {/* ── Tabs ── */}
+        {/* Tabs */}
         <div
           style={{
             display: "flex",
             gap: 4,
             marginBottom: 24,
             borderBottom: `1px solid ${C.border}`,
-            paddingBottom: 0,
           }}
         >
           {TABS.map((t) => (
@@ -882,7 +891,7 @@ export default function AdminDashboard() {
           ))}
         </div>
 
-        {/* ── Overview Tab ── */}
+        {/* Overview */}
         {tab === "overview" && (
           <div
             className="fade-up"
@@ -899,7 +908,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* ── Users Tab ── */}
+        {/* Users */}
         {tab === "users" && (
           <div className="fade-up">
             <SearchBar
@@ -921,12 +930,12 @@ export default function AdminDashboard() {
                           fontSize: 12,
                         }}
                       >
-                        {v}
+                        {v ?? "—"}
                       </span>
                     ),
                   },
                   {
-                    key: "createdAt",
+                    key: "created_at",
                     label: "Joined",
                     render: (v) => (
                       <Badge color={C.textMuted}>{fmtDate(v)}</Badge>
@@ -940,13 +949,13 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* ── Predictions Tab ── */}
+        {/* Predictions */}
         {tab === "predictions" && (
           <div className="fade-up">
             <SearchBar
               value={search}
               onChange={setSearch}
-              placeholder="Search by crop or region…"
+              placeholder="Search by crop or state…"
             />
             <Card style={{ padding: 0, overflow: "hidden" }}>
               <Table
@@ -955,17 +964,21 @@ export default function AdminDashboard() {
                     key: "crop",
                     label: "Crop",
                     render: (v) => (
-                      <span style={{ textTransform: "capitalize" }}>{v}</span>
+                      <span style={{ textTransform: "capitalize" }}>
+                        {v ?? "—"}
+                      </span>
                     ),
                   },
-                  { key: "region", label: "Region" },
+                  { key: "state", label: "State" },
                   {
-                    key: "predictedPrice",
+                    key: "predicted_price",
                     label: "Price",
-                    render: (v) => <Badge color={C.accent}>{fmt(v)}</Badge>,
+                    render: (v) => (
+                      <Badge color={C.accent}>{fmtPrice(v)}</Badge>
+                    ),
                   },
                   {
-                    key: "confidenceScore",
+                    key: "confidence",
                     label: "Confidence",
                     render: (v) => (
                       <div
@@ -977,7 +990,7 @@ export default function AdminDashboard() {
                       >
                         <div
                           style={{
-                            width: 64,
+                            width: 60,
                             height: 4,
                             background: C.border,
                             borderRadius: 2,
@@ -987,11 +1000,11 @@ export default function AdminDashboard() {
                           <div
                             style={{
                               height: "100%",
-                              width: `${(v ?? 0) * 100}%`,
+                              width: `${(Number(v) || 0) * 100}%`,
                               background:
-                                v > 0.7
+                                Number(v) > 0.7
                                   ? C.accent
-                                  : v > 0.4
+                                  : Number(v) > 0.4
                                     ? C.warning
                                     : C.danger,
                               borderRadius: 2,
@@ -1010,7 +1023,7 @@ export default function AdminDashboard() {
                     ),
                   },
                   {
-                    key: "createdAt",
+                    key: "created_at",
                     label: "Date",
                     render: (v) => (
                       <Badge color={C.textMuted}>{fmtDate(v)}</Badge>
@@ -1024,33 +1037,6 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-// ── Search bar ────────────────────────────────────────────────────────────────
-function SearchBar({ value, onChange, placeholder }) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        style={{
-          background: C.surface,
-          border: `1px solid ${C.border}`,
-          borderRadius: 8,
-          padding: "9px 14px",
-          color: C.text,
-          fontSize: 13,
-          fontFamily: "'Outfit', sans-serif",
-          outline: "none",
-          width: "100%",
-          maxWidth: 340,
-        }}
-        onFocus={(e) => (e.target.style.borderColor = C.accent)}
-        onBlur={(e) => (e.target.style.borderColor = C.border)}
-      />
     </div>
   );
 }
