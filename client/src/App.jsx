@@ -1,4 +1,11 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Sidebar from "./components/Sidebar";
@@ -14,7 +21,7 @@ import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import HelpPage from "./pages/HelpPage";
-import { useState, useEffect } from "react";
+import AdminDashboard from "./pages/AdminDashboard";
 
 // ── Breakpoints ───────────────────────────────────────────────────────────────
 function useBreakpoint() {
@@ -35,6 +42,7 @@ function useBreakpoint() {
   return bp;
 }
 
+// ── Loading screen ────────────────────────────────────────────────────────────
 function LoadingScreen() {
   return (
     <div
@@ -64,6 +72,7 @@ function LoadingScreen() {
   );
 }
 
+// ── Route guards ──────────────────────────────────────────────────────────────
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <LoadingScreen />;
@@ -78,6 +87,7 @@ function PublicRoute({ children }) {
   return children;
 }
 
+// ── Global CSS ────────────────────────────────────────────────────────────────
 const GLOBAL_CSS = `
   *, *::before, *::after { box-sizing: border-box; }
   ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -100,13 +110,12 @@ const GLOBAL_CSS = `
   @keyframes spin    { to   { transform: rotate(360deg) } }
 `;
 
+// ── Authenticated app shell (sidebar + navbar + pages) ────────────────────────
 function AppLayout() {
   const { isDark } = useTheme();
   const bp = useBreakpoint();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // desktop = always-visible sidebar, no hamburger
-  // tablet + mobile = drawer with hamburger
   const isDesktop = bp === "desktop";
   const showDrawer = bp === "mobile" || bp === "tablet";
   const isMobile = bp === "mobile";
@@ -114,7 +123,6 @@ function AppLayout() {
 
   const bg = isDark ? "#0f172a" : "#f0fdf4";
 
-  // Close drawer on breakpoint change to desktop
   useEffect(() => {
     if (isDesktop) setSidebarOpen(false);
   }, [isDesktop]);
@@ -130,14 +138,14 @@ function AppLayout() {
     >
       <style>{GLOBAL_CSS}</style>
 
-      {/* ── Desktop: fixed sidebar, always visible, no hamburger ── */}
+      {/* Desktop: fixed sidebar */}
       {isDesktop && (
         <div style={{ width: "224px", flexShrink: 0 }}>
           <Sidebar />
         </div>
       )}
 
-      {/* ── Mobile + Tablet: overlay drawer ── */}
+      {/* Mobile / Tablet: overlay drawer */}
       {showDrawer && sidebarOpen && (
         <>
           <div
@@ -160,7 +168,7 @@ function AppLayout() {
         </>
       )}
 
-      {/* ── Main content ── */}
+      {/* Main content */}
       <div
         style={{
           flex: 1,
@@ -202,12 +210,14 @@ function AppLayout() {
   );
 }
 
+// ── Root ──────────────────────────────────────────────────────────────────────
 export default function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
         <BrowserRouter>
           <Routes>
+            {/* Public routes */}
             <Route
               path="/login"
               element={
@@ -224,6 +234,11 @@ export default function App() {
                 </PublicRoute>
               }
             />
+
+            {/* Admin — completely standalone, no auth guards, no sidebar/navbar */}
+            <Route path="/admin" element={<AdminDashboard />} />
+
+            {/* Protected app shell */}
             <Route
               path="/*"
               element={

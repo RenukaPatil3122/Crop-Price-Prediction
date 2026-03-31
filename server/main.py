@@ -8,6 +8,7 @@ from collections import defaultdict
 import os
 import asyncio
 from dotenv import load_dotenv
+from routes.admin import admin_router   
 
 from data_fetcher import (
     get_current_prices, get_price_history,
@@ -29,8 +30,10 @@ app = FastAPI(title="AgriSense API", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://localhost:3000", "*"],
-    allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
+    allow_credentials=True, allow_methods=["*"], allow_headers=["Content-Type", "Authorization", "x-admin-token"] ,
 )
+
+app.include_router(admin_router, prefix="/api/admin") 
 
 security = HTTPBearer(auto_error=False)
 
